@@ -1,0 +1,14 @@
+name: Deploy
+
+on: [push]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Add deployment steps here
+      - name: Deploy to environment
+        run: echo "Deploying..."
