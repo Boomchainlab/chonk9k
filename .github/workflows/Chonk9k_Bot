@@ -1,0 +1,32 @@
+import requests
+from telegram import Bot
+import time
+
+# API Keys
+CMC_API_KEY = "YOUR_CMC_API_KEY"
+TELEGRAM_BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
+TELEGRAM_CHAT_ID = "YOUR_CHAT_ID"  # Example: "-123456789"
+
+CMC_URL = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest"
+
+def get_chonk9k_price():
+    headers = {"X-CMC_PRO_API_KEY": CMC_API_KEY}
+    params = {"symbol": "CHONK9K"}  # Ensure this matches the CMC listing
+    response = requests.get(CMC_URL, headers=headers, params=params)
+
+    if response.status_code == 200:
+        data = response.json()
+        price = data["data"]["CHONK9K"]["quote"]["USD"]["price"]
+        return f"🚀 CHONK9K Price Update: ${price:.4f} USD"
+    else:
+        return "⚠️ Error fetching price."
+
+def send_telegram_update():
+    bot = Bot(token=TELEGRAM_BOT_TOKEN)
+    message = get_chonk9k_price()
+    bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
+
+# Run every 30 minutes
+while True:
+    send_telegram_update()
+    time.sleep(1800)  # 1800 seconds = 30 minutes
