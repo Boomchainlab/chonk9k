@@ -1,0 +1,44 @@
+name: Node.js CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set Up Node.js 16.20.2
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16.20.2'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Run ESLint
+        run: npx eslint . --ext .js,.ts
+
+      - name: Run Prettier Check
+        run: npx prettier --check .
+
+      - name: Run Tests
+        run: npm test
+
+      - name: Set Up Docker
+        run: |
+          docker build -t my-app .
+          docker run -d -p 3000:3000 my-app
+
+      - name: Deploy to Production
+        if: success()
+        run: npm run deploy
