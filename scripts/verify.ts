@@ -2,7 +2,7 @@
 import { ethers } from "hardhat";
 
 async function main() {
-  const contractAddress = "0x21fa1bf8dc9793971382c89776e623f9177e4e30b24537d1b2f9383dc46a00c6";
+  const contractAddress = "YOUR_DEPLOYED_CONTRACT_ADDRESS"; // Replace this with the address from step 1
   
   const CHONK9K = await ethers.getContractFactory("CHONK9K");
   const token = await CHONK9K.attach(contractAddress);
