@@ -1,7 +1,9 @@
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface TokenBuyFormProps {
   currentPrice: string;
@@ -20,28 +22,27 @@ const TokenBuyForm: React.FC<TokenBuyFormProps> = ({
   totalAmount,
   percentageSold
 }) => {
-  const [ethAmount, setEthAmount] = useState("0.5");
+  const [amount, setAmount] = useState("0.5");
+  const [network, setNetwork] = useState("base");
   const { toast } = useToast();
   
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Only allow numbers and a single decimal point
     const value = e.target.value;
     if (value === "" || /^\d*\.?\d*$/.test(value)) {
-      setEthAmount(value);
+      setAmount(value);
     }
   };
   
   const handleBuyToken = () => {
     toast({
-      title: "Connect Wallet",
+      title: `Connect ${network === 'base' ? 'Base Wallet' : 'Solana Wallet'}`,
       description: "This would connect to your wallet in a real implementation.",
       variant: "default",
     });
   };
   
-  // Calculate token amount based on ETH input and current price
-  const tokenAmount = parseFloat(ethAmount) > 0
-    ? Math.floor(parseFloat(ethAmount) * 0.5 / 0.00000021)
+  const tokenAmount = parseFloat(amount) > 0
+    ? Math.floor(parseFloat(amount) * 0.5 / 0.00000021)
     : 0;
   
   const formattedTokenAmount = tokenAmount.toLocaleString();
@@ -74,31 +75,77 @@ const TokenBuyForm: React.FC<TokenBuyFormProps> = ({
           <span>{percentageSold}% Sold</span>
         </div>
       </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-white text-left mb-2">Amount in ETH</label>
-          <div className="relative">
-            <Input 
-              type="text" 
-              value={ethAmount} 
-              onChange={handleAmountChange}
-              className="w-full bg-dark/40 text-white rounded-lg border border-white/20 p-3 focus:outline-none focus:border-white/50" 
-            />
-            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/70">ETH</div>
-          </div>
-          <div className="text-white/70 text-left text-sm mt-1">≈ {formattedTokenAmount} $CHONK9K</div>
-        </div>
+
+      <Tabs defaultValue="base" className="mb-6" onValueChange={(value) => setNetwork(value)}>
+        <TabsList className="w-full bg-dark/40">
+          <TabsTrigger value="base" className="flex-1">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded-full bg-[#0052FF]"></div>
+              Base Network
+            </div>
+          </TabsTrigger>
+          <TabsTrigger value="solana" className="flex-1">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded-full bg-[#14F195]"></div>
+              Solana Network
+            </div>
+          </TabsTrigger>
+        </TabsList>
         
-        <div className="flex items-end">
-          <Button 
-            className="w-full bg-white hover:bg-white/90 transition text-primary font-['Montserrat'] font-bold py-3 px-6 rounded-lg text-lg" 
-            onClick={handleBuyToken}
-          >
-            Buy $CHONK9K
-          </Button>
-        </div>
-      </div>
+        <TabsContent value="base" className="mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-white text-left mb-2">Amount in ETH</label>
+              <div className="relative">
+                <Input 
+                  type="text" 
+                  value={amount} 
+                  onChange={handleAmountChange}
+                  className="w-full bg-dark/40 text-white rounded-lg border border-white/20 p-3 focus:outline-none focus:border-white/50" 
+                />
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/70">ETH</div>
+              </div>
+              <div className="text-white/70 text-left text-sm mt-1">≈ {formattedTokenAmount} $CHONK9K</div>
+            </div>
+            
+            <div className="flex items-end">
+              <Button 
+                className="w-full bg-[#0052FF] hover:bg-[#0052FF]/90 transition text-white font-['Montserrat'] font-bold py-3 px-6 rounded-lg text-lg" 
+                onClick={handleBuyToken}
+              >
+                Buy on Base
+              </Button>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="solana" className="mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-white text-left mb-2">Amount in SOL</label>
+              <div className="relative">
+                <Input 
+                  type="text" 
+                  value={amount} 
+                  onChange={handleAmountChange}
+                  className="w-full bg-dark/40 text-white rounded-lg border border-white/20 p-3 focus:outline-none focus:border-white/50" 
+                />
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/70">SOL</div>
+              </div>
+              <div className="text-white/70 text-left text-sm mt-1">≈ {formattedTokenAmount} $CHONK9K</div>
+            </div>
+            
+            <div className="flex items-end">
+              <Button 
+                className="w-full bg-[#14F195] hover:bg-[#14F195]/90 transition text-dark font-['Montserrat'] font-bold py-3 px-6 rounded-lg text-lg" 
+                onClick={handleBuyToken}
+              >
+                Buy on Solana
+              </Button>
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
