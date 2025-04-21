@@ -118,11 +118,50 @@ export const triviaAnswers = pgTable("trivia_answers", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Spin Wheel Rewards
+export const spinWheelRewards = pgTable("spin_wheel_rewards", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  description: text("description"),
+  tokenAmount: doublePrecision("token_amount"),
+  probability: doublePrecision("probability").notNull(),
+  color: varchar("color", { length: 50 }).notNull(),
+  icon: varchar("icon", { length: 100 }),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// User Spin History
+export const userSpins = pgTable("user_spins", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  rewardId: integer("reward_id").references(() => spinWheelRewards.id).notNull(),
+  spinDate: timestamp("spin_date").defaultNow(),
+  claimed: boolean("claimed").default(false),
+  claimedDate: timestamp("claimed_date"),
+  transactionHash: varchar("transaction_hash", { length: 255 }),
+});
+
+// Marketplace Listings
+export const marketplaceListings = pgTable("marketplace_listings", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  url: varchar("url", { length: 255 }).notNull(),
+  logo: varchar("logo", { length: 255 }).notNull(),
+  description: text("description"),
+  tradingPair: varchar("trading_pair", { length: 50 }).notNull(),
+  status: varchar("status", { length: 50 }).default("active").notNull(),
+  listedDate: date("listed_date").notNull(),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   tokenPurchases: many(tokenPurchases),
   userBadges: many(userBadges),
   triviaSubmissions: many(triviaSubmissions),
+  userSpins: many(userSpins),
 }));
 
 export const tokenPurchasesRelations = relations(tokenPurchases, ({ one }) => ({
@@ -183,6 +222,21 @@ export const triviaAnswersRelations = relations(triviaAnswers, ({ one }) => ({
   }),
 }));
 
+export const spinWheelRewardsRelations = relations(spinWheelRewards, ({ many }) => ({
+  userSpins: many(userSpins),
+}));
+
+export const userSpinsRelations = relations(userSpins, ({ one }) => ({
+  user: one(users, {
+    fields: [userSpins.userId],
+    references: [users.id],
+  }),
+  reward: one(spinWheelRewards, {
+    fields: [userSpins.rewardId],
+    references: [spinWheelRewards.id],
+  }),
+}));
+
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
 export const insertTokenStatSchema = createInsertSchema(tokenStats).omit({ id: true, timestamp: true });
 export const insertTeamMemberSchema = createInsertSchema(teamMembers).omit({ id: true });
@@ -196,6 +250,13 @@ export const insertTriviaQuizSchema = createInsertSchema(triviaQuizzes).omit({ i
 export const insertTriviaQuestionSchema = createInsertSchema(triviaQuestions).omit({ id: true, createdAt: true });
 export const insertTriviaSubmissionSchema = createInsertSchema(triviaSubmissions).omit({ id: true, submittedAt: true });
 export const insertTriviaAnswerSchema = createInsertSchema(triviaAnswers).omit({ id: true, createdAt: true });
+
+// Spin Wheel schemas
+export const insertSpinWheelRewardSchema = createInsertSchema(spinWheelRewards).omit({ id: true, createdAt: true });
+export const insertUserSpinSchema = createInsertSchema(userSpins).omit({ id: true, spinDate: true, claimedDate: true });
+
+// Marketplace schemas
+export const insertMarketplaceListingSchema = createInsertSchema(marketplaceListings).omit({ id: true, createdAt: true });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -230,3 +291,14 @@ export type TriviaSubmission = typeof triviaSubmissions.$inferSelect;
 
 export type InsertTriviaAnswer = z.infer<typeof insertTriviaAnswerSchema>;
 export type TriviaAnswer = typeof triviaAnswers.$inferSelect;
+
+// Spin Wheel types
+export type InsertSpinWheelReward = z.infer<typeof insertSpinWheelRewardSchema>;
+export type SpinWheelReward = typeof spinWheelRewards.$inferSelect;
+
+export type InsertUserSpin = z.infer<typeof insertUserSpinSchema>;
+export type UserSpin = typeof userSpins.$inferSelect;
+
+// Marketplace types
+export type InsertMarketplaceListing = z.infer<typeof insertMarketplaceListingSchema>;
+export type MarketplaceListing = typeof marketplaceListings.$inferSelect;

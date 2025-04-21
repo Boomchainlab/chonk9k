@@ -9,7 +9,10 @@ import {
   triviaQuizzes, type TriviaQuiz, type InsertTriviaQuiz,
   triviaQuestions, type TriviaQuestion, type InsertTriviaQuestion,
   triviaSubmissions, type TriviaSubmission, type InsertTriviaSubmission,
-  triviaAnswers, type TriviaAnswer, type InsertTriviaAnswer
+  triviaAnswers, type TriviaAnswer, type InsertTriviaAnswer,
+  spinWheelRewards, type SpinWheelReward, type InsertSpinWheelReward,
+  userSpins, type UserSpin, type InsertUserSpin,
+  marketplaceListings, type MarketplaceListing, type InsertMarketplaceListing
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
@@ -74,6 +77,19 @@ export interface IStorage {
   createTriviaAnswer(answer: InsertTriviaAnswer): Promise<TriviaAnswer>;
   calculateTriviaScore(submissionId: number): Promise<number>;
   claimTriviaReward(submissionId: number): Promise<boolean>;
+  
+  // Spin Wheel operations
+  getSpinWheelRewards(activeOnly?: boolean): Promise<SpinWheelReward[]>;
+  getSpinWheelReward(id: number): Promise<SpinWheelReward | undefined>;
+  createSpinWheelReward(reward: InsertSpinWheelReward): Promise<SpinWheelReward>;
+  getUserSpins(userId: number): Promise<UserSpin[]>;
+  createUserSpin(userSpin: InsertUserSpin): Promise<UserSpin>;
+  claimSpinReward(spinId: number, transactionHash: string): Promise<boolean>;
+  
+  // Marketplace operations
+  getMarketplaceListings(activeOnly?: boolean): Promise<MarketplaceListing[]>;
+  getMarketplaceListing(id: number): Promise<MarketplaceListing | undefined>;
+  createMarketplaceListing(listing: InsertMarketplaceListing): Promise<MarketplaceListing>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -472,6 +488,82 @@ export class DatabaseStorage implements IStorage {
     }
     
     return false;
+  }
+  
+  // Spin Wheel operations
+  async getSpinWheelRewards(activeOnly: boolean = false): Promise<SpinWheelReward[]> {
+    if (activeOnly) {
+      return db.select().from(spinWheelRewards).where(eq(spinWheelRewards.isActive, true));
+    }
+    return db.select().from(spinWheelRewards);
+  }
+  
+  async getSpinWheelReward(id: number): Promise<SpinWheelReward | undefined> {
+    const [reward] = await db.select().from(spinWheelRewards).where(eq(spinWheelRewards.id, id));
+    return reward;
+  }
+  
+  async createSpinWheelReward(insertReward: InsertSpinWheelReward): Promise<SpinWheelReward> {
+    const [reward] = await db
+      .insert(spinWheelRewards)
+      .values(insertReward)
+      .returning();
+    return reward;
+  }
+  
+  async getUserSpins(userId: number): Promise<UserSpin[]> {
+    return db.select().from(userSpins).where(eq(userSpins.userId, userId));
+  }
+  
+  async createUserSpin(insertUserSpin: InsertUserSpin): Promise<UserSpin> {
+    const [spin] = await db
+      .insert(userSpins)
+      .values(insertUserSpin)
+      .returning();
+    return spin;
+  }
+  
+  async claimSpinReward(spinId: number, transactionHash: string): Promise<boolean> {
+    const [spin] = await db.select().from(userSpins).where(eq(userSpins.id, spinId));
+    if (!spin || spin.claimed) {
+      return false;
+    }
+    
+    await db
+      .update(userSpins)
+      .set({ 
+        claimed: true, 
+        claimedDate: new Date(), 
+        transactionHash 
+      })
+      .where(eq(userSpins.id, spinId));
+    
+    return true;
+  }
+  
+  // Marketplace operations
+  async getMarketplaceListings(activeOnly: boolean = false): Promise<MarketplaceListing[]> {
+    if (activeOnly) {
+      return db
+        .select()
+        .from(marketplaceListings)
+        .where(eq(marketplaceListings.status, "active"))
+        .orderBy(marketplaceListings.sortOrder);
+    }
+    return db.select().from(marketplaceListings).orderBy(marketplaceListings.sortOrder);
+  }
+  
+  async getMarketplaceListing(id: number): Promise<MarketplaceListing | undefined> {
+    const [listing] = await db.select().from(marketplaceListings).where(eq(marketplaceListings.id, id));
+    return listing;
+  }
+  
+  async createMarketplaceListing(insertListing: InsertMarketplaceListing): Promise<MarketplaceListing> {
+    const [listing] = await db
+      .insert(marketplaceListings)
+      .values(insertListing)
+      .returning();
+    return listing;
   }
 }
 

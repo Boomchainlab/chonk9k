@@ -7,8 +7,10 @@ import {
   insertTriviaQuizSchema, 
   insertTriviaQuestionSchema,
   insertTriviaSubmissionSchema,
-  insertTriviaAnswerSchema
+  insertTriviaAnswerSchema,
+  insertMarketplaceListingSchema
 } from "@shared/schema";
+import { coinMarketCapService } from "./coinmarketcap";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -406,6 +408,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error claiming trivia reward:', error);
       res.status(500).json({ error: 'Failed to claim trivia reward' });
+    }
+  });
+
+  // Marketplace Listing Routes
+  
+  // Get all marketplace listings
+  app.get('/api/marketplace/listings', async (req: Request, res: Response) => {
+    try {
+      const activeOnly = req.query.active === 'true';
+      const listings = await storage.getMarketplaceListings(activeOnly);
+      res.json(listings);
+    } catch (error) {
+      console.error('Error fetching marketplace listings:', error);
+      res.status(500).json({ error: 'Failed to fetch marketplace listings' });
+    }
+  });
+
+  // Get marketplace listing by ID
+  app.get('/api/marketplace/listings/:id', async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'Invalid listing ID' });
+      }
+      
+      const listing = await storage.getMarketplaceListing(id);
+      if (!listing) {
+        return res.status(404).json({ error: 'Marketplace listing not found' });
+      }
+      
+      res.json(listing);
+    } catch (error) {
+      console.error('Error fetching marketplace listing:', error);
+      res.status(500).json({ error: 'Failed to fetch marketplace listing' });
+    }
+  });
+
+  // Create a new marketplace listing
+  app.post('/api/marketplace/listings', async (req: Request, res: Response) => {
+    try {
+      const listingData = insertMarketplaceListingSchema.parse(req.body);
+      const newListing = await storage.createMarketplaceListing(listingData);
+      res.status(201).json(newListing);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      console.error('Error creating marketplace listing:', error);
+      res.status(500).json({ error: 'Failed to create marketplace listing' });
     }
   });
 
