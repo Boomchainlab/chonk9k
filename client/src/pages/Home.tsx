@@ -597,7 +597,8 @@ const Home = () => {
       </footer>
 
       {/* Add custom CSS for animation and gradients */}
-      <style jsx global>{`
+      <style dangerouslySetInnerHTML={{
+        __html: `
         @keyframes bounce {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-20px); }
@@ -643,7 +644,8 @@ const Home = () => {
           z-index: 1;
           position: relative;
         }
-      `}</style>
+        `
+      }} />
     </div>
   );
 };
