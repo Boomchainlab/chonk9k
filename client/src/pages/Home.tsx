@@ -197,7 +197,7 @@ const Home = () => {
             </div>
             
             <div className="w-full md:w-1/2 flex justify-center md:justify-end">
-              <CatLogo size="large" isAnimated={true} />
+              <CatLogo size="large" isAnimated={true} showTwitter={true} />
             </div>
           </div>
           
