@@ -1,114 +1,135 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { MarketplaceListing } from "@shared/schema";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle 
+} from "@/components/ui/card";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
+} from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { ExternalLink } from "lucide-react";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
+import { ExternalLink, Globe, TrendingUp } from "lucide-react";
+import CryptoMarketData from "@/components/CryptoMarketData";
+
+// Format date for display
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+};
 
 export default function Marketplaces() {
-  const isMobile = useIsMobile();
+  const [activeTab, setActiveTab] = useState("token");
   
-  const { data: marketplaces, isLoading } = useQuery({
+  // Fetch marketplace listings from our database
+  const { data: listings, isLoading, error } = useQuery({
     queryKey: ['/api/marketplace/listings'],
-    refetchOnWindowFocus: false,
+    queryFn: () => fetch('/api/marketplace/listings?active=true').then(res => res.json()),
   });
-
+  
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold mb-4">$CHONK9K Token Marketplaces</h1>
-        <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-          Get your $CHONK9K tokens on these exchanges and marketplaces - supporting the vision of 
-          <span className="font-bold text-primary"> David Okeamah</span>'s Chonk9k project.
-        </p>
-      </div>
-
-      {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[...Array(6)].map((_, i) => (
-            <Card key={i} className="overflow-hidden h-[350px]">
-              <CardHeader className="pb-0">
-                <Skeleton className="h-8 w-3/4 mb-2" />
-                <Skeleton className="h-4 w-1/2" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-24 w-full mt-4" />
-                <Skeleton className="h-4 w-3/4 mt-2" />
-                <Skeleton className="h-4 w-1/2 mt-2" />
-              </CardContent>
-              <CardFooter>
-                <Skeleton className="h-10 w-full mt-4" />
-              </CardFooter>
-            </Card>
-          ))}
+      <div className="flex flex-col space-y-8">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Marketplaces & Exchanges</h1>
+          <p className="text-muted-foreground mt-2">
+            Track $Chonk9k token listings and market data across various exchanges.
+          </p>
         </div>
-      ) : (
-        <>
-          {marketplaces && marketplaces.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {marketplaces.map((marketplace: MarketplaceListing) => (
-                <Card key={marketplace.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                  <CardHeader className="pb-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-md overflow-hidden">
+        
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="token">Token Market Data</TabsTrigger>
+            <TabsTrigger value="exchanges">Exchange Listings</TabsTrigger>
+          </TabsList>
+          
+          {/* Token Market Data Tab */}
+          <TabsContent value="token" className="mt-6">
+            <CryptoMarketData tokenSymbol="CHONK9K" />
+          </TabsContent>
+          
+          {/* Exchange Listings Tab */}
+          <TabsContent value="exchanges" className="mt-6">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {isLoading ? (
+                <p>Loading exchange listings...</p>
+              ) : error ? (
+                <p className="text-red-500">Error loading exchange listings</p>
+              ) : listings && Array.isArray(listings) && listings.length > 0 ? (
+                listings.map((listing: any) => (
+                  <Card key={listing.id} className="overflow-hidden transition-all hover:shadow-md">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <div className="flex items-center space-x-2">
+                        <div className="h-10 w-10 overflow-hidden rounded-md">
                           <img 
-                            src={marketplace.logo} 
-                            alt={`${marketplace.name} logo`} 
-                            className="w-full h-full object-cover"
+                            src={listing.logo} 
+                            alt={listing.name} 
+                            className="h-full w-full object-cover"
                           />
                         </div>
-                        <CardTitle>{marketplace.name}</CardTitle>
+                        <CardTitle className="text-xl">{listing.name}</CardTitle>
                       </div>
-                      <Badge variant={marketplace.status === 'active' ? 'default' : 'outline'}>
-                        {marketplace.status === 'active' ? 'Active' : 'Coming Soon'}
-                      </Badge>
-                    </div>
-                    <CardDescription>
-                      Listed on {new Date(marketplace.listedDate).toLocaleDateString()}
-                    </CardDescription>
-                  </CardHeader>
-                  <Separator />
-                  <CardContent className="pt-6">
-                    <div className="mb-4">
-                      <span className="font-semibold">Trading Pair:</span> {marketplace.tradingPair}
-                    </div>
-                    <p className="text-muted-foreground">{marketplace.description}</p>
-                  </CardContent>
-                  <CardFooter>
-                    <Button className="w-full" onClick={() => window.open(marketplace.url, '_blank')}>
-                      <ExternalLink className="mr-2 h-4 w-4" />
-                      Trade on {marketplace.name}
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ))}
+                      <Button variant="outline" size="icon" asChild>
+                        <a href={listing.url} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      </Button>
+                    </CardHeader>
+                    
+                    <CardContent>
+                      <div className="mt-2 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Trading Pair:</span>
+                          <span className="font-medium">{listing.tradingPair}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Listed Since:</span>
+                          <span>{formatDate(listing.listedDate)}</span>
+                        </div>
+                        {listing.description && (
+                          <p className="text-sm text-muted-foreground pt-2">
+                            {listing.description}
+                          </p>
+                        )}
+                      </div>
+                    </CardContent>
+                    
+                    <CardFooter className="border-t bg-muted/50 px-6 py-3">
+                      <a 
+                        href={listing.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex w-full items-center justify-center space-x-2 text-primary"
+                      >
+                        <TrendingUp className="h-4 w-4" />
+                        <span>Trade on {listing.name}</span>
+                      </a>
+                    </CardFooter>
+                  </Card>
+                ))
+              ) : (
+                <div className="col-span-full flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
+                  <Globe className="h-10 w-10 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium">No Exchange Listings Yet</h3>
+                  <p className="text-muted-foreground mt-2">
+                    $Chonk9k is not yet listed on any exchanges. Check back soon for updates!
+                  </p>
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="text-center py-12">
-              <h2 className="text-2xl font-semibold mb-4">Coming Soon!</h2>
-              <p className="text-muted-foreground max-w-2xl mx-auto">
-                We're currently working on listing $CHONK9K on multiple exchanges. 
-                Check back soon for updates on where you can buy and trade your tokens.
-              </p>
-            </div>
-          )}
-          
-          <div className="mt-16 bg-muted rounded-lg p-8 text-center">
-            <h2 className="text-2xl font-bold mb-4">Are you an exchange or marketplace?</h2>
-            <p className="text-lg mb-6 max-w-3xl mx-auto">
-              Interested in listing $CHONK9K on your platform? We're looking to partner with reputable exchanges 
-              to increase liquidity and availability of our token.
-            </p>
-            <Button size="lg" variant="default" onClick={() => window.location.href = "mailto:contact@chonk9k.io"}>
-              Contact Us to List $CHONK9K
-            </Button>
-          </div>
-        </>
-      )}
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 }

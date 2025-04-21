@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import CatLogo from "@/components/CatLogo";
+import BlueCatLogo from "@/components/BlueCatLogo";
 import TokenStats from "@/components/TokenStats";
 import PriceChart from "@/components/PriceChart";
 import Roadmap from "@/components/Roadmap";
@@ -197,7 +197,7 @@ const Home = () => {
             </div>
             
             <div className="w-full md:w-1/2 flex justify-center md:justify-end">
-              <CatLogo size="large" isAnimated={true} showTwitter={true} />
+              <BlueCatLogo size="large" isAnimated={true} showTwitter={true} />
             </div>
           </div>
           
@@ -214,7 +214,7 @@ const Home = () => {
               <div className="relative aspect-video overflow-hidden rounded-2xl shadow-2xl">
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/30 to-[#FFB800]/30"></div>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <CatLogo size="medium" />
+                  <BlueCatLogo size="medium" />
                   <h3 className="font-['Montserrat'] text-white text-2xl ml-4">$CHONK9K</h3>
                 </div>
               </div>

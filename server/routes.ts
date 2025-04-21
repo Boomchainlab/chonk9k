@@ -460,6 +460,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // CoinMarketCap API Routes
+  
+  // Get latest crypto listings
+  app.get('/api/crypto/listings', async (req: Request, res: Response) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 100;
+      const convert = (req.query.convert as string) || 'USD';
+      
+      const listings = await coinMarketCapService.getLatestListings(limit, convert);
+      res.json(listings);
+    } catch (error) {
+      console.error('Error fetching crypto listings:', error);
+      res.status(500).json({ error: 'Failed to fetch crypto listings' });
+    }
+  });
+
+  // Search for specific cryptocurrency
+  app.get('/api/crypto/search/:symbol', async (req: Request, res: Response) => {
+    try {
+      const symbol = req.params.symbol.toUpperCase();
+      const convert = (req.query.convert as string) || 'USD';
+      
+      const result = await coinMarketCapService.searchCryptocurrency(symbol, convert);
+      res.json(result);
+    } catch (error) {
+      console.error('Error searching for cryptocurrency:', error);
+      res.status(500).json({ error: 'Failed to search for cryptocurrency' });
+    }
+  });
+
+  // Get exchanges
+  app.get('/api/crypto/exchanges', async (req: Request, res: Response) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 100;
+      
+      const exchanges = await coinMarketCapService.getExchanges(limit);
+      res.json(exchanges);
+    } catch (error) {
+      console.error('Error fetching exchanges:', error);
+      res.status(500).json({ error: 'Failed to fetch exchanges' });
+    }
+  });
+
+  // Get market pairs for a specific cryptocurrency
+  app.get('/api/crypto/market-pairs/:symbol', async (req: Request, res: Response) => {
+    try {
+      const symbol = req.params.symbol.toUpperCase();
+      const limit = parseInt(req.query.limit as string) || 100;
+      
+      const marketPairs = await coinMarketCapService.getMarketPairs(symbol, limit);
+      res.json(marketPairs);
+    } catch (error) {
+      console.error('Error fetching market pairs:', error);
+      res.status(500).json({ error: 'Failed to fetch market pairs' });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
