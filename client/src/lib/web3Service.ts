@@ -101,7 +101,7 @@ class Web3Service {
       
       // Get network information
       const network = await provider.getNetwork();
-      const chainId = network.chainId;
+      const chainId = Number(network.chainId);
       
       // Create contract instance
       const tokenContract = new ethers.Contract(CONTRACT_ADDRESS, tokenABI, signer);
@@ -120,7 +120,7 @@ class Web3Service {
         signer,
         tokenContract,
         address,
-        chainId: Number(chainId),
+        chainId,
         connected: true,
         balance,
         tokenBalance
@@ -258,12 +258,11 @@ class Web3Service {
       
       // In a real implementation, this would call a swap function on the contract
       // For now, we'll simulate the purchase with a direct transfer to a treasury address
-      const treasuryAddress = "0xTreasuryAddressHere"; // Replace with actual treasury address
+      const treasuryAddress = "0x1234567890123456789012345678901234567890"; // Placeholder treasury address
       
       const tx = await this.state.signer.sendTransaction({
         to: treasuryAddress,
-        value: ethAmount,
-        gasLimit: 100000n
+        value: ethAmount
       });
       
       await tx.wait();
@@ -302,7 +301,7 @@ class Web3Service {
       
       // In a real implementation, this would call a swap function on the contract
       // For now, we'll simulate the sell with a token transfer
-      const treasuryAddress = "0xTreasuryAddressHere"; // Replace with actual treasury address
+      const treasuryAddress = "0x1234567890123456789012345678901234567890"; // Placeholder treasury address
       
       const tx = await this.state.tokenContract.transfer(treasuryAddress, amountToSell);
       await tx.wait();

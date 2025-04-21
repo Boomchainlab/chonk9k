@@ -95,9 +95,9 @@ const Home = () => {
   // Team members
   const teamMembers = [
     {
-      name: "Crypto Whiskers",
-      role: "Founder & Lead Developer",
-      bio: "Blockchain developer with 6+ years experience. Previously worked on multiple successful DeFi protocols.",
+      name: "David Okeamah",
+      role: "Founder & CEO",
+      bio: "Visionary crypto entrepreneur and blockchain expert. The mastermind behind the Chonk9k revolution.",
       socials: {
         twitter: "#",
         github: "#",
@@ -585,6 +585,9 @@ const Home = () => {
           <div className="text-center pt-8 border-t border-gray-800">
             <p className="text-gray-400 text-sm">
               &copy; 2024 $CHONK9K. All rights reserved. The Chonkpump 9000 token for entertainment purposes only.
+            </p>
+            <p className="text-primary font-semibold text-sm mt-2">
+              Founded by David Okeamah
             </p>
             <p className="text-gray-600 text-xs mt-2">
               Cryptocurrencies are volatile and high-risk investments. Always do your own research.

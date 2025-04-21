@@ -339,25 +339,16 @@ export class DatabaseStorage implements IStorage {
         category: insertQuestion.category
       };
       
-      // Execute a raw query for insertion
-      const result = await db.execute(`
-        INSERT INTO trivia_questions 
-        (quiz_id, question, options, correct_answer, explanation, points, category)
-        VALUES 
-        ($1, $2, $3::json, $4, $5, $6, $7)
-        RETURNING *
-      `, [
-        data.quiz_id,
-        data.question,
-        data.options,
-        data.correct_answer,
-        data.explanation,
-        data.points,
-        data.category
-      ]);
+      // Just use the original insertQuestion to avoid schema conversion issues
+      const [result] = await db
+        .insert(triviaQuestions)
+        .values({
+          ...insertQuestion
+        })
+        .returning();
       
       // Return the created question
-      return result.rows[0] as TriviaQuestion;
+      return result;
     } catch (error) {
       console.error('Error creating trivia question:', error);
       throw error;

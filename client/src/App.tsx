@@ -16,9 +16,12 @@ function Header() {
     <header className="bg-orange-500 text-white shadow-md">
       <div className="container mx-auto px-4 py-4">
         <div className="flex justify-between items-center">
-          <Link href="/" className="text-2xl font-bold hover:text-orange-100 transition-colors">
-            Chonk9k
-          </Link>
+          <div className="flex items-center">
+            <Link href="/" className="text-2xl font-bold hover:text-orange-100 transition-colors">
+              Chonk9k
+            </Link>
+            <span className="ml-2 text-xs md:text-sm opacity-90">by David Okeamah</span>
+          </div>
           
           <nav className="flex space-x-4">
             <Link href="/" className="hover:text-orange-100 transition-colors">
