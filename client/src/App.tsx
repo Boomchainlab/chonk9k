@@ -6,6 +6,9 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import Profile from "@/pages/Profile";
 import BadgeAdmin from "@/pages/BadgeAdmin";
+import TriviaPage from "@/pages/TriviaPage";
+import TriviaAdmin from "@/pages/TriviaAdmin";
+import CryptoPayments from "@/pages/CryptoPayments";
 
 // Header component with navigation
 function Header() {
@@ -17,15 +20,24 @@ function Header() {
             Chonk9k
           </Link>
           
-          <nav className="flex space-x-6">
+          <nav className="flex space-x-4">
             <Link href="/" className="hover:text-orange-100 transition-colors">
               Home
+            </Link>
+            <Link href="/crypto" className="hover:text-orange-100 transition-colors">
+              Buy/Sell
+            </Link>
+            <Link href="/trivia" className="hover:text-orange-100 transition-colors">
+              Trivia
             </Link>
             <Link href="/profile/1" className="hover:text-orange-100 transition-colors">
               Profile
             </Link>
             <Link href="/badges/admin" className="hover:text-orange-100 transition-colors">
               Badge Admin
+            </Link>
+            <Link href="/trivia/admin" className="hover:text-orange-100 transition-colors">
+              Trivia Admin
             </Link>
           </nav>
         </div>
@@ -41,6 +53,9 @@ function Router() {
       <main className="min-h-screen">
         <Switch>
           <Route path="/" component={Home} />
+          <Route path="/crypto" component={CryptoPayments} />
+          <Route path="/trivia" component={TriviaPage} />
+          <Route path="/trivia/admin" component={TriviaAdmin} />
           <Route path="/profile/:userId" component={Profile} />
           <Route path="/badges/admin" component={BadgeAdmin} />
           <Route component={NotFound} />

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, doublePrecision, timestamp, varchar, json } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, doublePrecision, timestamp, varchar, json, date } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -74,10 +74,55 @@ export const userBadges = pgTable("user_badges", {
   displayed: boolean("displayed").default(true),
 });
 
+// Trivia-related tables
+export const triviaQuizzes = pgTable("trivia_quizzes", {
+  id: serial("id").primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description").notNull(),
+  rewardAmount: doublePrecision("reward_amount").notNull(),
+  startDate: date("start_date").notNull(),
+  endDate: date("end_date").notNull(),
+  isActive: boolean("is_active").default(true),
+  difficulty: varchar("difficulty", { length: 50 }).notNull(), // easy, medium, hard
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const triviaQuestions = pgTable("trivia_questions", {
+  id: serial("id").primaryKey(),
+  quizId: integer("quiz_id").references(() => triviaQuizzes.id).notNull(),
+  question: text("question").notNull(),
+  options: json("options").$type<string[]>().notNull(), // Array of possible answers
+  correctAnswer: integer("correct_answer").notNull(), // Index of the correct answer in the options array
+  explanation: text("explanation"),
+  points: integer("points").default(1).notNull(),
+  category: varchar("category", { length: 100 }).notNull(), // e.g., "blockchain", "defi", "nft", etc.
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const triviaSubmissions = pgTable("trivia_submissions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  quizId: integer("quiz_id").references(() => triviaQuizzes.id).notNull(),
+  score: integer("score").notNull(),
+  completed: boolean("completed").default(false),
+  rewardClaimed: boolean("reward_claimed").default(false),
+  submittedAt: timestamp("submitted_at").defaultNow(),
+});
+
+export const triviaAnswers = pgTable("trivia_answers", {
+  id: serial("id").primaryKey(),
+  submissionId: integer("submission_id").references(() => triviaSubmissions.id).notNull(),
+  questionId: integer("question_id").references(() => triviaQuestions.id).notNull(),
+  selectedAnswer: integer("selected_answer").notNull(),
+  isCorrect: boolean("is_correct").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   tokenPurchases: many(tokenPurchases),
   userBadges: many(userBadges),
+  triviaSubmissions: many(triviaSubmissions),
 }));
 
 export const tokenPurchasesRelations = relations(tokenPurchases, ({ one }) => ({
@@ -102,6 +147,42 @@ export const userBadgesRelations = relations(userBadges, ({ one }) => ({
   }),
 }));
 
+export const triviaQuizzesRelations = relations(triviaQuizzes, ({ many }) => ({
+  questions: many(triviaQuestions),
+  submissions: many(triviaSubmissions),
+}));
+
+export const triviaQuestionsRelations = relations(triviaQuestions, ({ one, many }) => ({
+  quiz: one(triviaQuizzes, {
+    fields: [triviaQuestions.quizId],
+    references: [triviaQuizzes.id],
+  }),
+  answers: many(triviaAnswers),
+}));
+
+export const triviaSubmissionsRelations = relations(triviaSubmissions, ({ one, many }) => ({
+  user: one(users, {
+    fields: [triviaSubmissions.userId],
+    references: [users.id],
+  }),
+  quiz: one(triviaQuizzes, {
+    fields: [triviaSubmissions.quizId],
+    references: [triviaQuizzes.id],
+  }),
+  answers: many(triviaAnswers),
+}));
+
+export const triviaAnswersRelations = relations(triviaAnswers, ({ one }) => ({
+  submission: one(triviaSubmissions, {
+    fields: [triviaAnswers.submissionId],
+    references: [triviaSubmissions.id],
+  }),
+  question: one(triviaQuestions, {
+    fields: [triviaAnswers.questionId],
+    references: [triviaQuestions.id],
+  }),
+}));
+
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
 export const insertTokenStatSchema = createInsertSchema(tokenStats).omit({ id: true, timestamp: true });
 export const insertTeamMemberSchema = createInsertSchema(teamMembers).omit({ id: true });
@@ -109,6 +190,12 @@ export const insertRoadmapItemSchema = createInsertSchema(roadmapItems).omit({ i
 export const insertTokenPurchaseSchema = createInsertSchema(tokenPurchases).omit({ id: true, purchaseDate: true });
 export const insertBadgeSchema = createInsertSchema(badges).omit({ id: true, createdAt: true });
 export const insertUserBadgeSchema = createInsertSchema(userBadges).omit({ id: true, earnedAt: true });
+
+// Trivia schemas
+export const insertTriviaQuizSchema = createInsertSchema(triviaQuizzes).omit({ id: true, createdAt: true });
+export const insertTriviaQuestionSchema = createInsertSchema(triviaQuestions).omit({ id: true, createdAt: true });
+export const insertTriviaSubmissionSchema = createInsertSchema(triviaSubmissions).omit({ id: true, submittedAt: true });
+export const insertTriviaAnswerSchema = createInsertSchema(triviaAnswers).omit({ id: true, createdAt: true });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -130,3 +217,16 @@ export type Badge = typeof badges.$inferSelect;
 
 export type InsertUserBadge = z.infer<typeof insertUserBadgeSchema>;
 export type UserBadge = typeof userBadges.$inferSelect;
+
+// Trivia types
+export type InsertTriviaQuiz = z.infer<typeof insertTriviaQuizSchema>;
+export type TriviaQuiz = typeof triviaQuizzes.$inferSelect;
+
+export type InsertTriviaQuestion = z.infer<typeof insertTriviaQuestionSchema>;
+export type TriviaQuestion = typeof triviaQuestions.$inferSelect;
+
+export type InsertTriviaSubmission = z.infer<typeof insertTriviaSubmissionSchema>;
+export type TriviaSubmission = typeof triviaSubmissions.$inferSelect;
+
+export type InsertTriviaAnswer = z.infer<typeof insertTriviaAnswerSchema>;
+export type TriviaAnswer = typeof triviaAnswers.$inferSelect;

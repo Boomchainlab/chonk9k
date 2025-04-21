@@ -1,11 +1,29 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { ClassValue, clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
+// Website and contract info
+export const WEBSITE_URL = 'https://boomchainlabgravatar.link';
+export const CONTRACT_ADDRESS = '0x0000000000000000000000000000000000000000'; // Placeholder, update with real contract
+
+// Utility function to combine Tailwind CSS classes
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
-export const CONTRACT_ADDRESS = "<DEPLOYED_CONTRACT_ADDRESS>";
-export const SOLANA_CONTRACT_ADDRESS = "DnUsQnwNot38V9JbisNC18VHZkae1eKK5N2Dgy55pump";
-export const SOLANA_NETWORK = "mainnet-beta";
-export const SOLANA_RPC_URL = "https://api.mainnet-beta.solana.com";
+// Utility function to format large numbers
+export function formatNumber(num: number | string, options: Intl.NumberFormatOptions = {}) {
+  const parsedNum = typeof num === 'string' ? parseFloat(num) : num;
+  return new Intl.NumberFormat('en-US', options).format(parsedNum);
+}
+
+// Utility function to truncate text
+export function truncateText(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength)}...`;
+}
+
+// Format address for display
+export function formatAddress(address: string | null): string {
+  if (!address) return '';
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
