@@ -1,4 +1,4 @@
-name: Use Metadata from Reusable Workflow
+name: Use Metadata + Changelog
 
 on: push
 
@@ -10,14 +10,13 @@ jobs:
     needs: metadata
     runs-on: ubuntu-latest
     steps:
-      - name: Download metadata artifact
+      - name: Download build assets
         uses: actions/download-artifact@v4
         with:
-          name: build-metadata
+          name: build-assets
 
-      - name: Load and display metadata
+      - name: View metadata and changelog
         run: |
-          source metadata.env
-          echo "Build Time: $BUILD_TIMESTAMP"
-          echo "Branch: $BRANCH_NAME"
-          echo "Commit: $SHORT_SHA"
+          cat metadata.env
+          echo "---"
+          cat CHANGELOG.md
