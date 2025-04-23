@@ -1,0 +1,23 @@
+name: Use Metadata from Reusable Workflow
+
+on: push
+
+jobs:
+  metadata:
+    uses: Boomchainlab/.github/.github/workflows/set-build-metadata.yml@main
+
+  deploy:
+    needs: metadata
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download metadata artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-metadata
+
+      - name: Load and display metadata
+        run: |
+          source metadata.env
+          echo "Build Time: $BUILD_TIMESTAMP"
+          echo "Branch: $BRANCH_NAME"
+          echo "Commit: $SHORT_SHA"
