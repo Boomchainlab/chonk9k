@@ -20,3 +20,6 @@ RUN solana config set --url https://api.mainnet-beta.solana.com
 
 # Configure wallet (replace with actual keypair path)
 # RUN solana config set --keypair /path/to/your/keypair.json
+
+# Create Solana token account
+RUN spl-token create-account DnUsQnwNot38V9JbisNC18VHZkae1eKK5N2Dgy55pump
