@@ -39,6 +39,9 @@ jobs:
       - name: Run Tests
         run: npm test
 
+      - name: Build Project
+        run: npm run build
+
       - name: Set Up Docker
         run: |
           docker build -t my-app .
