@@ -1,4 +1,3 @@
-
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
@@ -7,23 +6,43 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract CHONK9K is ERC20, Ownable {
     uint256 private constant TOTAL_SUPPLY = 9_000_000_000 * 10**18; // 9B tokens
-    uint256 public constant BURN_FEE = 100; // 1%
-    uint256 public constant DEV_FEE = 100;  // 1%
+    uint256 public burnFee = 100; // 1%
+    uint256 public devFee = 100;  // 1%
+    uint256 private constant FEE_DENOMINATOR = 10000;
 
-    constructor() ERC20("Chonk9k Token", "CHONK9K") Ownable(msg.sender) {
+    event Burn(address indexed from, uint256 amount);
+    event DevFee(address indexed from, address indexed dev, uint256 amount);
+
+    constructor() ERC20("Chonk9k Token", "CHONK9K") {
         _mint(msg.sender, TOTAL_SUPPLY);
+    }
+
+    function setFees(uint256 _burnFee, uint256 _devFee) external onlyOwner {
+        require(_burnFee + _devFee <= FEE_DENOMINATOR, "Total fees too high");
+        burnFee = _burnFee;
+        devFee = _devFee;
     }
 
     function _transfer(address sender, address recipient, uint256 amount) internal virtual override {
         require(sender != address(0), "Transfer from zero address");
         require(recipient != address(0), "Transfer to zero address");
 
-        uint256 burnAmount = (amount * BURN_FEE) / 10000;
-        uint256 devAmount = (amount * DEV_FEE) / 10000;
+        // Calculate fees
+        uint256 burnAmount = (amount * burnFee) / FEE_DENOMINATOR;
+        uint256 devAmount = (amount * devFee) / FEE_DENOMINATOR;
         uint256 transferAmount = amount - burnAmount - devAmount;
 
-        super._transfer(sender, address(0), burnAmount); // Burn
-        super._transfer(sender, owner(), devAmount);     // Dev fee
+        // Transfer tokens
         super._transfer(sender, recipient, transferAmount);
+
+        if (burnAmount > 0) {
+            _burn(sender, burnAmount); // Use `_burn` for clarity
+            emit Burn(sender, burnAmount);
+        }
+
+        if (devAmount > 0) {
+            super._transfer(sender, owner(), devAmount);
+            emit DevFee(sender, owner(), devAmount);
+        }
     }
 }
