@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -28,21 +27,17 @@ contract CHONK9K is ERC20, Ownable {
         require(recipient != address(0), "Transfer to zero address");
 
         // Calculate fees
+        uint256 totalFee = (amount * (burnFee + devFee)) / FEE_DENOMINATOR;
         uint256 burnAmount = (amount * burnFee) / FEE_DENOMINATOR;
-        uint256 devAmount = (amount * devFee) / FEE_DENOMINATOR;
-        uint256 transferAmount = amount - burnAmount - devAmount;
+        uint256 transferAmount = amount - totalFee;
 
         // Transfer tokens
+        super._transfer(sender, address(0), burnAmount); // Burn
+        emit Burn(sender, burnAmount);
+
+        super._transfer(sender, owner(), totalFee - burnAmount); // Dev fee
+        emit DevFee(sender, owner(), totalFee - burnAmount);
+
         super._transfer(sender, recipient, transferAmount);
-
-        if (burnAmount > 0) {
-            _burn(sender, burnAmount); // Use `_burn` for clarity
-            emit Burn(sender, burnAmount);
-        }
-
-        if (devAmount > 0) {
-            super._transfer(sender, owner(), devAmount);
-            emit DevFee(sender, owner(), devAmount);
-        }
     }
 }
