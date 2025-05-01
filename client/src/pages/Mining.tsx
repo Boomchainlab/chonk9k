@@ -56,9 +56,7 @@ export default function Mining() {
   const { data: userRigs, isLoading: isLoadingUserRigs } = useQuery({
     queryKey: ['/api/mining/user-rigs', userId],
     queryFn: async () => {
-      const res = await apiRequest('GET', `/api/mining/user-rigs?userId=${userId}`, {});
-      const data = await res.json();
-      return data as UserMiningRig[];
+      return apiRequest<UserMiningRig[]>(`/api/mining/user-rigs?userId=${userId}`);
     },
   });
   
@@ -66,9 +64,7 @@ export default function Mining() {
   const { data: availableRigs, isLoading: isLoadingRigs } = useQuery({
     queryKey: ['/api/mining/rigs', true],
     queryFn: async () => {
-      const res = await apiRequest('GET', '/api/mining/rigs?available=true', {});
-      const data = await res.json();
-      return data as MiningRig[];
+      return apiRequest<MiningRig[]>('/api/mining/rigs?available=true');
     },
   });
   
@@ -76,17 +72,18 @@ export default function Mining() {
   const { data: miningRewards, isLoading: isLoadingRewards } = useQuery({
     queryKey: ['/api/mining/rewards', userId],
     queryFn: async () => {
-      const res = await apiRequest('GET', `/api/mining/rewards?userId=${userId}`, {});
-      const data = await res.json();
-      return data as MiningReward[];
+      return apiRequest<MiningReward[]>(`/api/mining/rewards?userId=${userId}`);
     },
   });
   
   // Purchase a mining rig
   const purchaseMutation = useMutation({
     mutationFn: async (rigId: number) => {
-      const res = await apiRequest('POST', '/api/mining/purchase', { userId, rigId });
-      return res.json();
+      return apiRequest('/api/mining/purchase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, rigId })
+      });
     },
     onSuccess: () => {
       toast({
@@ -108,8 +105,10 @@ export default function Mining() {
   // Claim mining rewards
   const claimRewardsMutation = useMutation({
     mutationFn: async (userRigId: number) => {
-      const res = await apiRequest('POST', `/api/mining/claim/${userRigId}`, {});
-      return res.json();
+      return apiRequest(`/api/mining/claim/${userRigId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
     },
     onSuccess: (data) => {
       toast({
@@ -132,8 +131,11 @@ export default function Mining() {
   // Toggle mining rig status (active/inactive)
   const toggleStatusMutation = useMutation({
     mutationFn: async ({ userRigId, isActive }: { userRigId: number; isActive: boolean }) => {
-      const res = await apiRequest('POST', `/api/mining/rigs/${userRigId}/status`, { isActive });
-      return res.json();
+      return apiRequest(`/api/mining/rigs/${userRigId}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive })
+      });
     },
     onSuccess: (data) => {
       toast({
@@ -269,7 +271,7 @@ export default function Mining() {
                     </Button>
                     <Button 
                       onClick={() => handleClaimRewards(userRig.id)}
-                      disabled={userRig.lastRewardDate && calculateTimeUntilNextClaim(userRig.lastRewardDate) !== 'Ready to claim!'}
+                      disabled={!!userRig.lastRewardDate && calculateTimeUntilNextClaim(userRig.lastRewardDate) !== 'Ready to claim!'}
                       className="ml-2"
                     >
                       <CoinsIcon className="w-4 h-4 mr-2" /> Claim Rewards
