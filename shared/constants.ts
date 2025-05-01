@@ -6,8 +6,9 @@ export const CONTRACT_ADDRESSES = {
   },
   // Solana Mainnet
   SOLANA: {
-    CHONK9K: "atqLmwzsQ7oMX4aMPjCn3seH5c3Ep4bztg3p3hWJsgJ",  // Latest mainnet attempt
+    CHONK9K: "51ey1T4UCFwb8poVBwyiLwwi1KdNTrZ8rSg7kBRmqray",  // Official mainnet address
     CHONK9K_ALT: [
+      "atqLmwzsQ7oMX4aMPjCn3seH5c3Ep4bztg3p3hWJsgJ",  // Previous mainnet attempt
       "EkA1RBVFGrHRPxpXB1yfmbX7W3ZB8eF8uipgytLdyBzQ",  // First mainnet attempt
       "GUUFYDkp5KuNieRARo8EoGPhN1yuJFVX3eRfChLMCbav"   // Second mainnet attempt
     ]
@@ -21,10 +22,10 @@ export const CONTRACT_ADDRESSES = {
 // Token metadata
 export const TOKEN_METADATA = {
   CHONK9K: {
-    name: "Chonk9k Token",
+    name: "CHONK 9000",
     symbol: "CHONK9K",
     decimals: 9,
-    totalSupply: "9000000000",
+    totalSupply: "1000000000",
     website: "https://boomchainlabgravatar.link",
     socials: {
       twitter: "https://twitter.com/chonk9k",

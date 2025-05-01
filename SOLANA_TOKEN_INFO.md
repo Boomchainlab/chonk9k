@@ -2,7 +2,7 @@
 
 ## Token Details
 
-- **Token Name**: Chonk9k Token
+- **Token Name**: CHONK 9000
 - **Symbol**: CHONK9K
 - **Decimals**: 9
 - **Total Supply**: 9,000,000,000
@@ -13,13 +13,13 @@
 ## Token Address
 
 ```
-atqLmwzsQ7oMX4aMPjCn3seH5c3Ep4bztg3p3hWJsgJ
+51ey1T4UCFwb8poVBwyiLwwi1KdNTrZ8rSg7kBRmqray
 ```
 
 ## Explorer Links
 
-- [Solscan](https://solscan.io/token/atqLmwzsQ7oMX4aMPjCn3seH5c3Ep4bztg3p3hWJsgJ)
-- [Solana Explorer](https://explorer.solana.com/address/atqLmwzsQ7oMX4aMPjCn3seH5c3Ep4bztg3p3hWJsgJ)
+- [Solscan](https://solscan.io/token/51ey1T4UCFwb8poVBwyiLwwi1KdNTrZ8rSg7kBRmqray)
+- [Solana Explorer](https://explorer.solana.com/address/51ey1T4UCFwb8poVBwyiLwwi1KdNTrZ8rSg7kBRmqray)
 
 ## Deployment Information
 
@@ -32,11 +32,12 @@ Note: These token addresses were generated in earlier deployment attempts:
 
 1. First attempt: `EkA1RBVFGrHRPxpXB1yfmbX7W3ZB8eF8uipgytLdyBzQ`
 2. Second attempt: `GUUFYDkp5KuNieRARo8EoGPhN1yuJFVX3eRfChLMCbav`
+3. Third attempt: `atqLmwzsQ7oMX4aMPjCn3seH5c3Ep4bztg3p3hWJsgJ`
 
 ## Trading Information
 
-- **DEX**: [Raydium](https://raydium.io/swap/?inputCurrency=sol&outputCurrency=atqLmwzsQ7oMX4aMPjCn3seH5c3Ep4bztg3p3hWJsgJ)
-- **Aggregator**: [Jupiter](https://jup.ag/swap/SOL-atqLmwzsQ7oMX4aMPjCn3seH5c3Ep4bztg3p3hWJsgJ)
+- **DEX**: [Raydium](https://raydium.io/swap/?inputCurrency=sol&outputCurrency=51ey1T4UCFwb8poVBwyiLwwi1KdNTrZ8rSg7kBRmqray)
+- **Aggregator**: [Jupiter](https://jup.ag/swap/SOL-51ey1T4UCFwb8poVBwyiLwwi1KdNTrZ8rSg7kBRmqray)
 
 ## Tokenomics
 

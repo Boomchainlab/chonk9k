@@ -4,7 +4,9 @@
 
 ### Basic Information
 
-- **Contract Address**: `atqLmwzsQ7oMX4aMPjCn3seH5c3Ep4bztg3p3hWJsgJ`
+- **Token Name**: CHONK 9000
+- **Token Symbol**: CHONK9K
+- **Contract Address**: `51ey1T4UCFwb8poVBwyiLwwi1KdNTrZ8rSg7kBRmqray`
 - **Token Type**: Solana Program Library (SPL) Token
 - **Total Supply**: 9,000,000,000 (9 billion) CHONK9K
 - **Decimals**: 9
