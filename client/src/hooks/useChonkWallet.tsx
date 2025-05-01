@@ -1,172 +1,88 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { ethers } from 'ethers';
-import { useToast } from "@/hooks/use-toast";
+import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 
-interface ChonkWalletContextType {
-  account: string;
-  provider: ethers.BrowserProvider | null;
-  isConnecting: boolean;
-  chainId: number | null;
-  balance: string;
+interface WalletContextType {
+  account: string | null;
+  chainId: string | null;
   connectWallet: () => Promise<void>;
   disconnectWallet: () => void;
+  isConnecting: boolean;
 }
 
-const ChonkWalletContext = createContext<ChonkWalletContextType>({
-  account: '',
-  provider: null,
-  isConnecting: false,
+const defaultContext: WalletContextType = {
+  account: null,
   chainId: null,
-  balance: '',
   connectWallet: async () => {},
-  disconnectWallet: () => {}
-});
+  disconnectWallet: () => {},
+  isConnecting: false,
+};
 
-export const useChonkWallet = () => useContext(ChonkWalletContext);
+const WalletContext = createContext<WalletContextType>(defaultContext);
 
-interface ChonkWalletProviderProps {
-  children: ReactNode;
-}
+export const WalletProvider = ({ children }: { children: ReactNode }) => {
+  const [account, setAccount] = useState<string | null>(null);
+  const [chainId, setChainId] = useState<string | null>(null);
+  const [isConnecting, setIsConnecting] = useState(false);
 
-export const ChonkWalletProvider = ({ children }: ChonkWalletProviderProps) => {
-  const [account, setAccount] = useState<string>('');
-  const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
-  const [isConnecting, setIsConnecting] = useState<boolean>(false);
-  const [chainId, setChainId] = useState<number | null>(null);
-  const [balance, setBalance] = useState<string>('');
-  const { toast } = useToast();
-
-  // Check for existing connection
+  // Check for stored wallet connection on mount
   useEffect(() => {
-    const checkConnection = async () => {
-      if (window.ethereum) {
-        try {
-          const ethProvider = new ethers.BrowserProvider(window.ethereum);
-          const accounts = await ethProvider.listAccounts();
-          
-          if (accounts.length > 0) {
-            setProvider(ethProvider);
-            setAccount(accounts[0].address);
-            updateWalletInfo(accounts[0].address, ethProvider);
-          }
-        } catch (error) {
-          console.error("Error checking wallet connection:", error);
-        }
-      }
-    };
-
-    checkConnection();
+    const savedAccount = localStorage.getItem('chonk9k_wallet_address');
+    const savedChainId = localStorage.getItem('chonk9k_chain_id');
+    
+    if (savedAccount) {
+      setAccount(savedAccount);
+      setChainId(savedChainId);
+    }
   }, []);
 
-  // Listen for account changes
-  useEffect(() => {
-    if (window.ethereum) {
-      const handleAccountsChanged = (accounts: string[]) => {
-        if (accounts.length > 0) {
-          setAccount(accounts[0]);
-          if (provider) {
-            updateWalletInfo(accounts[0], provider);
-          }
-        } else {
-          disconnectWallet();
-        }
-      };
-
-      const handleChainChanged = (chainIdHex: string) => {
-        setChainId(parseInt(chainIdHex, 16));
-        window.location.reload();
-      };
-
-      if (window.ethereum) {
-        window.ethereum.on('accountsChanged', handleAccountsChanged);
-        window.ethereum.on('chainChanged', handleChainChanged);
-      }
-
-      return () => {
-        if (window.ethereum) {
-          window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
-          window.ethereum.removeListener('chainChanged', handleChainChanged);
-        }
-      };
-    }
-  }, [provider]);
-
-  const updateWalletInfo = async (walletAddress: string, provider: ethers.BrowserProvider) => {
-    try {
-      const network = await provider.getNetwork();
-      setChainId(Number(network.chainId));
-
-      const balance = await provider.getBalance(walletAddress);
-      setBalance(ethers.formatEther(balance));
-    } catch (error) {
-      console.error("Error updating wallet info:", error);
-    }
-  };
-
   const connectWallet = async () => {
-    if (!window.ethereum) {
-      toast({
-        title: "No Ethereum Wallet Found",
-        description: "Please install MetaMask or another Ethereum wallet provider.",
-        variant: "destructive"
-      });
-      return;
-    }
-
+    setIsConnecting(true);
+    
     try {
-      setIsConnecting(true);
+      // In a real implementation, this would connect to an actual wallet
+      // For demonstration, we'll simulate a successful connection
       
-      const ethProvider = new ethers.BrowserProvider(window.ethereum);
-      const accounts = await ethProvider.send("eth_requestAccounts", []);
+      // Simulating delay for connection
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      setProvider(ethProvider);
-      setAccount(accounts[0]);
+      // Create a random wallet address for simulation
+      const mockAddress = '0x' + Array(40).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join('');
+      const mockChainId = '0x1'; // Ethereum mainnet
       
-      await updateWalletInfo(accounts[0], ethProvider);
+      setAccount(mockAddress);
+      setChainId(mockChainId);
       
-      toast({
-        title: "Chonk Wallet Connected",
-        description: `Connected to ${accounts[0].substring(0, 6)}...${accounts[0].substring(accounts[0].length - 4)}`,
-        variant: "default"
-      });
+      // Save to local storage
+      localStorage.setItem('chonk9k_wallet_address', mockAddress);
+      localStorage.setItem('chonk9k_chain_id', mockChainId);
+      
+      console.log('Connected to wallet:', mockAddress);
     } catch (error) {
-      console.error("Error connecting wallet:", error);
-      toast({
-        title: "Connection Failed",
-        description: "There was an error connecting to your wallet.",
-        variant: "destructive"
-      });
+      console.error('Error connecting wallet:', error);
     } finally {
       setIsConnecting(false);
     }
   };
 
   const disconnectWallet = () => {
-    setAccount('');
-    setProvider(null);
+    setAccount(null);
     setChainId(null);
-    setBalance('');
-    
-    toast({
-      title: "Wallet Disconnected",
-      description: "Your Chonk wallet has been disconnected.",
-      variant: "default"
-    });
+    localStorage.removeItem('chonk9k_wallet_address');
+    localStorage.removeItem('chonk9k_chain_id');
   };
 
   return (
-    <ChonkWalletContext.Provider
+    <WalletContext.Provider
       value={{
         account,
-        provider,
-        isConnecting,
         chainId,
-        balance,
         connectWallet,
-        disconnectWallet
+        disconnectWallet,
+        isConnecting,
       }}
     >
       {children}
-    </ChonkWalletContext.Provider>
+    </WalletContext.Provider>
   );
 };
+
+export const useChonkWallet = () => useContext(WalletContext);

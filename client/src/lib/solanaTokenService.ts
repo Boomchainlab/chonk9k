@@ -192,17 +192,101 @@ export const addLiquidityToRaydium = async (
 };
 
 // Get Chonk9k token balance
-export const getChonk9kBalance = async (walletAddress: string): Promise<number> => {
+export const getChonk9kBalance = async (walletAddress: string): Promise<number | null> => {
   try {
     const connection = getSolanaConnection();
     const publicKey = new PublicKey(walletAddress);
-    const tokenPublicKey = new PublicKey(CHONK9K_TOKEN_ADDRESS);
+    const mintPubkey = new PublicKey(CHONK9K_TOKEN_ADDRESS);
     
-    // In a real application, this would query the token account
-    // For demo purposes, returning a simulated balance
-    return 50000000; // 50 million CHONK9K tokens
+    // Get the associated token address for this wallet and token
+    const associatedTokenAddress = await getAssociatedTokenAddress(
+      mintPubkey,
+      publicKey,
+      false,
+      TOKEN_PROGRAM_ID,
+      ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+    
+    try {
+      // Get token account balance
+      const tokenAccount = await connection.getTokenAccountBalance(associatedTokenAddress);
+      return tokenAccount.value.uiAmount || 0;
+    } catch (e) {
+      // Token account might not exist yet
+      console.log('Token account may not exist yet:', e);
+      return 0;
+    }
   } catch (error) {
     console.error('Error fetching CHONK9K balance:', error);
-    return 0;
+    return null;
+  }
+};
+
+// Get wallet SOL balance
+export const getSolBalance = async (walletAddress: string): Promise<number | null> => {
+  try {
+    const connection = getSolanaConnection();
+    const publicKey = new PublicKey(walletAddress);
+    
+    const solBalance = await connection.getBalance(publicKey);
+    return solBalance / LAMPORTS_PER_SOL;
+  } catch (error) {
+    console.error('Error fetching SOL balance:', error);
+    return null;
+  }
+};
+
+// Check if a wallet is eligible to add liquidity
+export const checkLiquidityEligibility = async (walletAddress: string): Promise<{
+  eligible: boolean;
+  chonk9kBalance: number | null;
+  solBalance: number | null;
+  message: string;
+}> => {
+  try {
+    const chonk9kBalance = await getChonk9kBalance(walletAddress);
+    const solBalance = await getSolBalance(walletAddress);
+    
+    if (chonk9kBalance === null || solBalance === null) {
+      return {
+        eligible: false,
+        chonk9kBalance,
+        solBalance,
+        message: 'Error checking balances. Please try again.'
+      };
+    }
+    
+    if (chonk9kBalance === 0) {
+      return {
+        eligible: false,
+        chonk9kBalance,
+        solBalance,
+        message: 'You have 0 CHONK9K tokens. Liquidity addition not possible.'
+      };
+    }
+    
+    if (solBalance < 0.01) {
+      return {
+        eligible: false,
+        chonk9kBalance,
+        solBalance,
+        message: 'Insufficient SOL for transaction fees. Please add more SOL.'
+      };
+    }
+    
+    return {
+      eligible: true,
+      chonk9kBalance,
+      solBalance,
+      message: 'You are ready to add liquidity on Raydium or Orca.'
+    };
+  } catch (error) {
+    console.error('Error checking liquidity eligibility:', error);
+    return {
+      eligible: false,
+      chonk9kBalance: null,
+      solBalance: null,
+      message: 'Error checking eligibility. Please try again.'
+    };
   }
 };

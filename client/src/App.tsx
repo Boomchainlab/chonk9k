@@ -16,10 +16,12 @@ import Marketplaces from "@/pages/Marketplaces";
 import MarketplaceAdmin from "@/pages/MarketplaceAdmin";
 import NftCollectionDetail from "@/pages/NftCollectionDetail";
 import Mining from "@/pages/Mining";
-import { ChonkWalletProvider } from "@/hooks/useChonkWallet";
-import ChonkWalletManager from "@/components/ChonkWalletManager";
+import { WalletProvider } from "@/hooks/useChonkWallet";
+import MultiWalletConnect from "@/components/MultiWalletConnect";
+import TokenPage from "@/pages/TokenPage";
 import AnimatedChonkCharacter from "@/components/AnimatedChonkCharacter";
 import { useLocation } from "wouter";
+import { useState, useEffect } from 'react';
 
 // Header component with navigation
 function Header() {
@@ -47,6 +49,9 @@ function Header() {
             </Link>
             <Link href="/crypto" className={`transition-colors ${isDashboard ? 'text-[#00e0ff] hover:text-[#00e0ff]/80' : 'hover:text-pink-200'}`}>
               Buy/Sell
+            </Link>
+            <Link href="/token" className={`transition-colors ${isDashboard ? 'text-[#ff00ff] hover:text-[#ff00ff]/80' : 'hover:text-pink-200'}`}>
+              Token
             </Link>
             <Link href="/marketplaces" className={`transition-colors ${isDashboard ? 'text-[#ff00ff] hover:text-[#ff00ff]/80' : 'hover:text-pink-200'}`}>
               Exchanges
@@ -104,6 +109,7 @@ function Router() {
           <Route path="/" component={Dashboard} />
           <Route path="/home" component={Home} />
           <Route path="/crypto" component={CryptoPayments} />
+          <Route path="/token" component={TokenPage} />
           <Route path="/marketplaces" component={Marketplaces} />
           <Route path="/nft/:id" component={NftCollectionDetail} />
           <Route path="/mining" component={Mining} />
@@ -123,16 +129,16 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ChonkWalletProvider>
+      <WalletProvider>
         <Router />
         <div className="fixed bottom-4 right-4 z-50 md:hidden">
           <AnimatedChonkCharacter />
         </div>
-        <div className="fixed left-4 top-20 z-50 hidden md:block lg:left-8 lg:top-32">
-          <ChonkWalletManager />
+        <div className="fixed top-4 right-4 z-50 hidden md:flex">
+          <MultiWalletConnect variant="outline" />
         </div>
         <Toaster />
-      </ChonkWalletProvider>
+      </WalletProvider>
     </QueryClientProvider>
   );
 }

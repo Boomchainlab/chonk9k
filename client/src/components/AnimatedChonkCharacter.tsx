@@ -16,7 +16,8 @@ interface AnimationStates {
 }
 
 const AnimatedChonkCharacter: React.FC = () => {
-  const { account, isConnecting, balance } = useChonkWallet();
+  const { account, isConnecting } = useChonkWallet();
+  const [balance, setBalance] = useState<string | null>(null);
   const [currentAnimation, setCurrentAnimation] = useState<keyof AnimationStates>('idle');
   const [frame, setFrame] = useState<number>(0);
   const [celebrating, setCelebrating] = useState<boolean>(false);
@@ -158,7 +159,7 @@ const AnimatedChonkCharacter: React.FC = () => {
       <div className="mt-2 text-xs md:text-sm text-muted-foreground">
         {currentAnimation === 'idle' && 'Waiting for wallet...'}
         {currentAnimation === 'connecting' && 'Connecting to wallet...'}
-        {currentAnimation === 'connected' && !celebrating && `Connected: ${account.substring(0, 6)}...${account.substring(account.length - 4)}`}
+        {currentAnimation === 'connected' && !celebrating && account && `Connected: ${account.substring(0, 6)}...${account.substring(account.length - 4)}`}
         {currentAnimation === 'error' && 'Connection error!'}
         {currentAnimation === 'celebrating' && 'CHONK9K tokens detected!'}
       </div>
