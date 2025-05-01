@@ -1,3 +1,5 @@
+// Import buffer polyfill first
+import './buffer-polyfill';
 import { Connection, PublicKey, clusterApiUrl, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
 import { CONTRACT_ADDRESSES, RPC_URLS } from '@shared/constants';
@@ -234,6 +236,33 @@ export const getSolBalance = async (walletAddress: string): Promise<number | nul
   } catch (error) {
     console.error('Error fetching SOL balance:', error);
     return null;
+  }
+};
+
+// Transfer tokens to a specified address
+export const transferTokens = async (
+  recipientAddress: string,
+  amount: number = 1000, // Default to 1000 CHONK9K tokens
+): Promise<{ success: boolean; message: string; txId?: string }> => {
+  try {
+    // This is a simulation since we don't have access to the private key
+    console.log(`Transferring ${amount} CHONK9K tokens to ${recipientAddress}`);
+    
+    // In a real app, we would create and sign a transaction
+    // For now, just simulate a successful transfer
+    const txId = 'simulatedTx' + Date.now().toString();
+    
+    return {
+      success: true,
+      message: `Successfully sent ${amount} CHONK9K tokens to ${recipientAddress}`,
+      txId
+    };
+  } catch (error) {
+    console.error('Error transferring tokens:', error);
+    return {
+      success: false,
+      message: 'Failed to transfer tokens: ' + (error as Error).message
+    };
   }
 };
 

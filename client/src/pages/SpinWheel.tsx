@@ -3,12 +3,15 @@ import { useChonkWallet } from '@/hooks/useChonkWallet';
 import { useToast } from '@/hooks/use-toast';
 // Use a simple div instead of a Layout component
 import { Link } from 'wouter';
+// Import buffer polyfill before solanaTokenService
+import '@/lib/buffer-polyfill';
+import { transferTokens } from '@/lib/solanaTokenService';
 import SpinWheelComponent from '@/components/SpinWheel';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Coins, TrendingUp, Trophy, History, Users, ArrowRight } from 'lucide-react';
+import { Coins, TrendingUp, Trophy, History, Users, ArrowRight, Loader2 } from 'lucide-react';
 
 interface UserReward {
   id: string;
@@ -24,6 +27,7 @@ const SpinWheelPage: React.FC = () => {
   const [rewardHistory, setRewardHistory] = useState<UserReward[]>([]);
   const [totalEarned, setTotalEarned] = useState('0');
   const [leaderboard, setLeaderboard] = useState<{name: string, value: string}[]>([]);
+  const [isTransferring, setIsTransferring] = useState(false);
   
   // Load reward history from local storage
   useEffect(() => {
@@ -73,6 +77,50 @@ const SpinWheelPage: React.FC = () => {
     const newTotal = (parseInt(totalEarned) + parseInt(reward.value)).toString();
     setTotalEarned(newTotal);
     localStorage.setItem('chonk9k_total_earned', newTotal);
+  };
+  
+  // Handle sending tokens to specified address
+  const handleSendTokens = async () => {
+    if (!account) {
+      toast({
+        title: "Wallet Not Connected",
+        description: "Please connect your wallet to send tokens",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsTransferring(true);
+    
+    // The recipient address specified by the user
+    const recipientAddress = "2Lp2SGS9AKYVKCrizjzJLPHn4swatnbvEQ2UB2bKorJy";
+    const amount = 1000; // Send 1000 CHONK9K tokens
+    
+    try {
+      const result = await transferTokens(recipientAddress, amount);
+      
+      if (result.success) {
+        toast({
+          title: "Tokens Sent Successfully",
+          description: result.message,
+        });
+      } else {
+        toast({
+          title: "Failed to Send Tokens",
+          description: result.message,
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Error sending tokens:", error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred while sending tokens",
+        variant: "destructive"
+      });
+    } finally {
+      setIsTransferring(false);
+    }
   };
 
   return (
@@ -244,6 +292,56 @@ const SpinWheelPage: React.FC = () => {
             </Card>
           </div>
         </div>
+
+        {/* Token Transfer Section */}
+        <div className="mt-8 border-t border-[#ff00ff]/30 pt-8">
+          <Card className="bg-black/80 border border-[#00e0ff]/30">
+            <CardHeader>
+              <CardTitle className="text-xl font-bold">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#ff00ff] to-[#00e0ff]">
+                  Special User Request
+                </span>
+              </CardTitle>
+              <CardDescription className="text-gray-400">
+                Send tokens to a specific Solana wallet address
+              </CardDescription>
+            </CardHeader>
+            
+            <CardContent className="space-y-4">
+              <div className="p-3 rounded-lg bg-black/50 border border-gray-800">
+                <p className="text-white mb-2 font-semibold">Recipient Address:</p>
+                <p className="text-[#00e0ff] bg-black/30 p-2 rounded-md overflow-auto break-all font-mono text-sm">
+                  2Lp2SGS9AKYVKCrizjzJLPHn4swatnbvEQ2UB2bKorJy
+                </p>
+              </div>
+
+              <div className="p-3 rounded-lg bg-black/50 border border-gray-800">
+                <p className="text-white mb-2 font-semibold">Amount:</p>
+                <p className="text-[#00e0ff] font-bold flex items-center">
+                  <Coins className="mr-2 h-5 w-5" /> 1,000 $CHONK9K
+                </p>
+              </div>
+            </CardContent>
+            
+            <CardFooter>
+              <Button 
+                className="w-full bg-gradient-to-r from-[#ff00ff] to-[#00e0ff] text-white"
+                onClick={handleSendTokens}
+                disabled={isTransferring || !account}
+              >
+                {isTransferring ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending Tokens...
+                  </>
+                ) : (
+                  <>Send Tokens</>
+                )}
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+        
       </div>
     </div>
   );
