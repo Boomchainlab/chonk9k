@@ -12,6 +12,7 @@ import TriviaAdmin from "@/pages/TriviaAdmin";
 import CryptoPayments from "@/pages/CryptoPayments";
 import Marketplaces from "@/pages/Marketplaces";
 import MarketplaceAdmin from "@/pages/MarketplaceAdmin";
+import NftCollectionDetail from "@/pages/NftCollectionDetail";
 import Mining from "@/pages/Mining";
 import { ChonkWalletProvider } from "@/hooks/useChonkWallet";
 import ChonkWalletManager from "@/components/ChonkWalletManager";
@@ -81,6 +82,7 @@ function Router() {
           <Route path="/" component={Home} />
           <Route path="/crypto" component={CryptoPayments} />
           <Route path="/marketplaces" component={Marketplaces} />
+          <Route path="/nft/:id" component={NftCollectionDetail} />
           <Route path="/mining" component={Mining} />
           <Route path="/trivia" component={TriviaPage} />
           <Route path="/profile/:userId" component={Profile} />

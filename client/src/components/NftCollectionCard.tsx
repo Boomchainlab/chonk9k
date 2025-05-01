@@ -3,6 +3,7 @@ import { ExternalLink } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Link } from 'wouter';
 
 interface NftCollectionCardProps {
   collection: {
@@ -60,14 +61,24 @@ const NftCollectionCard: React.FC<NftCollectionCardProps> = ({ collection }) => 
           </div>
         )}
       </CardContent>
-      <CardFooter className="flex justify-end gap-2 pt-2">
+      <CardFooter className="flex justify-between gap-2 pt-2">
+        <Button 
+          variant="secondary" 
+          size="sm" 
+          className="gap-1.5"
+          asChild
+        >
+          <Link href={`/nft/${collection.id}`}>
+            View Details
+          </Link>
+        </Button>
         <Button 
           variant="outline" 
           size="sm" 
           onClick={() => window.open(collection.url, '_blank')}
           className="gap-1.5"
         >
-          View Collection <ExternalLink className="h-3.5 w-3.5" />
+          Explorer <ExternalLink className="h-3.5 w-3.5" />
         </Button>
       </CardFooter>
     </Card>
