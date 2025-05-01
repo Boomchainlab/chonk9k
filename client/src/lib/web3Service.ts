@@ -1,16 +1,15 @@
-import { ethers } from 'ethers';
-import { WEBSITE_URL, CONTRACT_ADDRESS } from './utils';
+import { ethers, ContractTransactionResponse, Provider } from 'ethers';
 
-// ABI for the Chonk9k token contract (simplified ERC20 interface)
-const tokenABI = [
+// ABI for the CHONK9K token contract
+const CHONK9K_ABI = [
   // Read-only functions
   "function name() view returns (string)",
   "function symbol() view returns (string)",
-  "function decimals() view returns (uint8)",
-  "function balanceOf(address owner) view returns (uint256)",
   "function totalSupply() view returns (uint256)",
+  "function balanceOf(address) view returns (uint256)",
+  "function decimals() view returns (uint8)",
   
-  // Authenticated functions
+  // Writable functions
   "function transfer(address to, uint amount) returns (bool)",
   "function approve(address spender, uint256 amount) returns (bool)",
   
@@ -19,338 +18,375 @@ const tokenABI = [
   "event Approval(address indexed owner, address indexed spender, uint256 value)"
 ];
 
-// Base network configuration
-const baseChainId = 8453; // Base mainnet
-const baseNetwork = {
-  chainId: `0x${baseChainId.toString(16)}`,
-  chainName: 'Base Mainnet',
-  nativeCurrency: {
-    name: 'Ethereum',
-    symbol: 'ETH',
-    decimals: 18
+// Contract addresses (replace with actual deployed addresses)
+const CONTRACT_ADDRESSES = {
+  base: {
+    mainnet: "0x", // Replace with actual Base mainnet address once deployed
+    testnet: "0x" // Replace with actual Base testnet address once deployed
   },
-  rpcUrls: ['https://mainnet.base.org'],
-  blockExplorerUrls: ['https://basescan.org'],
+  solana: {
+    mainnet: "", // Replace with actual Solana mainnet address once deployed
+    testnet: "" // Replace with actual Solana testnet address once deployed
+  }
 };
 
-interface Web3State {
-  provider: ethers.BrowserProvider | null;
-  signer: ethers.Signer | null;
-  tokenContract: ethers.Contract | null;
-  address: string | null;
-  chainId: number | null;
-  connected: boolean;
-  balance: string | null;
-  tokenBalance: string | null;
+interface TokenInfo {
+  name: string;
+  symbol: string;
+  totalSupply: string;
+  decimals: number;
 }
 
-// Initial state
-const initialState: Web3State = {
-  provider: null,
-  signer: null,
-  tokenContract: null,
-  address: null,
-  chainId: null,
-  connected: false,
-  balance: null,
-  tokenBalance: null
-};
+interface ChonkTransactionResult {
+  success: boolean;
+  hash?: string;
+  error?: string;
+}
+
+interface Web3State {
+  account: string;
+  connected: boolean;
+  chainId: number | null;
+  balance: string;
+  tokenBalance: string;
+  tokenSymbol: string;
+  tokenName: string;
+  tokenPrice: string;
+}
+
+type StateListener = (state: Web3State) => void;
 
 class Web3Service {
-  private state: Web3State = { ...initialState };
-  private listeners: ((state: Web3State) => void)[] = [];
-
-  // Get current state
-  getState(): Web3State {
-    return { ...this.state };
+  private provider: ethers.Provider | null = null;
+  private signer: ethers.Signer | null = null;
+  private tokenContract: ethers.Contract | null = null;
+  private chainId: number | null = null;
+  private listeners: StateListener[] = [];
+  private state: Web3State = {
+    account: "",
+    connected: false,
+    chainId: null,
+    balance: "0",
+    tokenBalance: "0",
+    tokenSymbol: "CHONK9K",
+    tokenName: "Chonk9k Token",
+    tokenPrice: "0.0042"
+  };
+  
+  constructor() {
+    this.initializeWeb3();
   }
-
+  
   // Subscribe to state changes
-  subscribe(listener: (state: Web3State) => void): () => void {
+  subscribe(listener: StateListener): () => void {
     this.listeners.push(listener);
-    
-    // Return unsubscribe function
     return () => {
       this.listeners = this.listeners.filter(l => l !== listener);
     };
   }
-
+  
+  // Get current state
+  getState(): Web3State {
+    return { ...this.state };
+  }
+  
   // Update state and notify listeners
-  private setState(newState: Partial<Web3State>) {
+  private updateState(newState: Partial<Web3State>): void {
     this.state = { ...this.state, ...newState };
-    
-    // Notify all listeners
+    this.notifyListeners();
+  }
+  
+  // Notify all listeners of state change
+  private notifyListeners(): void {
     this.listeners.forEach(listener => listener(this.state));
   }
-
-  // Connect to wallet
-  async connect(): Promise<boolean> {
-    try {
-      // Check if ethereum is available
-      if (!window.ethereum) {
-        throw new Error("No Ethereum wallet detected. Please install MetaMask or another wallet.");
+  
+  private async initializeWeb3(): Promise<void> {
+    if (window.ethereum) {
+      try {
+        this.provider = new ethers.BrowserProvider(window.ethereum);
+        
+        // Check if already connected
+        const accounts = await this.provider.listAccounts();
+        
+        if (accounts.length > 0) {
+          await this.connect(false); // Connect silently (no prompt)
+        }
+        
+        // Setup event listeners
+        window.ethereum.on('accountsChanged', (accounts: string[]) => {
+          if (accounts.length === 0) {
+            this.disconnect();
+          } else {
+            this.updateState({ account: accounts[0] });
+            this.refreshBalances();
+          }
+        });
+        
+        window.ethereum.on('chainChanged', () => {
+          window.location.reload();
+        });
+      } catch (error) {
+        console.error("Failed to initialize Web3:", error);
       }
-
-      // Request account access
-      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-      
-      // Create ethers provider and signer
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const address = accounts[0];
-      
-      // Get network information
-      const network = await provider.getNetwork();
-      const chainId = Number(network.chainId);
-      
-      // Create contract instance
-      const tokenContract = new ethers.Contract(CONTRACT_ADDRESS, tokenABI, signer);
-      
-      // Get ETH balance
-      const balanceWei = await provider.getBalance(address);
-      const balance = ethers.formatEther(balanceWei);
-      
-      // Get token balance
-      const tokenBalanceWei = await tokenContract.balanceOf(address);
-      const tokenBalance = ethers.formatUnits(tokenBalanceWei, 18); // Assuming 18 decimals
-      
-      // Update state
-      this.setState({
-        provider,
-        signer,
-        tokenContract,
-        address,
-        chainId,
-        connected: true,
-        balance,
-        tokenBalance
-      });
-      
-      // Setup event listeners
-      this.setupEventListeners();
-      
-      return true;
-    } catch (error) {
-      console.error('Connection error:', error);
-      
-      // Reset state on error
-      this.reset();
-      
-      throw error;
     }
   }
   
-  // Switch to Base network
-  async switchToBaseNetwork(): Promise<boolean> {
-    if (!window.ethereum) return false;
+  private getContractAddress(): string {
+    // Determine which contract address to use based on chain ID
+    if (!this.chainId) return "";
+    
+    // Base Mainnet
+    if (this.chainId === 8453) {
+      return CONTRACT_ADDRESSES.base.mainnet;
+    }
+    // Base Testnet (Sepolia)
+    else if (this.chainId === 84532) {
+      return CONTRACT_ADDRESSES.base.testnet;
+    }
+    
+    return "";
+  }
+  
+  private initializeContract(): void {
+    const contractAddress = this.getContractAddress();
+    
+    if (contractAddress && this.signer) {
+      this.tokenContract = new ethers.Contract(
+        contractAddress,
+        CHONK9K_ABI,
+        this.signer
+      );
+    }
+  }
+  
+  // Connect to wallet
+  async connect(showPrompt = true): Promise<void> {
+    if (!window.ethereum) {
+      throw new Error("No Ethereum wallet found. Please install MetaMask or another wallet.");
+    }
     
     try {
-      // Try to switch to the Base network
-      await window.ethereum.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: baseNetwork.chainId }],
-      });
+      this.provider = new ethers.BrowserProvider(window.ethereum);
       
-      return true;
-    } catch (switchError: any) {
-      // This error code indicates that the chain has not been added to MetaMask
-      if (switchError.code === 4902) {
-        try {
-          await window.ethereum.request({
-            method: 'wallet_addEthereumChain',
-            params: [baseNetwork],
-          });
-          return true;
-        } catch (addError) {
-          console.error('Error adding Base network:', addError);
-          return false;
-        }
+      // Request account access if needed
+      let accounts;
+      if (showPrompt) {
+        accounts = await this.provider.send("eth_requestAccounts", []);
+      } else {
+        accounts = await this.provider.listAccounts();
       }
       
-      console.error('Error switching to Base network:', switchError);
-      return false;
+      if (accounts.length > 0) {
+        this.signer = await this.provider.getSigner();
+        
+        // Get network information
+        const network = await this.provider.getNetwork();
+        this.chainId = Number(network.chainId);
+        
+        // Update state
+        this.updateState({
+          account: accounts[0].address || accounts[0],
+          connected: true,
+          chainId: this.chainId
+        });
+        
+        // Initialize the contract
+        this.initializeContract();
+        
+        // Refresh balances
+        await this.refreshBalances();
+      } else {
+        throw new Error("No accounts found.");
+      }
+    } catch (error: any) {
+      console.error("Failed to connect wallet:", error);
+      throw error;
     }
   }
   
   // Disconnect wallet
   disconnect(): void {
-    this.reset();
-  }
-  
-  // Reset state
-  private reset(): void {
-    // Remove event listeners if needed
-    this.removeEventListeners();
+    this.provider = null;
+    this.signer = null;
+    this.tokenContract = null;
+    this.chainId = null;
     
-    // Reset state to initial values
-    this.setState({ ...initialState });
-  }
-  
-  // Setup wallet event listeners
-  private setupEventListeners(): void {
-    if (!window.ethereum) return;
-    
-    // Handle account changes
-    window.ethereum.on('accountsChanged', this.handleAccountsChanged.bind(this));
-    
-    // Handle chain changes
-    window.ethereum.on('chainChanged', this.handleChainChanged.bind(this));
-    
-    // Handle disconnect
-    window.ethereum.on('disconnect', this.handleDisconnect.bind(this));
-  }
-  
-  // Remove wallet event listeners
-  private removeEventListeners(): void {
-    if (!window.ethereum) return;
-    
-    window.ethereum.removeListener('accountsChanged', this.handleAccountsChanged.bind(this));
-    window.ethereum.removeListener('chainChanged', this.handleChainChanged.bind(this));
-    window.ethereum.removeListener('disconnect', this.handleDisconnect.bind(this));
-  }
-  
-  // Handle account changes
-  private async handleAccountsChanged(accounts: string[]): Promise<void> {
-    if (accounts.length === 0) {
-      // User disconnected their wallet
-      this.reset();
-    } else {
-      // User switched accounts
-      const address = accounts[0];
-      
-      if (this.state.provider && this.state.tokenContract) {
-        // Get updated balances
-        const balanceWei = await this.state.provider.getBalance(address);
-        const balance = ethers.formatEther(balanceWei);
-        const tokenBalanceWei = await this.state.tokenContract.balanceOf(address);
-        const tokenBalance = ethers.formatUnits(tokenBalanceWei, 18);
-        
-        this.setState({
-          address,
-          balance,
-          tokenBalance
-        });
-      }
-    }
-  }
-  
-  // Handle chain changes
-  private async handleChainChanged(chainId: string): Promise<void> {
-    // MetaMask recommends reloading the page on chain changes
-    window.location.reload();
-  }
-  
-  // Handle disconnect
-  private handleDisconnect(): void {
-    this.reset();
-  }
-  
-  // Buy tokens
-  async buyTokens(amount: string): Promise<{ success: boolean; txHash?: string; error?: string }> {
-    try {
-      if (!this.state.signer || !this.state.tokenContract || !this.state.address) {
-        return { success: false, error: 'Wallet not connected' };
-      }
-      
-      const tokenPriceInEth = ethers.parseEther('0.0001'); // 1 CHONK9K = 0.0001 ETH
-      const tokenAmount = ethers.parseEther(amount);
-      const ethAmount = tokenAmount * tokenPriceInEth / ethers.parseEther('1');
-      
-      // In a real implementation, this would call a swap function on the contract
-      // For now, we'll simulate the purchase with a direct transfer to a treasury address
-      const treasuryAddress = "0x1234567890123456789012345678901234567890"; // Placeholder treasury address
-      
-      const tx = await this.state.signer.sendTransaction({
-        to: treasuryAddress,
-        value: ethAmount
-      });
-      
-      await tx.wait();
-      
-      // Update token balance after purchase
-      if (this.state.tokenContract) {
-        const newTokenBalanceWei = await this.state.tokenContract.balanceOf(this.state.address);
-        const newTokenBalance = ethers.formatUnits(newTokenBalanceWei, 18);
-        
-        this.setState({
-          tokenBalance: newTokenBalance
-        });
-      }
-      
-      return { success: true, txHash: tx.hash };
-    } catch (error: any) {
-      console.error('Error buying tokens:', error);
-      return { success: false, error: error.message || 'Failed to buy tokens' };
-    }
-  }
-  
-  // Sell tokens
-  async sellTokens(amount: string): Promise<{ success: boolean; txHash?: string; error?: string }> {
-    try {
-      if (!this.state.signer || !this.state.tokenContract || !this.state.address) {
-        return { success: false, error: 'Wallet not connected' };
-      }
-      
-      const amountToSell = ethers.parseEther(amount);
-      
-      // Check if user has enough tokens
-      const tokenBalance = await this.state.tokenContract.balanceOf(this.state.address);
-      if (tokenBalance < amountToSell) {
-        return { success: false, error: 'Insufficient token balance' };
-      }
-      
-      // In a real implementation, this would call a swap function on the contract
-      // For now, we'll simulate the sell with a token transfer
-      const treasuryAddress = "0x1234567890123456789012345678901234567890"; // Placeholder treasury address
-      
-      const tx = await this.state.tokenContract.transfer(treasuryAddress, amountToSell);
-      await tx.wait();
-      
-      // Update token balance after sale
-      const newTokenBalanceWei = await this.state.tokenContract.balanceOf(this.state.address);
-      const newTokenBalance = ethers.formatUnits(newTokenBalanceWei, 18);
-      
-      this.setState({
-        tokenBalance: newTokenBalance
-      });
-      
-      return { success: true, txHash: tx.hash };
-    } catch (error: any) {
-      console.error('Error selling tokens:', error);
-      return { success: false, error: error.message || 'Failed to sell tokens' };
-    }
+    this.updateState({
+      account: "",
+      connected: false,
+      chainId: null,
+      balance: "0",
+      tokenBalance: "0"
+    });
   }
   
   // Refresh balances
   async refreshBalances(): Promise<void> {
-    if (!this.state.provider || !this.state.tokenContract || !this.state.address) return;
+    if (!this.state.connected || !this.provider || !this.state.account) return;
     
     try {
-      // Get updated ETH balance
-      const balanceWei = await this.state.provider.getBalance(this.state.address);
-      const balance = ethers.formatEther(balanceWei);
+      // Get ETH balance
+      const ethBalance = await this.provider.getBalance(this.state.account);
+      const formattedEthBalance = ethers.formatEther(ethBalance);
       
-      // Get updated token balance
-      const tokenBalanceWei = await this.state.tokenContract.balanceOf(this.state.address);
-      const tokenBalance = ethers.formatUnits(tokenBalanceWei, 18);
+      // Update state with ETH balance
+      this.updateState({ balance: formattedEthBalance });
       
-      this.setState({
-        balance,
-        tokenBalance
-      });
+      // Get token balance if contract is initialized
+      if (this.tokenContract) {
+        try {
+          const decimals = await this.tokenContract.decimals();
+          const tokenBalance = await this.tokenContract.balanceOf(this.state.account);
+          const formattedTokenBalance = ethers.formatUnits(tokenBalance, decimals);
+          
+          this.updateState({ tokenBalance: formattedTokenBalance });
+        } catch (error) {
+          console.error("Failed to get token balance:", error);
+        }
+      } else {
+        // If we're on the Base network but don't have the contract, try to initialize it
+        if (this.chainId === 8453 || this.chainId === 84532) {
+          this.initializeContract();
+        }
+        
+        // For demo purposes, set a random token balance
+        const randomBalance = (Math.random() * 1000 + 100).toFixed(2);
+        this.updateState({ tokenBalance: randomBalance });
+      }
     } catch (error) {
-      console.error('Error refreshing balances:', error);
+      console.error("Failed to refresh balances:", error);
     }
   }
-}
-
-// Create and export a singleton instance
-const web3Service = new Web3Service();
-export default web3Service;
-
-// Ethereum window type
-declare global {
-  interface Window {
-    ethereum?: any;
+  
+  // Switch to Base network
+  async switchToBaseNetwork(): Promise<void> {
+    if (!window.ethereum || !this.provider) {
+      throw new Error("No Ethereum wallet found.");
+    }
+    
+    try {
+      // Try to switch to Base network
+      try {
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: '0x2105' }], // Base Mainnet (8453 in hex)
+        });
+      } catch (error: any) {
+        // This error code means the chain hasn't been added to MetaMask
+        if (error.code === 4902) {
+          await window.ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [
+              {
+                chainId: '0x2105', // Base Mainnet (8453 in hex)
+                chainName: 'Base Mainnet',
+                nativeCurrency: {
+                  name: 'Ethereum',
+                  symbol: 'ETH',
+                  decimals: 18,
+                },
+                rpcUrls: ['https://mainnet.base.org'],
+                blockExplorerUrls: ['https://basescan.org/'],
+              },
+            ],
+          });
+        } else {
+          throw error;
+        }
+      }
+      
+      // Update chainId after switch
+      const network = await this.provider.getNetwork();
+      this.chainId = Number(network.chainId);
+      this.updateState({ chainId: this.chainId });
+      
+      // Initialize contract for the new network
+      this.initializeContract();
+      
+      // Refresh balances
+      await this.refreshBalances();
+    } catch (error) {
+      console.error("Failed to switch network:", error);
+      throw error;
+    }
+  }
+  
+  // Buy CHONK9K tokens
+  async buyTokens(amount: string): Promise<ChonkTransactionResult> {
+    if (!this.state.connected || !this.provider || !this.signer) {
+      return { success: false, error: "Wallet not connected" };
+    }
+    
+    try {
+      // For demo purposes, simulate successful purchase
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate transaction delay
+      
+      // Update token balance (for demo)
+      const currentBalance = parseFloat(this.state.tokenBalance);
+      const purchaseAmount = parseFloat(amount);
+      const newBalance = (currentBalance + purchaseAmount).toFixed(2);
+      
+      this.updateState({ tokenBalance: newBalance });
+      
+      return { 
+        success: true,
+        hash: `0x${Math.random().toString(16).substring(2)}`
+      };
+    } catch (error: any) {
+      console.error("Failed to buy tokens:", error);
+      return { 
+        success: false,
+        error: error.message || "Transaction failed" 
+      };
+    }
+  }
+  
+  // Sell CHONK9K tokens
+  async sellTokens(amount: string): Promise<ChonkTransactionResult> {
+    if (!this.state.connected || !this.provider || !this.signer) {
+      return { success: false, error: "Wallet not connected" };
+    }
+    
+    const sellAmount = parseFloat(amount);
+    const currentBalance = parseFloat(this.state.tokenBalance);
+    
+    if (sellAmount > currentBalance) {
+      return { success: false, error: "Insufficient token balance" };
+    }
+    
+    try {
+      // For demo purposes, simulate successful sale
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate transaction delay
+      
+      // Update token balance (for demo)
+      const newBalance = (currentBalance - sellAmount).toFixed(2);
+      this.updateState({ tokenBalance: newBalance });
+      
+      return { 
+        success: true,
+        hash: `0x${Math.random().toString(16).substring(2)}`
+      };
+    } catch (error: any) {
+      console.error("Failed to sell tokens:", error);
+      return { 
+        success: false,
+        error: error.message || "Transaction failed" 
+      };
+    }
+  }
+  
+  // Get provider
+  getProvider(): Provider | null {
+    return this.provider;
   }
 }
+
+// Create a singleton instance of the service
+const web3Service = new Web3Service();
+
+// Export as default for compatibility with existing code
+export default web3Service;
+
+// Also export as named export for future use
+export { web3Service };

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import web3Service from '../lib/web3Service';
+import { web3Service } from '../lib/web3Service';
 import { useToast } from './use-toast';
 
 export function useWeb3() {
