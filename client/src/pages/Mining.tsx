@@ -56,7 +56,7 @@ export default function Mining() {
   const { data: userRigs, isLoading: isLoadingUserRigs } = useQuery({
     queryKey: ['/api/mining/user-rigs', userId],
     queryFn: async () => {
-      const res = await apiRequest('GET', `/api/mining/user-rigs?userId=${userId}`);
+      const res = await apiRequest('GET', `/api/mining/user-rigs?userId=${userId}`, {});
       const data = await res.json();
       return data as UserMiningRig[];
     },
@@ -66,7 +66,7 @@ export default function Mining() {
   const { data: availableRigs, isLoading: isLoadingRigs } = useQuery({
     queryKey: ['/api/mining/rigs', true],
     queryFn: async () => {
-      const res = await apiRequest('GET', '/api/mining/rigs?available=true');
+      const res = await apiRequest('GET', '/api/mining/rigs?available=true', {});
       const data = await res.json();
       return data as MiningRig[];
     },
@@ -76,7 +76,7 @@ export default function Mining() {
   const { data: miningRewards, isLoading: isLoadingRewards } = useQuery({
     queryKey: ['/api/mining/rewards', userId],
     queryFn: async () => {
-      const res = await apiRequest('GET', `/api/mining/rewards?userId=${userId}`);
+      const res = await apiRequest('GET', `/api/mining/rewards?userId=${userId}`, {});
       const data = await res.json();
       return data as MiningReward[];
     },
