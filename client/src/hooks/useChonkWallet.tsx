@@ -3,7 +3,7 @@ import { CONTRACT_ADDRESSES } from '@shared/constants';
 import { useToast } from '@/hooks/use-toast';
 
 type ChainType = 'evm' | 'solana';
-type WalletType = 'metamask' | 'phantom' | 'coinbase' | 'solflare' | 'okx' | 'jupiter' | 'raydium' | 'orca' | 'wen' | 'bitverse';
+type WalletType = 'metamask' | 'phantom' | 'coinbase' | 'solflare' | 'okx' | 'jupiter' | 'raydium' | 'orca' | 'wen' | 'bitverse' | 'warpcast' | 'frame' | 'rainbow';
 
 interface WalletAccount {
   address: string;

@@ -9,7 +9,7 @@ import { Loader2, Check, Copy, Power, ChevronDown } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 type ChainType = 'evm' | 'solana';
-type WalletType = 'metamask' | 'phantom' | 'coinbase' | 'solflare' | 'okx' | 'jupiter' | 'raydium' | 'orca' | 'wen' | 'bitverse';
+type WalletType = 'metamask' | 'phantom' | 'coinbase' | 'solflare' | 'okx' | 'jupiter' | 'raydium' | 'orca' | 'wen' | 'bitverse' | 'warpcast' | 'frame' | 'rainbow';
 
 interface WalletOption {
   id: WalletType;
@@ -48,6 +48,32 @@ const walletOptions: WalletOption[] = [
     chainSupport: ['solana', 'evm'],
     description: 'Connect to your Phantom wallet',
     popular: true
+  },
+  { 
+    id: 'warpcast', 
+    name: 'Warpcast', 
+    logo: '/images/wallets/warpcast.svg', 
+    type: 'wallet', 
+    chainSupport: ['evm'],
+    description: 'Connect with Farcaster',
+    popular: true
+  },
+  { 
+    id: 'rainbow', 
+    name: 'Rainbow', 
+    logo: '/images/wallets/rainbow.svg', 
+    type: 'wallet', 
+    chainSupport: ['evm'],
+    description: 'Beautiful, simple Ethereum wallet',
+    popular: true
+  },
+  { 
+    id: 'frame', 
+    name: 'Frame', 
+    logo: '/images/wallets/frame.svg', 
+    type: 'wallet', 
+    chainSupport: ['evm'],
+    description: 'Privacy-focused desktop wallet'
   },
   { 
     id: 'solflare', 
