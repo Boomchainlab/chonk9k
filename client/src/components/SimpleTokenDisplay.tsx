@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { CONTRACT_ADDRESSES, TOKEN_METADATA } from "@shared/constants";
+import ChonkTokenLogo from "@/components/ChonkTokenLogo";
 
 const CHONK9K_TOKEN_ADDRESS = CONTRACT_ADDRESSES.SOLANA.CHONK9K;
 const tokenMetadata = TOKEN_METADATA.CHONK9K;
@@ -17,7 +18,7 @@ const SimpleTokenDisplay: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto py-12 px-4">
       <div className="text-center mb-10">
-        <img src="/logo.svg" alt="Chonk9k Logo" className="w-24 h-24 mx-auto mb-4" />
+        <ChonkTokenLogo size={120} className="mx-auto mb-4" />
         <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-[#ff00ff] to-[#00e0ff] bg-clip-text text-transparent">
           $CHONK9K Token
         </h1>
@@ -141,8 +142,17 @@ const SimpleTokenDisplay: React.FC = () => {
 
             <div className="space-y-3">
               <h3 className="font-medium text-[#00e0ff]">Pair With</h3>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 rounded-lg border border-gray-800 flex items-center gap-2">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="p-3 rounded-lg border border-gray-800 hover:border-[#ff00ff]/50 flex items-center gap-2 transition-colors">
+                  <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center">
+                    <ChonkTokenLogo size={24} />
+                  </div>
+                  <div>
+                    <p className="font-medium">CHONK9K</p>
+                    <p className="text-xs text-gray-400">Chonk Token</p>
+                  </div>
+                </div>
+                <div className="p-3 rounded-lg border border-gray-800 hover:border-[#ff00ff]/50 flex items-center gap-2 transition-colors">
                   <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center">
                     <img src="/images/coins/sol.svg" alt="SOL" className="w-6 h-6" />
                   </div>
@@ -151,7 +161,7 @@ const SimpleTokenDisplay: React.FC = () => {
                     <p className="text-xs text-gray-400">Solana</p>
                   </div>
                 </div>
-                <div className="p-3 rounded-lg border border-gray-800 flex items-center gap-2">
+                <div className="p-3 rounded-lg border border-gray-800 hover:border-[#ff00ff]/50 flex items-center gap-2 transition-colors">
                   <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center">
                     <img src="/images/coins/usdc.svg" alt="USDC" className="w-6 h-6" />
                   </div>
@@ -243,8 +253,8 @@ const SimpleTokenDisplay: React.FC = () => {
         </h2>
         <div className="flex flex-wrap justify-center gap-4">
           <Link href="/crypto">
-            <Button className="bg-gradient-to-r from-[#ff00ff] to-[#ff00ff]/70 hover:from-[#ff00ff]/90 hover:to-[#ff00ff]/60 text-white">
-              Buy $CHONK9K
+            <Button className="bg-gradient-to-r from-[#ff00ff] to-[#ff00ff]/70 hover:from-[#ff00ff]/90 hover:to-[#ff00ff]/60 text-white flex items-center gap-2">
+              <ChonkTokenLogo size={20} /> Buy $CHONK9K
             </Button>
           </Link>
           <a 
