@@ -18,7 +18,17 @@ async function main() {
   console.log("⚠️ DEPLOYING TO MAINNET - REAL FUNDS WILL BE USED ⚠️");
     
   console.log(`Connecting to Solana ${isMainnet ? 'mainnet' : 'devnet'} at ${endpoint}`);
-  const connection = new Connection(endpoint, 'confirmed');
+  
+  // Use 'confirmed' instead of 'finalized' to save on costs and time
+  // This is especially important for low SOL balance deployments
+  const connection = new Connection(endpoint, {
+    commitment: 'confirmed',
+    confirmTransactionInitialTimeout: 60000, // 60 seconds timeout
+    disableRetryOnRateLimit: false,
+    httpHeaders: {
+      'Content-Type': 'application/json',
+    }
+  });
 
   // Get the wallet private key
   let walletKeypair;
@@ -45,7 +55,7 @@ async function main() {
   
   // Check wallet balance - need SOL for mainnet
   const balance = await connection.getBalance(walletKeypair.publicKey);
-  const requiredBalance = isMainnet ? 0.09 : 0.05; // Lowered requirement for mainnet
+  const requiredBalance = isMainnet ? 0.08 : 0.05; // Lower requirement for mainnet
   console.log(`Wallet balance: ${balance / LAMPORTS_PER_SOL} SOL`);
   
   if (balance < requiredBalance * LAMPORTS_PER_SOL) {
@@ -54,8 +64,15 @@ async function main() {
     console.error(`Please fund the wallet address (${walletKeypair.publicKey.toString()}) with more SOL to continue.`);
     process.exit(1);
   } else {
+    const estimatedCost = isMainnet ? 0.01 : 0.005;
     console.log(`Wallet has sufficient balance for token deployment.`);
-    console.log(`⚠️ Note: Low SOL balance may affect transaction success on mainnet.`);
+    console.log(`Estimated cost: ~${estimatedCost} SOL. Remaining after deployment: ~${(balance / LAMPORTS_PER_SOL - estimatedCost).toFixed(4)} SOL`);
+    
+    // Set a reasonable timeout for confirmation to save SOL on transaction fees
+    if (isMainnet) {
+      console.log(`Setting confirmation commitment to 'confirmed' to optimize for mainnet deployment`);
+      // We'll use 'confirmed' commitment instead of 'finalized' to speed up the process
+    }
   }
   
   try {

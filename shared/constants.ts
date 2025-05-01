@@ -6,8 +6,11 @@ export const CONTRACT_ADDRESSES = {
   },
   // Solana Mainnet
   SOLANA: {
-    CHONK9K: "EkA1RBVFGrHRPxpXB1yfmbX7W3ZB8eF8uipgytLdyBzQ",  // First mainnet attempt
-    CHONK9K_ALT: "GUUFYDkp5KuNieRARo8EoGPhN1yuJFVX3eRfChLMCbav"   // Second mainnet attempt
+    CHONK9K: "atqLmwzsQ7oMX4aMPjCn3seH5c3Ep4bztg3p3hWJsgJ",  // Latest mainnet attempt
+    CHONK9K_ALT: [
+      "EkA1RBVFGrHRPxpXB1yfmbX7W3ZB8eF8uipgytLdyBzQ",  // First mainnet attempt
+      "GUUFYDkp5KuNieRARo8EoGPhN1yuJFVX3eRfChLMCbav"   // Second mainnet attempt
+    ]
   },
   // Ethereum Mainnet
   ETHEREUM: {
