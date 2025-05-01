@@ -2,7 +2,7 @@ import { Switch, Route, Link } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
-import ChonkLogo from "@/components/ChonkLogo";
+import NewChonkLogo from "@/components/NewChonkLogo";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import Profile from "@/pages/Profile";
@@ -28,7 +28,7 @@ function Header() {
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
             <Link href="/" className="flex items-center hover:opacity-90 transition-opacity">
-              <ChonkLogo size="small" variant="pink" />
+              <NewChonkLogo size="small" />
               <span className="text-xl font-bold ml-2">Chonk9k</span>
             </Link>
             <span className="ml-2 text-xs md:text-sm opacity-80">by David Okeamah</span>
