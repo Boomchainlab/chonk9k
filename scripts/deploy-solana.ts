@@ -34,7 +34,25 @@ async function main() {
     commitment: "processed",
   });
   
-  const programId = new PublicKey(process.env.SOLANA_PROGRAM_ID || "");
+  let programId;
+  try {
+    // Check if SOLANA_PROGRAM_ID is provided and valid
+    if (process.env.SOLANA_PROGRAM_ID && process.env.SOLANA_PROGRAM_ID.trim() !== "") {
+      programId = new PublicKey(process.env.SOLANA_PROGRAM_ID);
+      console.log("Using provided Solana Program ID:", programId.toString());
+    } else {
+      // Generate a new program ID if none is provided
+      const programKeypair = Keypair.generate();
+      programId = programKeypair.publicKey;
+      console.log("Generated new Solana Program ID:", programId.toString());
+      console.log("Save this program ID for future reference!");
+    }
+  } catch (error) {
+    console.error("Invalid Solana Program ID, generating a new one...");
+    const programKeypair = Keypair.generate();
+    programId = programKeypair.publicKey;
+    console.log("Generated new Solana Program ID:", programId.toString());
+  }
   // @ts-ignore - Type error with anchor package
   const program = new Program(IDL, programId, provider);
 
