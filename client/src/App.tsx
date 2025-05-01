@@ -25,6 +25,7 @@ import SpinWheel from "@/pages/SpinWheel";
 import AnimatedChonkCharacter from "@/components/AnimatedChonkCharacter";
 import { useLocation } from "wouter";
 import { useState, useEffect } from 'react';
+import QuizPage from "@/pages/QuizPage";
 
 // Header component with navigation
 function Header() {
@@ -117,8 +118,7 @@ function Router() {
           <Route path="/nft/:id" component={NftCollectionDetail} />
           <Route path="/mining" component={Mining} />
           <Route path="/trivia" component={TriviaPage} />
-          {/* QuizPage route commented out until TypeScript errors fixed */}
-          {/* <Route path="/trivia/:id" component={QuizPage} /> */}
+          <Route path="/trivia/:id" component={QuizPage} />
           <Route path="/spin" component={SpinWheel} />
           <Route path="/profile/:userId" component={Profile} />
           <Route path="/admin/marketplace" component={MarketplaceAdmin} />
