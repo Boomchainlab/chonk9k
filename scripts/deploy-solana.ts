@@ -7,9 +7,27 @@ import { IDL } from '../contracts/solana/chonk9k';
 async function main() {
   const connection = new anchor.web3.Connection("https://api.devnet.solana.com");
   // Use provided private key if available, otherwise generate a new one
-  const walletKeypair = process.env.SOLANA_PRIVATE_KEY 
-    ? Keypair.fromSecretKey(Buffer.from(process.env.SOLANA_PRIVATE_KEY, 'hex'))
-    : Keypair.generate();
+  // Try different formats for the private key
+  let walletKeypair;
+  if (process.env.SOLANA_PRIVATE_KEY) {
+    try {
+      // Try to parse as base58 encoded private key
+      walletKeypair = Keypair.fromSecretKey(
+        Buffer.from(
+          // Convert from Base58 string to Uint8Array
+          // This assumes the private key is in Base58 format (common for Solana)
+          anchor.utils.bytes.bs58.decode(process.env.SOLANA_PRIVATE_KEY)
+        )
+      );
+    } catch (e) {
+      console.error("Error parsing Solana private key:", e);
+      console.log("Generating new keypair instead...");
+      walletKeypair = Keypair.generate();
+    }
+  } else {
+    console.log("No Solana private key provided, generating a new one...");
+    walletKeypair = Keypair.generate();
+  }
   const wallet = new anchor.Wallet(walletKeypair);
   
   const provider = new anchor.AnchorProvider(connection, wallet, {
