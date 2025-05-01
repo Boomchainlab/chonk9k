@@ -599,6 +599,231 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return listing;
   }
+  
+  // Staking operations
+  async getStakingPools(activeOnly: boolean = false): Promise<StakingPool[]> {
+    if (activeOnly) {
+      return db.select().from(stakingPools).where(eq(stakingPools.isActive, true));
+    }
+    return db.select().from(stakingPools);
+  }
+  
+  async getStakingPool(id: number): Promise<StakingPool | undefined> {
+    const [pool] = await db.select().from(stakingPools).where(eq(stakingPools.id, id));
+    return pool;
+  }
+  
+  async createStakingPool(insertPool: InsertStakingPool): Promise<StakingPool> {
+    const [pool] = await db
+      .insert(stakingPools)
+      .values(insertPool)
+      .returning();
+    return pool;
+  }
+  
+  async getUserStakes(userId: number): Promise<UserStake[]> {
+    return db.select().from(userStakes).where(eq(userStakes.userId, userId));
+  }
+  
+  async getUserStake(id: number): Promise<UserStake | undefined> {
+    const [stake] = await db.select().from(userStakes).where(eq(userStakes.id, id));
+    return stake;
+  }
+  
+  async createUserStake(insertStake: InsertUserStake): Promise<UserStake> {
+    const [stake] = await db
+      .insert(userStakes)
+      .values(insertStake)
+      .returning();
+    return stake;
+  }
+  
+  async updateUserStakeAfterClaim(stakeId: number, rewardsAmount: number): Promise<boolean> {
+    try {
+      const stake = await this.getUserStake(stakeId);
+      if (!stake) {
+        return false;
+      }
+      
+      const now = new Date();
+      
+      await db
+        .update(userStakes)
+        .set({
+          claimedRewards: stake.claimedRewards + rewardsAmount,
+          lastClaimDate: now.toISOString()
+        })
+        .where(eq(userStakes.id, stakeId));
+      
+      return true;
+    } catch (error) {
+      console.error('Error updating user stake after claim:', error);
+      return false;
+    }
+  }
+  
+  async deactivateUserStake(stakeId: number): Promise<boolean> {
+    try {
+      await db
+        .update(userStakes)
+        .set({ isActive: false })
+        .where(eq(userStakes.id, stakeId));
+      
+      return true;
+    } catch (error) {
+      console.error('Error deactivating user stake:', error);
+      return false;
+    }
+  }
+  
+  async updatePoolTotalStaked(poolId: number, newTotalStaked: number): Promise<boolean> {
+    try {
+      await db
+        .update(stakingPools)
+        .set({ totalStaked: newTotalStaked })
+        .where(eq(stakingPools.id, poolId));
+      
+      return true;
+    } catch (error) {
+      console.error('Error updating pool total staked:', error);
+      return false;
+    }
+  }
+  
+  // Referral operations
+  async getReferredUsers(userId: number): Promise<User[]> {
+    return db
+      .select()
+      .from(users)
+      .where(eq(users.referrerId, userId));
+  }
+  
+  async getUserReferralRewards(userId: number): Promise<ReferralReward[]> {
+    return db
+      .select()
+      .from(referralRewards)
+      .where(eq(referralRewards.referrerId, userId));
+  }
+  
+  async getUserPendingReferralRewards(userId: number): Promise<ReferralReward[]> {
+    return db
+      .select()
+      .from(referralRewards)
+      .where(
+        and(
+          eq(referralRewards.referrerId, userId),
+          eq(referralRewards.status, 'pending')
+        )
+      );
+  }
+  
+  async createReferralReward(insertReward: InsertReferralReward): Promise<ReferralReward> {
+    const [reward] = await db
+      .insert(referralRewards)
+      .values(insertReward)
+      .returning();
+    return reward;
+  }
+  
+  async updateReferralRewardsStatus(rewardIds: number[], status: string): Promise<boolean> {
+    try {
+      for (const id of rewardIds) {
+        await db
+          .update(referralRewards)
+          .set({ status })
+          .where(eq(referralRewards.id, id));
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error updating referral rewards status:', error);
+      return false;
+    }
+  }
+  
+  async updateUserReferralCode(userId: number, referralCode: string): Promise<boolean> {
+    try {
+      await db
+        .update(users)
+        .set({ referralCode })
+        .where(eq(users.id, userId));
+      
+      return true;
+    } catch (error) {
+      console.error('Error updating user referral code:', error);
+      return false;
+    }
+  }
+  
+  async getUserByReferralCode(referralCode: string): Promise<User | undefined> {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.referralCode, referralCode));
+    
+    return user;
+  }
+  
+  async updateUserReferrer(userId: number, referrerId: number): Promise<boolean> {
+    try {
+      await db
+        .update(users)
+        .set({ referrerId })
+        .where(eq(users.id, userId));
+      
+      return true;
+    } catch (error) {
+      console.error('Error updating user referrer:', error);
+      return false;
+    }
+  }
+  
+  // Premium membership operations
+  async getPremiumTiers(): Promise<PremiumTier[]> {
+    return db.select().from(premiumTiers);
+  }
+  
+  async getPremiumTier(id: number): Promise<PremiumTier | undefined> {
+    const [tier] = await db.select().from(premiumTiers).where(eq(premiumTiers.id, id));
+    return tier;
+  }
+  
+  async createPremiumTier(insertTier: InsertPremiumTier): Promise<PremiumTier> {
+    const [tier] = await db
+      .insert(premiumTiers)
+      .values(insertTier)
+      .returning();
+    return tier;
+  }
+  
+  async updateUserPremiumTier(userId: number, tierId: number): Promise<boolean> {
+    try {
+      await db
+        .update(users)
+        .set({ premiumTier: tierId })
+        .where(eq(users.id, userId));
+      
+      return true;
+    } catch (error) {
+      console.error('Error updating user premium tier:', error);
+      return false;
+    }
+  }
+  
+  // User token balance operations
+  async updateUserTokenBalance(userId: number, newBalance: number): Promise<boolean> {
+    try {
+      await db
+        .update(users)
+        .set({ tokenBalance: newBalance })
+        .where(eq(users.id, userId));
+      
+      return true;
+    } catch (error) {
+      console.error('Error updating user token balance:', error);
+      return false;
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();
