@@ -16,7 +16,10 @@ import {
   stakingPools, type StakingPool, type InsertStakingPool,
   userStakes, type UserStake, type InsertUserStake,
   referralRewards, type ReferralReward, type InsertReferralReward,
-  premiumTiers, type PremiumTier, type InsertPremiumTier
+  premiumTiers, type PremiumTier, type InsertPremiumTier,
+  miningRigs, type MiningRig, type InsertMiningRig,
+  userMiningRigs, type UserMiningRig, type InsertUserMiningRig,
+  miningRewards, type MiningReward, type InsertMiningReward
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
@@ -124,6 +127,21 @@ export interface IStorage {
   
   // User token balance operations
   updateUserTokenBalance(userId: number, newBalance: number): Promise<boolean>;
+
+  // Mining operations
+  getMiningRigs(availableOnly?: boolean): Promise<MiningRig[]>;
+  getMiningRig(id: number): Promise<MiningRig | undefined>;
+  createMiningRig(rig: InsertMiningRig): Promise<MiningRig>;
+  getUserMiningRigs(userId: number): Promise<UserMiningRig[]>;
+  getUserMiningRigsWithDetails(userId: number): Promise<(UserMiningRig & { rig: MiningRig })[]>;
+  getUserMiningRig(id: number): Promise<UserMiningRig | undefined>;
+  createUserMiningRig(userRig: InsertUserMiningRig): Promise<UserMiningRig>;
+  updateUserMiningRigStatus(userRigId: number, isActive: boolean): Promise<boolean>;
+  updateLastRewardDate(userRigId: number): Promise<boolean>;
+  updateTotalMined(userRigId: number, newTotal: number): Promise<boolean>;
+  getMiningRewards(userId?: number, userRigId?: number): Promise<MiningReward[]>;
+  getMiningReward(id: number): Promise<MiningReward | undefined>;
+  createMiningReward(reward: InsertMiningReward): Promise<MiningReward>;
 }
 
 export class DatabaseStorage implements IStorage {

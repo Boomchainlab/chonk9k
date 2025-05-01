@@ -11,6 +11,7 @@ import TriviaAdmin from "@/pages/TriviaAdmin";
 import CryptoPayments from "@/pages/CryptoPayments";
 import Marketplaces from "@/pages/Marketplaces";
 import MarketplaceAdmin from "@/pages/MarketplaceAdmin";
+import Mining from "@/pages/Mining";
 
 // Header component with navigation
 function Header() {
@@ -34,6 +35,9 @@ function Header() {
             </Link>
             <Link href="/marketplaces" className="hover:text-blue-100 transition-colors">
               Exchanges
+            </Link>
+            <Link href="/mining" className="hover:text-blue-100 transition-colors">
+              Mining
             </Link>
             <Link href="/trivia" className="hover:text-blue-100 transition-colors">
               Trivia
@@ -66,6 +70,7 @@ function Router() {
           <Route path="/" component={Home} />
           <Route path="/crypto" component={CryptoPayments} />
           <Route path="/marketplaces" component={Marketplaces} />
+          <Route path="/mining" component={Mining} />
           <Route path="/trivia" component={TriviaPage} />
           <Route path="/profile/:userId" component={Profile} />
           <Route path="/admin/marketplace" component={MarketplaceAdmin} />
