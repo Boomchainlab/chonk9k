@@ -229,8 +229,11 @@ const SpinWheel: React.FC<SpinWheelProps> = ({ className = '', onReward }) => {
           {/* Spinning Wheel */}
           <div 
             ref={wheelRef}
-            className="w-full h-full rounded-full border-4 border-[#ff00ff] overflow-hidden transition-transform duration-5000 ease-out flex items-center justify-center relative"
-            style={{ transform: `rotate(${rotation}deg)` }}
+            className="w-full h-full rounded-full border-4 border-[#ff00ff] overflow-hidden flex items-center justify-center relative"
+            style={{ 
+              transform: `rotate(${rotation}deg)`,
+              transition: isSpinning ? 'transform 5s cubic-bezier(0.2, 0.8, 0.3, 1)' : 'none'
+            }}
           >
             {/* Wheel Segments */}
             {rewards.map((reward, index) => {
@@ -276,7 +279,7 @@ const SpinWheel: React.FC<SpinWheelProps> = ({ className = '', onReward }) => {
         
         {/* Selected Reward Display */}
         {selectedReward && (
-          <div className="mt-4 p-4 rounded-lg bg-black/50 border border-[selectedReward.color]/30 w-full text-center">
+          <div className="mt-4 p-4 rounded-lg bg-black/50 border border-gray-600 w-full text-center" style={{ borderColor: `${selectedReward.color}30` }}>
             <h3 className="font-bold text-lg text-white">{selectedReward.name}</h3>
             <p className="text-gray-300">{selectedReward.description}</p>
             <div className="flex justify-center mt-2">

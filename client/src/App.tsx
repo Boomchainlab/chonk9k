@@ -19,6 +19,7 @@ import Mining from "@/pages/Mining";
 import { WalletProvider } from "@/hooks/useChonkWallet";
 import MultiWalletConnect from "@/components/MultiWalletConnect";
 import TokenPage from "@/pages/TokenPage";
+import SpinWheel from "@/pages/SpinWheel";
 import AnimatedChonkCharacter from "@/components/AnimatedChonkCharacter";
 import { useLocation } from "wouter";
 import { useState, useEffect } from 'react';
@@ -60,6 +61,9 @@ function Header() {
             </Link>
             <Link href="/trivia" className={`transition-colors ${isDashboard ? 'text-[#ff00ff] hover:text-[#ff00ff]/80' : 'hover:text-pink-200'}`}>
               Trivia
+            </Link>
+            <Link href="/spin" className={`transition-colors ${isDashboard ? 'text-[#00e0ff] hover:text-[#00e0ff]/80' : 'hover:text-pink-200'}`}>
+              Spin Wheel
             </Link>
             <Link href="/profile/1" className={`transition-colors ${isDashboard ? 'text-[#00e0ff] hover:text-[#00e0ff]/80' : 'hover:text-pink-200'}`}>
               Profile
@@ -111,6 +115,7 @@ function Router() {
           <Route path="/nft/:id" component={NftCollectionDetail} />
           <Route path="/mining" component={Mining} />
           <Route path="/trivia" component={TriviaPage} />
+          <Route path="/spin" component={SpinWheel} />
           <Route path="/profile/:userId" component={Profile} />
           <Route path="/admin/marketplace" component={MarketplaceAdmin} />
           <Route path="/admin/badges" component={BadgeAdmin} />

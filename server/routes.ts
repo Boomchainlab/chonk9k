@@ -1515,6 +1515,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Spin Wheel Routes
+  
+  // Get all spin wheel rewards
+  app.get('/api/spin-wheel/rewards', async (req: Request, res: Response) => {
+    try {
+      const activeOnly = req.query.active === 'true';
+      const rewards = await storage.getSpinWheelRewards(activeOnly);
+      res.json(rewards);
+    } catch (error) {
+      console.error('Error fetching spin wheel rewards:', error);
+      res.status(500).json({ error: 'Failed to fetch spin wheel rewards' });
+    }
+  });
+  
+  // Get spin wheel reward by ID
+  app.get('/api/spin-wheel/rewards/:id', async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'Invalid reward ID' });
+      }
+      
+      const reward = await storage.getSpinWheelReward(id);
+      if (!reward) {
+        return res.status(404).json({ error: 'Spin wheel reward not found' });
+      }
+      
+      res.json(reward);
+    } catch (error) {
+      console.error('Error fetching spin wheel reward:', error);
+      res.status(500).json({ error: 'Failed to fetch spin wheel reward' });
+    }
+  });
+  
+  // Create a new spin wheel reward
+  app.post('/api/spin-wheel/rewards', async (req: Request, res: Response) => {
+    try {
+      const rewardData = insertSpinWheelRewardSchema.parse(req.body);
+      const newReward = await storage.createSpinWheelReward(rewardData);
+      res.status(201).json(newReward);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      console.error('Error creating spin wheel reward:', error);
+      res.status(500).json({ error: 'Failed to create spin wheel reward' });
+    }
+  });
+  
+  // Get user spins
+  app.get('/api/users/:userId/spins', async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: 'Invalid user ID' });
+      }
+      
+      const spins = await storage.getUserSpins(userId);
+      res.json(spins);
+    } catch (error) {
+      console.error('Error fetching user spins:', error);
+      res.status(500).json({ error: 'Failed to fetch user spins' });
+    }
+  });
+  
+  // Create a new user spin (record a spin result)
+  app.post('/api/users/:userId/spins', async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: 'Invalid user ID' });
+      }
+      
+      // Check if the user exists
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      const spinData = insertUserSpinSchema.parse({
+        ...req.body,
+        userId
+      });
+      
+      const newSpin = await storage.createUserSpin(spinData);
+      res.status(201).json(newSpin);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      console.error('Error recording spin result:', error);
+      res.status(500).json({ error: 'Failed to record spin result' });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

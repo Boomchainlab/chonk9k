@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useChonkWallet } from '@/hooks/useChonkWallet';
 import { useToast } from '@/hooks/use-toast';
-import { Layout } from '@/components/ui/layout';
+// Use a simple div instead of a Layout component
+import { Link } from 'wouter';
 import SpinWheelComponent from '@/components/SpinWheel';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -75,7 +76,7 @@ const SpinWheelPage: React.FC = () => {
   };
 
   return (
-    <Layout>
+    <div className="min-h-screen bg-black">
       <div className="container max-w-6xl mx-auto px-4 py-8">
         <h1 className="text-4xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-[#ff00ff] to-[#00e0ff]">
           Community Rewards
@@ -244,7 +245,7 @@ const SpinWheelPage: React.FC = () => {
           </div>
         </div>
       </div>
-    </Layout>
+    </div>
   );
 };
 
