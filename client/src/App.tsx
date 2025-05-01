@@ -2,6 +2,7 @@ import { Switch, Route, Link } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
+import Footer from "@/components/Footer";
 import NewChonkLogo from "@/components/NewChonkLogo";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
@@ -53,6 +54,9 @@ function Header() {
             <Link href="/profile/1" className="hover:text-pink-200 transition-colors">
               Profile
             </Link>
+            <a href="https://github.com/BoomchainLabs/chonk9k-dapp" target="_blank" rel="noopener noreferrer" className="hover:text-pink-200 transition-colors flex items-center">
+              <i className="fas fa-code-branch mr-1"></i> GitHub
+            </a>
             <Link href="/admin/marketplace" className="hover:text-pink-200 transition-colors text-xs px-2 py-1 bg-pink-700 rounded">
               Marketplace Admin
             </Link>
@@ -92,6 +96,7 @@ function Router() {
           <Route component={NotFound} />
         </Switch>
       </main>
+      <Footer />
     </>
   );
 }
