@@ -47,19 +47,17 @@ const SimpleTokenDisplay: React.FC = () => {
                 MAINNET
               </Badge>
             </CardTitle>
-            <CardDescription className="text-gray-400 flex flex-col gap-1">
-              <div>
-                Mainnet Contract: <span className="text-[#00e0ff] break-all font-mono text-xs">{CHONK9K_TOKEN_ADDRESS}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge className="bg-gray-800 hover:bg-gray-700 cursor-pointer" onClick={() => copyToClipboard(CHONK9K_TOKEN_ADDRESS)}>
-                  Copy Address 📋
-                </Badge>
-                <Badge className="bg-green-900/40 text-green-300 border border-green-500/30">
-                  LIVE TOKEN 🚀
-                </Badge>
-              </div>
+            <CardDescription className="text-gray-400 mb-3">
+              Mainnet Contract: <span className="text-[#00e0ff] break-all font-mono text-xs">{CHONK9K_TOKEN_ADDRESS}</span>
             </CardDescription>
+            <div className="flex items-center gap-2 mt-2">
+              <Badge className="bg-gray-800 hover:bg-gray-700 cursor-pointer" onClick={() => copyToClipboard(CHONK9K_TOKEN_ADDRESS)}>
+                Copy Address 📋
+              </Badge>
+              <Badge className="bg-green-900/40 text-green-300 border border-green-500/30">
+                LIVE TOKEN 🚀
+              </Badge>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
