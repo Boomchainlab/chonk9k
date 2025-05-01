@@ -23,6 +23,7 @@ import MultiWalletConnect from "@/components/MultiWalletConnect";
 import GamifiedWalletConnect from "@/components/GamifiedWalletConnect";
 import SimpleGamifiedWalletConnect from "@/components/SimpleGamifiedWalletConnect";
 import TokenPage from "@/pages/TokenPage";
+import TokenBranding from "@/pages/TokenBranding";
 import SpinWheel from "@/pages/SpinWheel";
 import AnimatedChonkCharacter from "@/components/AnimatedChonkCharacter";
 import { useLocation } from "wouter";
@@ -116,6 +117,7 @@ function Router() {
           <Route path="/home" component={Home} />
           <Route path="/crypto" component={CryptoPayments} />
           <Route path="/token" component={TokenPage} />
+          <Route path="/token/branding" component={TokenBranding} />
           <Route path="/marketplaces" component={Marketplaces} />
           <Route path="/nft/:id" component={NftCollectionDetail} />
           <Route path="/mining" component={Mining} />
