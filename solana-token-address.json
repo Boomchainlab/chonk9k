@@ -1,10 +1,28 @@
 {
-  "network": "devnet",
-  "tokenMint": "4f4iw9PHsFkEZxUnWD1CebgaPEpGH7PZQDFu3DHQwCcQ",
+  "network": "mainnet-beta",
+  "tokenMint": "atqLmwzsQ7oMX4aMPjCn3seH5c3Ep4bztg3p3hWJsgJ",
   "recipientAddress": "2Lp2SGS9AKYVKCorizjzJLPHn4swatnbvEQ2UB2bKorJy",
-  "transferAmount": 1000,
+  "transferAmount": "9000000000",
   "totalSupply": "9000000000",
   "decimals": 9,
-  "mintTx": "2ohi25bN3qQmau7te11on8PcbXLkEDDXYK7fa7TweNm9cjYqWPionZ5vFzUEBkpnjo13KvX5yGgpQ2oPoUF7QSEL",
-  "transferTx": "N/A - Same wallet"
+  "previousDeployments": [
+    {
+      "tokenMint": "4f4iw9PHsFkEZxUnWD1CebgaPEpGH7PZQDFu3DHQwCcQ",
+      "network": "devnet",
+      "mintTx": "2ohi25bN3qQmau7te11on8PcbXLkEDDXYK7fa7TweNm9cjYqWPionZ5vFzUEBkpnjo13KvX5yGgpQ2oPoUF7QSEL"
+    },
+    {
+      "tokenMint": "EkA1RBVFGrHRPxpXB1yfmbX7W3ZB8eF8uipgytLdyBzQ",
+      "network": "mainnet-beta",
+      "mintTx": "pending"
+    },
+    {
+      "tokenMint": "GUUFYDkp5KuNieRARo8EoGPhN1yuJFVX3eRfChLMCbav",
+      "network": "mainnet-beta",
+      "mintTx": "pending"
+    }
+  ],
+  "mintTx": "pending mainnet confirmation",
+  "transferTx": "N/A - Same wallet",
+  "deploymentDate": "2025-05-01"
 }
