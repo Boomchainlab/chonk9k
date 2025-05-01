@@ -1,5 +1,6 @@
 import React from "react";
 import { cn } from "@/lib/utils";
+import tokenLogo from '@assets/806ED59A-7B11-4101-953C-13897F5FFD73.jpeg';
 
 interface NewChonkLogoProps {
   size?: "small" | "medium" | "large";
@@ -36,16 +37,21 @@ const NewChonkLogo: React.FC<NewChonkLogoProps> = ({
       
       <div className="w-full h-full relative">
         <img 
-          src="/images/cyber_chonk_logo.png" 
-          alt="Chonk9k Logo" 
+          src={tokenLogo} 
+          alt="CHONK 9000 Logo" 
           className={`w-full h-full rounded-full object-cover ${isAnimated ? `drop-shadow-[0_0_10px_#00e0ff80]` : ""}`}
+          onError={(e) => {
+            console.error('Logo loading error:', e);
+            const target = e.target as HTMLImageElement;
+            target.src = '/images/cyber_chonk_logo.png';
+          }}
         />
       </div>
       
       {/* Optional: Add "CHONK9K" text below when size is large */}
       {size === "large" && (
         <div className="mt-4 text-center">
-          <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#00e0ff] to-[#0095ff]">CHONK9K</h1>
+          <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#00e0ff] to-[#0095ff]">CHONK 9000</h1>
           <p className="text-sm tracking-widest text-[#00e0ff]">TRADE. STAKE. EARN.</p>
         </div>
       )}

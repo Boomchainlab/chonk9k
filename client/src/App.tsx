@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import Footer from "@/components/Footer";
 import NewChonkLogo from "@/components/NewChonkLogo";
+import LivePriceHeader from "@/components/LivePriceHeader";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import Dashboard from "@/pages/Dashboard";
@@ -45,7 +46,7 @@ function Header() {
           <div className="flex items-center gap-2">
             <Link href="/" className="flex items-center hover:opacity-90 transition-opacity">
               <NewChonkLogo size="small" />
-              <span className="text-xl font-bold ml-2 bg-clip-text text-transparent bg-gradient-to-r from-[#ff00ff] to-[#00e0ff]">Chonk9k</span>
+              <span className="text-xl font-bold ml-2 bg-clip-text text-transparent bg-gradient-to-r from-[#ff00ff] to-[#00e0ff]">CHONK 9000</span>
             </Link>
           </div>
           
@@ -95,7 +96,8 @@ function Header() {
             </Link>
           </nav>
           
-          <div className="hidden md:flex items-center">
+          <div className="hidden md:flex items-center gap-4">
+            <LivePriceHeader />
             <AnimatedChonkCharacter />
           </div>
         </div>

@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import NewChonkLogo from '@/components/NewChonkLogo';
 import PriceChart from '@/components/PriceChart';
 import TokenStats from '@/components/TokenStats';
+import LivePrice from '@/components/LivePrice';
 import AnimatedChonkCharacter from '@/components/AnimatedChonkCharacter';
 
 const Dashboard = () => {
@@ -80,9 +81,8 @@ const Dashboard = () => {
                       <span className="text-sm text-gray-400">Current Price</span>
                       <span className="text-xs px-2 py-1 bg-[#ff00ff]/20 text-[#ff00ff] rounded-full">LIVE</span>
                     </div>
-                    <div className="flex items-baseline mt-1">
-                      <span className="text-3xl font-bold text-[#00e0ff]">$0.000421</span>
-                      <span className="ml-2 text-[#00ff85]">+12.8%</span>
+                    <div className="mt-2">
+                      <LivePrice showCard={false} size="lg" className="flex items-baseline" />
                     </div>
                   </div>
                   
@@ -188,6 +188,7 @@ const Dashboard = () => {
                   </h3>
                 </div>
                 <CardContent className="p-4 flex flex-col space-y-4">
+                  <LivePrice className="mb-4" />
                   <div className="h-40 w-full">
                     <PriceChart priceData={{
                       currentPrice: "$0.00042069",
