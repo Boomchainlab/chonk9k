@@ -9,6 +9,13 @@ export const users = pgTable("users", {
   email: varchar("email", { length: 255 }).notNull().unique(),
   passwordHash: varchar("password_hash", { length: 255 }).notNull(),
   walletAddress: varchar("wallet_address", { length: 255 }).unique(),
+  referralCode: varchar("referral_code", { length: 20 }).unique(),
+  referrerId: integer("referrer_id").references(() => users.id),
+  tokenBalance: doublePrecision("token_balance").default(0),
+  stakingBalance: doublePrecision("staking_balance").default(0),
+  stakingStartDate: timestamp("staking_start_date"),
+  stakingEndDate: timestamp("staking_end_date"),
+  premiumTier: integer("premium_tier").default(0),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -156,12 +163,72 @@ export const marketplaceListings = pgTable("marketplace_listings", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Staking Pools
+export const stakingPools = pgTable("staking_pools", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  description: text("description"),
+  apr: doublePrecision("apr").notNull(),
+  minStakeAmount: doublePrecision("min_stake_amount").notNull(),
+  lockPeriodDays: integer("lock_period_days").notNull(),
+  totalStaked: doublePrecision("total_staked").default(0),
+  maxCapacity: doublePrecision("max_capacity"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// User Stakes
+export const userStakes = pgTable("user_stakes", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  poolId: integer("pool_id").references(() => stakingPools.id).notNull(),
+  amount: doublePrecision("amount").notNull(),
+  startDate: timestamp("start_date").defaultNow(),
+  endDate: timestamp("end_date").notNull(),
+  claimedRewards: doublePrecision("claimed_rewards").default(0),
+  isActive: boolean("is_active").default(true),
+  lastClaimDate: timestamp("last_claim_date"),
+  transactionHash: varchar("transaction_hash", { length: 255 }),
+});
+
+// Referral Rewards
+export const referralRewards = pgTable("referral_rewards", {
+  id: serial("id").primaryKey(),
+  referrerId: integer("referrer_id").references(() => users.id).notNull(),
+  referredId: integer("referred_id").references(() => users.id).notNull(),
+  amount: doublePrecision("amount").notNull(),
+  status: varchar("status", { length: 50 }).notNull().default("pending"),
+  transactionHash: varchar("transaction_hash", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Premium Membership Tiers
+export const premiumTiers = pgTable("premium_tiers", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  description: text("description"),
+  tokenRequirement: doublePrecision("token_requirement").notNull(),
+  stakingBonus: doublePrecision("staking_bonus").notNull(),
+  referralBonus: doublePrecision("referral_bonus").notNull(),
+  spinMultiplier: integer("spin_multiplier").default(1).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
-export const usersRelations = relations(users, ({ many }) => ({
+export const usersRelations = relations(users, ({ many, one }) => ({
   tokenPurchases: many(tokenPurchases),
   userBadges: many(userBadges),
   triviaSubmissions: many(triviaSubmissions),
   userSpins: many(userSpins),
+  userStakes: many(userStakes),
+  referredUsers: many(users, { relationName: 'referrals' }),
+  referrer: one(users, {
+    fields: [users.referrerId],
+    references: [users.id],
+    relationName: 'referrals',
+  }),
+  referralsGiven: many(referralRewards, { relationName: 'referrer' }),
+  referralsReceived: many(referralRewards, { relationName: 'referred' }),
 }));
 
 export const tokenPurchasesRelations = relations(tokenPurchases, ({ one }) => ({
@@ -302,3 +369,22 @@ export type UserSpin = typeof userSpins.$inferSelect;
 // Marketplace types
 export type InsertMarketplaceListing = z.infer<typeof insertMarketplaceListingSchema>;
 export type MarketplaceListing = typeof marketplaceListings.$inferSelect;
+
+// Add insert schemas for new tables
+export const insertStakingPoolSchema = createInsertSchema(stakingPools).omit({ id: true, createdAt: true });
+export const insertUserStakeSchema = createInsertSchema(userStakes).omit({ id: true });
+export const insertReferralRewardSchema = createInsertSchema(referralRewards).omit({ id: true, createdAt: true });
+export const insertPremiumTierSchema = createInsertSchema(premiumTiers).omit({ id: true, createdAt: true });
+
+// Add types for new tables
+export type InsertStakingPool = z.infer<typeof insertStakingPoolSchema>;
+export type StakingPool = typeof stakingPools.$inferSelect;
+
+export type InsertUserStake = z.infer<typeof insertUserStakeSchema>;
+export type UserStake = typeof userStakes.$inferSelect;
+
+export type InsertReferralReward = z.infer<typeof insertReferralRewardSchema>;
+export type ReferralReward = typeof referralRewards.$inferSelect;
+
+export type InsertPremiumTier = z.infer<typeof insertPremiumTierSchema>;
+export type PremiumTier = typeof premiumTiers.$inferSelect;
