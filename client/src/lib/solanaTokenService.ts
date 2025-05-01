@@ -1,7 +1,8 @@
 import { Connection, PublicKey, clusterApiUrl, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
+import { CONTRACT_ADDRESSES, RPC_URLS } from '@shared/constants';
 
-export const CHONK9K_TOKEN_ADDRESS = 'DnUsQnwNot38V9JbisNC18VHZkae1eKK5N2Dgy55pump';
+export const CHONK9K_TOKEN_ADDRESS = CONTRACT_ADDRESSES.SOLANA.CHONK9K;
 export const RAYDIUM_LIQUIDITY_PROGRAM_ID = '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8';
 export const ORCA_WHIRLPOOL_PROGRAM_ID = 'whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc';
 

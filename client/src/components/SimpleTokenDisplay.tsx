@@ -3,8 +3,10 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
+import { CONTRACT_ADDRESSES, TOKEN_METADATA } from "@shared/constants";
 
-const CHONK9K_TOKEN_ADDRESS = 'DnUsQnwNot38V9JbisNC18VHZkae1eKK5N2Dgy55pump';
+const CHONK9K_TOKEN_ADDRESS = CONTRACT_ADDRESSES.SOLANA.CHONK9K;
+const tokenMetadata = TOKEN_METADATA.CHONK9K;
 
 const SimpleTokenDisplay: React.FC = () => {
   const copyToClipboard = (text: string) => {
@@ -49,7 +51,7 @@ const SimpleTokenDisplay: React.FC = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-gray-400 mb-1">Total Supply</p>
-                <p className="font-medium">9,000,000,000</p>
+                <p className="font-medium">{tokenMetadata.totalSupply}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-400 mb-1">Decimals</p>
@@ -246,7 +248,7 @@ const SimpleTokenDisplay: React.FC = () => {
             </Button>
           </Link>
           <a 
-            href="https://raydium.io/swap/?inputCurrency=sol&outputCurrency=DnUsQnwNot38V9JbisNC18VHZkae1eKK5N2Dgy55pump" 
+            href={`https://raydium.io/swap/?inputCurrency=sol&outputCurrency=${CHONK9K_TOKEN_ADDRESS}`} 
             target="_blank" 
             rel="noopener noreferrer"
           >
