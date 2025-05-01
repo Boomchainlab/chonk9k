@@ -20,6 +20,7 @@ import NftCollectionDetail from "@/pages/NftCollectionDetail";
 import Mining from "@/pages/Mining";
 import { WalletProvider } from "@/hooks/useChonkWallet";
 import MultiWalletConnect from "@/components/MultiWalletConnect";
+import GamifiedWalletConnect from "@/components/GamifiedWalletConnect";
 import TokenPage from "@/pages/TokenPage";
 import SpinWheel from "@/pages/SpinWheel";
 import AnimatedChonkCharacter from "@/components/AnimatedChonkCharacter";
@@ -141,7 +142,7 @@ function App() {
           <AnimatedChonkCharacter />
         </div>
         <div className="fixed top-4 right-4 z-50 hidden md:flex">
-          <MultiWalletConnect variant="outline" />
+          <GamifiedWalletConnect variant="outline" />
         </div>
         <Toaster />
       </WalletProvider>
