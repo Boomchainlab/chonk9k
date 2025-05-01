@@ -3,7 +3,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import logoSvg from "/logo.svg";
 
 const CHONK9K_TOKEN_ADDRESS = 'DnUsQnwNot38V9JbisNC18VHZkae1eKK5N2Dgy55pump';
 
@@ -16,6 +15,7 @@ const SimpleTokenDisplay: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto py-12 px-4">
       <div className="text-center mb-10">
+        <img src="/logo.svg" alt="Chonk9k Logo" className="w-24 h-24 mx-auto mb-4" />
         <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-[#ff00ff] to-[#00e0ff] bg-clip-text text-transparent">
           $CHONK9K Token
         </h1>
@@ -41,7 +41,7 @@ const SimpleTokenDisplay: React.FC = () => {
                 className="ml-2 h-6 w-6 rounded-full p-0 text-[#ff00ff]/70 hover:text-[#ff00ff] hover:bg-[#ff00ff]/10"
                 onClick={() => copyToClipboard(CHONK9K_TOKEN_ADDRESS)}
               >
-                <i className="fas fa-copy text-xs"></i>
+                📋
               </Button>
             </CardDescription>
           </CardHeader>
@@ -80,7 +80,7 @@ const SimpleTokenDisplay: React.FC = () => {
               rel="noopener noreferrer"
               className="text-sm text-[#00e0ff] hover:underline flex items-center gap-1"
             >
-              View on Solscan <i className="fas fa-external-link-alt text-xs"></i>
+              View on Solscan 🔗
             </a>
             <a 
               href={`https://dexscreener.com/solana/${CHONK9K_TOKEN_ADDRESS}`}
@@ -88,7 +88,7 @@ const SimpleTokenDisplay: React.FC = () => {
               rel="noopener noreferrer"
               className="text-sm text-[#00e0ff] hover:underline flex items-center gap-1"
             >
-              View on DexScreener <i className="fas fa-external-link-alt text-xs"></i>
+              View on DexScreener 🔗
             </a>
           </CardFooter>
         </Card>
@@ -113,7 +113,7 @@ const SimpleTokenDisplay: React.FC = () => {
                   className="p-3 rounded-lg border border-gray-800 hover:border-[#ff00ff]/50 flex items-center gap-2 transition-colors"
                 >
                   <div className="w-8 h-8 rounded-full bg-black/60 flex items-center justify-center">
-                    <img src="/images/wallets/raydium.png" alt="Raydium" className="w-6 h-6" />
+                    <img src="/images/wallets/raydium.svg" alt="Raydium" className="w-6 h-6" />
                   </div>
                   <div>
                     <p className="font-medium">Raydium</p>
@@ -127,7 +127,7 @@ const SimpleTokenDisplay: React.FC = () => {
                   className="p-3 rounded-lg border border-gray-800 hover:border-[#ff00ff]/50 flex items-center gap-2 transition-colors"
                 >
                   <div className="w-8 h-8 rounded-full bg-black/60 flex items-center justify-center">
-                    <img src="/images/wallets/jupiter.png" alt="Jupiter" className="w-6 h-6" />
+                    <img src="/images/wallets/jupiter.svg" alt="Jupiter" className="w-6 h-6" />
                   </div>
                   <div>
                     <p className="font-medium">Jupiter</p>
@@ -138,22 +138,26 @@ const SimpleTokenDisplay: React.FC = () => {
             </div>
 
             <div className="space-y-3">
-              <h3 className="font-medium text-[#00e0ff]">Add Liquidity</h3>
-              <div className="grid grid-cols-1 gap-3">
-                <a 
-                  href={`https://raydium.io/liquidity/?ammId=${CHONK9K_TOKEN_ADDRESS}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-3 rounded-lg border border-gray-800 hover:border-[#00e0ff]/50 flex items-center gap-2 transition-colors"
-                >
-                  <div className="w-8 h-8 rounded-full bg-black/60 flex items-center justify-center">
-                    <img src="/images/wallets/raydium.png" alt="Raydium" className="w-6 h-6" />
+              <h3 className="font-medium text-[#00e0ff]">Pair With</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-lg border border-gray-800 flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center">
+                    <img src="/images/coins/sol.svg" alt="SOL" className="w-6 h-6" />
                   </div>
                   <div>
-                    <p className="font-medium">Add Liquidity on Raydium</p>
-                    <p className="text-xs text-gray-400">Provide CHONK9K-SOL or CHONK9K-USDC liquidity</p>
+                    <p className="font-medium">SOL</p>
+                    <p className="text-xs text-gray-400">Solana</p>
                   </div>
-                </a>
+                </div>
+                <div className="p-3 rounded-lg border border-gray-800 flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center">
+                    <img src="/images/coins/usdc.svg" alt="USDC" className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="font-medium">USDC</p>
+                    <p className="text-xs text-gray-400">USD Coin</p>
+                  </div>
+                </div>
               </div>
             </div>
           </CardContent>
