@@ -2,6 +2,7 @@
   "image": "mcr.microsoft.com/devcontainers/universal:2",
   "tasks": {
     "build": "npm install && npm run build",
-    "test": "npm install && npm test"
+    "test": "npm install && npm test",
+    "launch": "npm install && npm run start"
   }
 }
