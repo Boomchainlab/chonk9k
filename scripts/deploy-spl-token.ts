@@ -11,11 +11,11 @@ const TOKEN_DECIMALS = 9; // CHONK9K uses 9 decimals
 async function main() {
   console.log("Starting SPL token deployment process...");
   
-  // Use mainnet or devnet
-  const isMainnet = process.env.SOLANA_NETWORK === 'mainnet';
-  const endpoint = isMainnet 
-    ? clusterApiUrl('mainnet-beta') 
-    : "https://api.devnet.solana.com";
+  // Use mainnet for deployment
+  const isMainnet = true; // Force mainnet deployment
+  const endpoint = clusterApiUrl('mainnet-beta');
+  
+  console.log("⚠️ DEPLOYING TO MAINNET - REAL FUNDS WILL BE USED ⚠️");
     
   console.log(`Connecting to Solana ${isMainnet ? 'mainnet' : 'devnet'} at ${endpoint}`);
   const connection = new Connection(endpoint, 'confirmed');
@@ -43,12 +43,18 @@ async function main() {
   
   console.log("Wallet public key:", walletKeypair.publicKey.toString());
   
-  // Check wallet balance
+  // Check wallet balance - need more SOL for mainnet
   const balance = await connection.getBalance(walletKeypair.publicKey);
+  const requiredBalance = isMainnet ? 0.5 : 0.05; // Higher requirement for mainnet
   console.log(`Wallet balance: ${balance / LAMPORTS_PER_SOL} SOL`);
   
-  if (balance < 0.05 * LAMPORTS_PER_SOL) {
-    console.warn("Warning: Low wallet balance. You may need more SOL to complete this transaction.");
+  if (balance < requiredBalance * LAMPORTS_PER_SOL) {
+    console.error(`Error: Insufficient wallet balance for ${isMainnet ? 'mainnet' : 'devnet'} deployment.`);
+    console.error(`Required minimum balance: ${requiredBalance} SOL, current balance: ${balance / LAMPORTS_PER_SOL} SOL`);
+    console.error(`Please fund the wallet address (${walletKeypair.publicKey.toString()}) with more SOL to continue.`);
+    process.exit(1);
+  } else {
+    console.log(`Wallet has sufficient balance for token deployment.`);
   }
   
   try {
@@ -93,13 +99,47 @@ async function main() {
     
     console.log("Tokens minted successfully. Transaction:", mintTx);
     
-    // Since we're using the same address for deployment and as target,
-    // we don't need to transfer tokens because they're already minted to this address
-    console.log("Current wallet address is being used as both deployer and recipient.");
-    console.log(`The address ${walletKeypair.publicKey.toString()} now holds ${9_000_000_000} CHONK9K tokens.`);
+    // Transfer tokens to the target address if it's different from the deployer
+    let transferTx = "N/A - Same wallet";
     
-    // Skip transfer since the tokens are already in the deployer wallet
-    const transferTx = "N/A - Same wallet";
+    if (TARGET_ADDRESS && TARGET_ADDRESS !== walletKeypair.publicKey.toString()) {
+      console.log(`Transferring tokens to target address: ${TARGET_ADDRESS}...`);
+      
+      try {
+        // Create a PublicKey from the target address string
+        const targetPublicKey = new PublicKey(TARGET_ADDRESS);
+        
+        // Create an associated token account for the target
+        console.log("Creating token account for recipient...");
+        const targetTokenAccount = await getOrCreateAssociatedTokenAccount(
+          connection,
+          walletKeypair,
+          mint,
+          targetPublicKey
+        );
+        
+        // Calculate the transfer amount (all tokens)
+        const transferAmount = mintAmount; // Transfer all tokens
+        
+        // Transfer the tokens
+        transferTx = await transfer(
+          connection,
+          walletKeypair,
+          senderTokenAccount.address,
+          targetTokenAccount.address,
+          walletKeypair.publicKey,
+          transferAmount
+        );
+        
+        console.log(`Successfully transferred ${9_000_000_000} CHONK9K tokens to ${TARGET_ADDRESS}`);
+      } catch (error) {
+        console.error("Error transferring tokens to target address:", error);
+        console.log(`The address ${walletKeypair.publicKey.toString()} still holds ${9_000_000_000} CHONK9K tokens.`);
+      }
+    } else {
+      console.log("Current wallet address is being used as both deployer and recipient.");
+      console.log(`The address ${walletKeypair.publicKey.toString()} now holds ${9_000_000_000} CHONK9K tokens.`);
+    }
     
     console.log("Tokens transferred successfully. Transaction:", transferTx);
     

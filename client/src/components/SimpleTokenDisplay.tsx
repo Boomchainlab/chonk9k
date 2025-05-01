@@ -43,17 +43,20 @@ const SimpleTokenDisplay: React.FC = () => {
               <Badge className="ml-auto bg-gradient-to-r from-violet-500 to-fuchsia-500">
                 SPL Token
               </Badge>
+              <Badge className="bg-amber-600/70 text-amber-100">
+                DEVNET
+              </Badge>
             </CardTitle>
             <CardDescription className="text-gray-400 flex flex-col gap-1">
               <div>
-                Token Contract: <span className="text-[#00e0ff] break-all font-mono text-xs">{CHONK9K_TOKEN_ADDRESS}</span>
+                Devnet Contract: <span className="text-[#00e0ff] break-all font-mono text-xs">{CHONK9K_TOKEN_ADDRESS}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Badge className="bg-gray-800 hover:bg-gray-700 cursor-pointer" onClick={() => copyToClipboard(CHONK9K_TOKEN_ADDRESS)}>
                   Copy Address 📋
                 </Badge>
-                <Badge className="bg-gray-800 hover:bg-gray-700 cursor-pointer">
-                  {CONTRACT_ADDRESSES.SOLANA.CHONK9K === CHONK9K_TOKEN_ADDRESS ? "✅ Verified" : "❌ Mismatch"}
+                <Badge className="bg-amber-900/40 text-amber-300 border border-amber-500/30">
+                  DEVELOPMENT TOKEN ⚠️
                 </Badge>
               </div>
             </CardDescription>
@@ -87,35 +90,33 @@ const SimpleTokenDisplay: React.FC = () => {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-3">
-            <div className="text-sm font-medium text-[#ff00ff]">Transaction Explorers:</div>
+            <div className="text-sm font-medium text-[#ff00ff]">Devnet Explorers:</div>
             <div className="flex flex-wrap gap-3">
               <a 
-                href={`https://solscan.io/token/${CHONK9K_TOKEN_ADDRESS}`}
+                href={`https://solscan.io/token/${CHONK9K_TOKEN_ADDRESS}?cluster=devnet`}
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="text-sm bg-gray-800 hover:bg-gray-700 px-3 py-2 rounded-md text-white flex items-center gap-1"
               >
-                View on Solscan 🔗
+                Solscan (Devnet) 🔗
               </a>
               <a 
-                href={`https://dexscreener.com/solana/${CHONK9K_TOKEN_ADDRESS}`}
+                href={`https://explorer.solana.com/address/${CHONK9K_TOKEN_ADDRESS}?cluster=devnet`}
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="text-sm bg-gray-800 hover:bg-gray-700 px-3 py-2 rounded-md text-white flex items-center gap-1"
               >
-                View on DexScreener 🔗
-              </a>
-              <a 
-                href={`https://explorer.solana.com/address/${CHONK9K_TOKEN_ADDRESS}`}
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-sm bg-gray-800 hover:bg-gray-700 px-3 py-2 rounded-md text-white flex items-center gap-1"
-              >
-                Solana Explorer 🔗
+                Solana Explorer (Devnet) 🔗
               </a>
             </div>
-            <div className="text-xs text-gray-400 mt-1">
-              Token Address: <span className="font-mono">{CHONK9K_TOKEN_ADDRESS}</span>
+            <div className="bg-amber-900/20 border border-amber-500/20 p-2 rounded-md text-amber-300 mt-3">
+              <div className="flex items-center gap-2 text-sm">
+                <span>⚠️</span>
+                <span>This token is deployed on <strong>Solana Devnet</strong></span>
+              </div>
+              <div className="text-xs mt-1 text-amber-400/80">
+                Devnet address: <span className="font-mono">{CHONK9K_TOKEN_ADDRESS}</span>
+              </div>
             </div>
           </CardFooter>
         </Card>
