@@ -14,16 +14,22 @@ contract CHONK9K is ERC20, Ownable {
         _mint(msg.sender, TOTAL_SUPPLY);
     }
 
-    function _transfer(address sender, address recipient, uint256 amount) internal virtual override {
-        require(sender != address(0), "Transfer from zero address");
-        require(recipient != address(0), "Transfer to zero address");
-
-        uint256 burnAmount = (amount * BURN_FEE) / 10000;
-        uint256 devAmount = (amount * DEV_FEE) / 10000;
-        uint256 transferAmount = amount - burnAmount - devAmount;
-
-        super._transfer(sender, address(0), burnAmount); // Burn
-        super._transfer(sender, owner(), devAmount);     // Dev fee
-        super._transfer(sender, recipient, transferAmount);
+    function _update(address sender, address recipient, uint256 amount) internal virtual override {
+        if (sender != address(0) && recipient != address(0)) {
+            // Normal transfer logic
+            uint256 burnAmount = (amount * BURN_FEE) / 10000;
+            uint256 devAmount = (amount * DEV_FEE) / 10000;
+            uint256 transferAmount = amount - burnAmount - devAmount;
+            
+            // First transfer the fees
+            super._update(sender, address(0), burnAmount); // Burn
+            super._update(sender, owner(), devAmount);     // Dev fee
+            
+            // Then do the main transfer with remaining amount
+            super._update(sender, recipient, transferAmount);
+        } else {
+            // For minting and burning operations, proceed normally
+            super._update(sender, recipient, amount);
+        }
     }
 }
