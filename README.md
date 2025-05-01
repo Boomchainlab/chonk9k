@@ -57,3 +57,22 @@ License
 
 MIT License.
 
+Deploy
+
+To deploy your project website, you can follow these steps:
+
+* **Set up the environment** 🌐
+  - Ensure you have Node.js and npm installed on your machine.
+  - Install the necessary dependencies by running `npm install` in the root directory of your project.
+
+* **Build the project** 🛠️
+  - Run the build command specified in the `package.json` file: `npm run build`. This will compile the project and prepare it for deployment.
+
+* **Deploy the project** 🚀
+  - The deployment process is defined in the GitHub Actions workflow file `.github/workflows/deploy.yaml`. This workflow is triggered on a push to the `main` branch.
+  - Ensure you have the necessary secrets set up in your GitHub repository settings, such as `RPC_URL` and `TENDERLY_ACCESS_KEY`.
+  - Push your changes to the `main` branch to trigger the deployment workflow.
+
+* **Verify the deployment** ✅
+  - Check the GitHub Actions tab in your repository to monitor the deployment process.
+  - Once the deployment is complete, verify that your project website is live and functioning as expected.
