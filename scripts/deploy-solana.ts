@@ -6,13 +6,18 @@ import { IDL } from '../contracts/solana/chonk9k';
 
 async function main() {
   const connection = new anchor.web3.Connection("https://api.devnet.solana.com");
-  const wallet = new anchor.Wallet(Keypair.generate());
+  // Use provided private key if available, otherwise generate a new one
+  const walletKeypair = process.env.SOLANA_PRIVATE_KEY 
+    ? Keypair.fromSecretKey(Buffer.from(process.env.SOLANA_PRIVATE_KEY, 'hex'))
+    : Keypair.generate();
+  const wallet = new anchor.Wallet(walletKeypair);
   
   const provider = new anchor.AnchorProvider(connection, wallet, {
     commitment: "processed",
   });
   
-  const programId = new PublicKey("YOUR_PROGRAM_ID");
+  const programId = new PublicKey(process.env.SOLANA_PROGRAM_ID || "");
+  // @ts-ignore - Type error with anchor package
   const program = new Program(IDL, programId, provider);
 
   try {
