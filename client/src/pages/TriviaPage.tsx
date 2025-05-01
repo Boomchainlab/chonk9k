@@ -43,7 +43,7 @@ const TriviaPage: React.FC = () => {
     const fetchCurrentQuiz = async () => {
       try {
         setIsLoading(true);
-        const response = await apiRequest('GET', '/api/trivia/current-quiz');
+        const response = await fetchAPI('/api/trivia/current-quiz');
         const data = await response.json();
         
         if (data.quiz) {
@@ -51,7 +51,7 @@ const TriviaPage: React.FC = () => {
           
           // Check if user has already taken this quiz
           if (account && data.quiz.id) {
-            const submissionResponse = await apiRequest('GET', `/api/trivia/quizzes/${data.quiz.id}/submissions/${account}`);
+            const submissionResponse = await fetchAPI(`/api/trivia/quizzes/${data.quiz.id}/submissions/${account}`);
             const submissionData = await submissionResponse.json();
             
             if (submissionData.submission) {
@@ -78,12 +78,12 @@ const TriviaPage: React.FC = () => {
       if (!account) return;
       
       try {
-        const response = await apiRequest('GET', '/api/trivia/quizzes?limit=5');
+        const response = await fetchAPI('/api/trivia/quizzes?limit=5');
         const quizzes = await response.json();
         
         // For each quiz, get the user's submission if any
         const history = await Promise.all(quizzes.data.map(async (quiz: TriviaQuiz) => {
-          const submissionResponse = await apiRequest('GET', `/api/trivia/quizzes/${quiz.id}/submissions/${account}`);
+          const submissionResponse = await fetchAPI(`/api/trivia/quizzes/${quiz.id}/submissions/${account}`);
           const submissionData = await submissionResponse.json();
           
           return {
@@ -151,7 +151,7 @@ const TriviaPage: React.FC = () => {
     if (!account) return;
     
     try {
-      const response = await apiRequest('POST', `/api/trivia/submissions/${submissionId}/claim-reward`);
+      const response = await postAPI(`/api/trivia/submissions/${submissionId}/claim-reward`);
       const data = await response.json();
       
       if (data.success) {
@@ -162,7 +162,7 @@ const TriviaPage: React.FC = () => {
         
         // Refresh user submission data
         if (currentQuiz) {
-          const submissionResponse = await apiRequest('GET', `/api/trivia/quizzes/${currentQuiz.id}/submissions/${account}`);
+          const submissionResponse = await fetchAPI(`/api/trivia/quizzes/${currentQuiz.id}/submissions/${account}`);
           const submissionData = await submissionResponse.json();
           
           if (submissionData.submission) {

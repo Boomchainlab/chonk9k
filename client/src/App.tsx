@@ -10,7 +10,8 @@ import Dashboard from "@/pages/Dashboard";
 import Profile from "@/pages/Profile";
 import BadgeAdmin from "@/pages/BadgeAdmin";
 import TriviaPage from "@/pages/TriviaPage";
-import QuizPage from "@/pages/QuizPage";
+// QuizPage is temporarily commented out due to TypeScript errors
+// import QuizPage from "@/pages/QuizPage";
 import TriviaAdmin from "@/pages/TriviaAdmin";
 import CryptoPayments from "@/pages/CryptoPayments";
 import Marketplaces from "@/pages/Marketplaces";
@@ -116,7 +117,8 @@ function Router() {
           <Route path="/nft/:id" component={NftCollectionDetail} />
           <Route path="/mining" component={Mining} />
           <Route path="/trivia" component={TriviaPage} />
-          <Route path="/trivia/:id" component={QuizPage} />
+          {/* QuizPage route commented out until TypeScript errors fixed */}
+          {/* <Route path="/trivia/:id" component={QuizPage} /> */}
           <Route path="/spin" component={SpinWheel} />
           <Route path="/profile/:userId" component={Profile} />
           <Route path="/admin/marketplace" component={MarketplaceAdmin} />
