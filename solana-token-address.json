@@ -1,6 +1,10 @@
 {
-  "uid": "2088980000178089",
-  "address": "ugNM58uye7VX2Pjkf2gEhS6HuEWoZpwN86EyaDWNVsd",
   "network": "devnet",
-  "owner": "2Lp2SGS9AKYVKCrizjzJLPHn4swatnbvEQ2UB2bKorJy"
+  "tokenMint": "4f4iw9PHsFkEZxUnWD1CebgaPEpGH7PZQDFu3DHQwCcQ",
+  "recipientAddress": "2Lp2SGS9AKYVKCorizjzJLPHn4swatnbvEQ2UB2bKorJy",
+  "transferAmount": 1000,
+  "totalSupply": "9000000000",
+  "decimals": 9,
+  "mintTx": "2ohi25bN3qQmau7te11on8PcbXLkEDDXYK7fa7TweNm9cjYqWPionZ5vFzUEBkpnjo13KvX5yGgpQ2oPoUF7QSEL",
+  "transferTx": "N/A - Same wallet"
 }

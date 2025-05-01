@@ -146,7 +146,7 @@ async function main() {
       );
       
       console.log("Transfer transaction signature:", transferTx);
-      console.log(`Successfully transferred ${TRANSFER_AMOUNT} CHONK9K tokens to ${TARGET_RECIPIENT}`);
+      console.log(`Successfully transferred ${TRANSFER_AMOUNT} CHONK9K tokens to ${TARGET_ADDRESS}`);
     } catch (error) {
       console.error("Error during token transfer:", error);
     }
@@ -156,7 +156,7 @@ async function main() {
       network: isMainnet ? "mainnet-beta" : "devnet",
       programId: programId.toString(),
       tokenAddress: mint.publicKey.toString(),
-      recipientAddress: TARGET_RECIPIENT,
+      recipientAddress: TARGET_ADDRESS,
       transferAmount: TRANSFER_AMOUNT,
       deploymentTx: tx,
     };

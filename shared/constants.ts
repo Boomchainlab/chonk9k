@@ -6,7 +6,7 @@ export const CONTRACT_ADDRESSES = {
   },
   // Solana Mainnet
   SOLANA: {
-    CHONK9K: "ugNM58uye7VX2Pjkf2gEhS6HuEWoZpwN86EyaDWNVsd"
+    CHONK9K: "4f4iw9PHsFkEZxUnWD1CebgaPEpGH7PZQDFu3DHQwCcQ"
   },
   // Ethereum Mainnet
   ETHEREUM: {
