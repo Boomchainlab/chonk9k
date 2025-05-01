@@ -646,12 +646,13 @@ export class DatabaseStorage implements IStorage {
       }
       
       const now = new Date();
+      const currentRewards = stake.claimedRewards || 0;
       
       await db
         .update(userStakes)
         .set({
-          claimedRewards: stake.claimedRewards + rewardsAmount,
-          lastClaimDate: now.toISOString()
+          claimedRewards: currentRewards + rewardsAmount,
+          lastClaimDate: now
         })
         .where(eq(userStakes.id, stakeId));
       

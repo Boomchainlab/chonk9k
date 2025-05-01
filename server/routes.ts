@@ -20,7 +20,107 @@ import {
   insertPremiumTierSchema
 } from "@shared/schema";
 
+// Initialize database with some premium tiers if they don't exist yet
+async function initializeDatabase() {
+  try {
+    // Check if premium tiers exist
+    const tiers = await storage.getPremiumTiers();
+    if (tiers.length === 0) {
+      // Create default premium tiers
+      await storage.createPremiumTier({
+        name: "Bronze",
+        description: "Entry level membership with basic benefits",
+        tokenRequirement: 1000,
+        stakingBonus: 2,
+        referralBonus: 5,
+        spinMultiplier: 1
+      });
+      
+      await storage.createPremiumTier({
+        name: "Silver",
+        description: "Mid-tier membership with enhanced benefits",
+        tokenRequirement: 5000,
+        stakingBonus: 5,
+        referralBonus: 10,
+        spinMultiplier: 2
+      });
+      
+      await storage.createPremiumTier({
+        name: "Gold",
+        description: "Premium membership with exclusive benefits",
+        tokenRequirement: 20000,
+        stakingBonus: 10,
+        referralBonus: 15,
+        spinMultiplier: 3
+      });
+      
+      await storage.createPremiumTier({
+        name: "Diamond",
+        description: "Elite membership with maximum benefits",
+        tokenRequirement: 100000,
+        stakingBonus: 20,
+        referralBonus: 25,
+        spinMultiplier: 5
+      });
+      
+      console.log("Default premium tiers created");
+    }
+    
+    // Check if staking pools exist
+    const pools = await storage.getStakingPools();
+    if (pools.length === 0) {
+      // Create default staking pools
+      await storage.createStakingPool({
+        name: "Flexible",
+        description: "Low risk, low reward staking with no lock period",
+        apr: 5,
+        minStakeAmount: 100,
+        lockPeriodDays: 0,
+        totalStaked: 0,
+        isActive: true
+      });
+      
+      await storage.createStakingPool({
+        name: "Basic",
+        description: "Standard staking with moderate returns",
+        apr: 10,
+        minStakeAmount: 500,
+        lockPeriodDays: 30,
+        totalStaked: 0,
+        isActive: true
+      });
+      
+      await storage.createStakingPool({
+        name: "Premium",
+        description: "Higher returns with a longer lock period",
+        apr: 15,
+        minStakeAmount: 1000,
+        lockPeriodDays: 90,
+        totalStaked: 0,
+        isActive: true
+      });
+      
+      await storage.createStakingPool({
+        name: "Diamond",
+        description: "Maximum returns with extended lock period",
+        apr: 25,
+        minStakeAmount: 5000,
+        lockPeriodDays: 180,
+        totalStaked: 0,
+        isActive: true
+      });
+      
+      console.log("Default staking pools created");
+    }
+    
+  } catch (error) {
+    console.error("Error initializing database:", error);
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Initialize database with default data
+  await initializeDatabase();
   // Badge routes
   
   // Get all badges
@@ -635,9 +735,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
         poolId,
         amount,
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-        isActive: true
+        startDate,
+        endDate,
+        isActive: true,
+        claimedRewards: 0,
+        lastClaimDate: null,
+        transactionHash: null
       };
       
       const newStake = await storage.createUserStake(stakeData);
