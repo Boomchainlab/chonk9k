@@ -8,7 +8,7 @@
 - **Token Symbol**: CHONK9K
 - **Contract Address**: `51ey1T4UCFwb8poVBwyiLwwi1KdNTrZ8rSg7kBRmqray`
 - **Token Type**: Solana Program Library (SPL) Token
-- **Total Supply**: 9,000,000,000 (9 billion) CHONK9K
+- **Total Supply**: 1,000,000,000 (1 billion) CHONK9K
 - **Decimals**: 9
 - **Freeze Authority**: None (Cannot freeze user tokens)
 - **Mint Authority**: Owner Wallet (Used for initial minting only)
@@ -22,8 +22,8 @@
 
 ### Explorer Links
 
-- **Solscan**: [https://solscan.io/token/atqLmwzsQ7oMX4aMPjCn3seH5c3Ep4bztg3p3hWJsgJ](https://solscan.io/token/atqLmwzsQ7oMX4aMPjCn3seH5c3Ep4bztg3p3hWJsgJ)
-- **Solana Explorer**: [https://explorer.solana.com/address/atqLmwzsQ7oMX4aMPjCn3seH5c3Ep4bztg3p3hWJsgJ](https://explorer.solana.com/address/atqLmwzsQ7oMX4aMPjCn3seH5c3Ep4bztg3p3hWJsgJ)
+- **Solscan**: [https://solscan.io/token/51ey1T4UCFwb8poVBwyiLwwi1KdNTrZ8rSg7kBRmqray](https://solscan.io/token/51ey1T4UCFwb8poVBwyiLwwi1KdNTrZ8rSg7kBRmqray)
+- **Solana Explorer**: [https://explorer.solana.com/address/51ey1T4UCFwb8poVBwyiLwwi1KdNTrZ8rSg7kBRmqray](https://explorer.solana.com/address/51ey1T4UCFwb8poVBwyiLwwi1KdNTrZ8rSg7kBRmqray)
 
 ## Technical Implementation
 
@@ -51,17 +51,17 @@ The SPL Token program is a native Solana program that allows users to create, mi
 The token was deployed with the following process:
 
 1. **Creating a new SPL Token**: Using the `spl-token create-token` command
-2. **Minting Initial Supply**: 9 billion tokens minted using `spl-token mint` 
+2. **Minting Initial Supply**: 1 billion tokens minted using `spl-token mint` 
 3. **Distribution**: Initial tokens added to the project wallet at `2Lp2SGS9AKYVKCorizjzJLPHn4swatnbvEQ2UB2bKorJy`
 
 ## Token Economics
 
 ### Distribution
 
-- **Community & Airdrop**: 70% (6.3 billion CHONK9K)
-- **Liquidity Provision**: 15% (1.35 billion CHONK9K)
-- **Team & Development**: 10% (900 million CHONK9K)
-- **Marketing**: 5% (450 million CHONK9K)
+- **Community & Airdrop**: 70% (700 million CHONK9K)
+- **Liquidity Provision**: 15% (150 million CHONK9K)
+- **Team & Development**: 10% (100 million CHONK9K)
+- **Marketing**: 5% (50 million CHONK9K)
 
 ### Transaction Fees
 
@@ -94,8 +94,8 @@ SPL Tokens have several security advantages:
 
 The $CHONK9K token is available for trading on the following platforms:
 
-- **Raydium**: [https://raydium.io/swap/?inputCurrency=sol&outputCurrency=atqLmwzsQ7oMX4aMPjCn3seH5c3Ep4bztg3p3hWJsgJ](https://raydium.io/swap/?inputCurrency=sol&outputCurrency=atqLmwzsQ7oMX4aMPjCn3seH5c3Ep4bztg3p3hWJsgJ)
-- **Jupiter Aggregator**: [https://jup.ag/swap/SOL-atqLmwzsQ7oMX4aMPjCn3seH5c3Ep4bztg3p3hWJsgJ](https://jup.ag/swap/SOL-atqLmwzsQ7oMX4aMPjCn3seH5c3Ep4bztg3p3hWJsgJ)
+- **Raydium**: [https://raydium.io/swap/?inputCurrency=sol&outputCurrency=51ey1T4UCFwb8poVBwyiLwwi1KdNTrZ8rSg7kBRmqray](https://raydium.io/swap/?inputCurrency=sol&outputCurrency=51ey1T4UCFwb8poVBwyiLwwi1KdNTrZ8rSg7kBRmqray)
+- **Jupiter Aggregator**: [https://jup.ag/swap/SOL-51ey1T4UCFwb8poVBwyiLwwi1KdNTrZ8rSg7kBRmqray](https://jup.ag/swap/SOL-51ey1T4UCFwb8poVBwyiLwwi1KdNTrZ8rSg7kBRmqray)
 
 ## Code Sample: Deployment Script
 
@@ -139,7 +139,7 @@ async function main() {
   );
 
   // Mint the full supply to the owner account
-  const totalSupply = 9_000_000_000;
+  const totalSupply = 1_000_000_000;
   const mintAmount = totalSupply * 10**9; // Adjusted for 9 decimals
   
   console.log(`Minting ${totalSupply} tokens to owner account...`);

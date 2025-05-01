@@ -5,7 +5,7 @@
 - **Token Name**: CHONK 9000
 - **Symbol**: CHONK9K
 - **Decimals**: 9
-- **Total Supply**: 9,000,000,000
+- **Total Supply**: 1,000,000,000
 - **Network**: Solana Mainnet
 - **Founder**: David Okeamah
 - **Website**: https://boomchainlabgravatar.link

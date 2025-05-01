@@ -2,8 +2,8 @@
   "network": "mainnet-beta",
   "tokenMint": "51ey1T4UCFwb8poVBwyiLwwi1KdNTrZ8rSg7kBRmqray",
   "recipientAddress": "2Lp2SGS9AKYVKCorizjzJLPHn4swatnbvEQ2UB2bKorJy",
-  "transferAmount": "9000000000",
-  "totalSupply": "9000000000",
+  "transferAmount": "1000000000",
+  "totalSupply": "1000000000",
   "decimals": 9,
   "previousDeployments": [
     {
