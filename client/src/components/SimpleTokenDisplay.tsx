@@ -22,6 +22,14 @@ const SimpleTokenDisplay: React.FC = () => {
         <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-[#ff00ff] to-[#00e0ff] bg-clip-text text-transparent">
           $CHONK9K Token
         </h1>
+        <div className="flex justify-center items-center gap-2 mb-3">
+          <Badge className="bg-[#00e0ff]/20 text-[#00e0ff] border border-[#00e0ff]/30">
+            JUST DEPLOYED
+          </Badge>
+          <Badge className="bg-[#ff00ff]/20 text-[#ff00ff] border border-[#ff00ff]/30">
+            {new Date().toLocaleDateString()}
+          </Badge>
+        </div>
         <p className="text-xl text-gray-200 max-w-2xl mx-auto">
           The official Solana token for the Chonkpump 9000 ecosystem
         </p>
@@ -64,7 +72,7 @@ const SimpleTokenDisplay: React.FC = () => {
               </div>
               <div>
                 <p className="text-sm text-gray-400 mb-1">Launch Date</p>
-                <p className="font-medium">May 1, 2023</p>
+                <p className="font-medium">{new Date().toLocaleDateString()}</p>
               </div>
             </div>
             
