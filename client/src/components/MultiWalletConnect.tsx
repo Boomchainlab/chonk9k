@@ -9,7 +9,7 @@ import { Loader2, Check, Copy, Power, ChevronDown } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 type ChainType = 'evm' | 'solana';
-type WalletType = 'metamask' | 'phantom' | 'coinbase' | 'solflare' | 'okx' | 'jupiter' | 'raydium' | 'orca' | 'wen';
+type WalletType = 'metamask' | 'phantom' | 'coinbase' | 'solflare' | 'okx' | 'jupiter' | 'raydium' | 'orca' | 'wen' | 'bitverse';
 
 interface WalletOption {
   id: WalletType;
@@ -56,6 +56,15 @@ const walletOptions: WalletOption[] = [
     type: 'wallet', 
     chainSupport: ['solana'],
     description: "Solana's non-custodial wallet"
+  },
+  { 
+    id: 'bitverse', 
+    name: 'Bitverse', 
+    logo: '/images/wallets/bitverse.svg', 
+    type: 'wallet', 
+    chainSupport: ['evm', 'solana'],
+    description: 'Multi-chain Crypto Wallet',
+    popular: true
   },
   { 
     id: 'okx', 
