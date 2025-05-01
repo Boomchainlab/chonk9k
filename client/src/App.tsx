@@ -2,6 +2,7 @@ import { Switch, Route, Link } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
+import { withErrorBoundary } from "./lib/sentry";
 import Footer from "@/components/Footer";
 import NewChonkLogo from "@/components/NewChonkLogo";
 import LivePriceHeader from "@/components/LivePriceHeader";
@@ -35,6 +36,25 @@ import QuizPage from "@/pages/QuizPage";
 function Header() {
   const [location] = useLocation();
   const isDashboard = location === '/';
+  
+  // Function to test Sentry error tracking
+  const handleErrorTest = () => {
+    try {
+      // This will cause an error
+      console.log("Testing error tracking");
+      window.myUndefinedFunction(); // This function doesn't exist
+    } catch (error) {
+      // We'll capture this error with Sentry
+      import('./lib/sentry').then(({ captureException, captureMessage }) => {
+        captureMessage("User manually triggered an error test", "info");
+        captureException(error, {
+          component: 'Header',
+          action: 'handleErrorTest',
+          user_triggered: true
+        });
+      });
+    }
+  };
   
   return (
     <header className={isDashboard ? 
@@ -99,6 +119,13 @@ function Header() {
           <div className="hidden md:flex items-center gap-4">
             <LivePriceHeader />
             <AnimatedChonkCharacter />
+            <button 
+              onClick={handleErrorTest}
+              className="text-xs px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+              title="Test Sentry Error Tracking"
+            >
+              Test Error Tracking
+            </button>
           </div>
         </div>
       </div>
@@ -138,11 +165,55 @@ function Router() {
   );
 }
 
+// Error fallback component
+function ErrorFallback({ error, componentStack, resetError }: { error: Error; componentStack: string; resetError: () => void }) {
+  return (
+    <div className="p-6 m-4 bg-red-50 border border-red-200 rounded-lg">
+      <h2 className="text-xl font-bold text-red-600 mb-2">Something went wrong</h2>
+      <p className="text-gray-800 mb-4">The application encountered an unexpected error. Our team has been notified and is working on a fix.</p>
+      <div className="p-3 bg-white rounded border border-red-100 mb-4 overflow-auto max-h-40">
+        <p className="text-red-500 font-bold mb-1">{error.toString()}</p>
+        <p className="text-xs font-mono text-gray-600">{componentStack}</p>
+      </div>
+      <button
+        onClick={resetError}
+        className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+      >
+        Try again
+      </button>
+    </div>
+  );
+}
+
 function App() {
+  // We'll use this function to test error tracking
+  const testErrorTracking = () => {
+    try {
+      // This will cause an error
+      const undefinedFunc = window.myUndefinedFunction;
+      undefinedFunc();
+    } catch (error) {
+      // We'll capture this error with Sentry
+      import('./lib/sentry').then(({ captureException }) => {
+        captureException(error, {
+          component: 'App',
+          action: 'testErrorTracking'
+        });
+      });
+    }
+  };
+
   return (
     <QueryClientProvider client={queryClient}>
       <WalletProvider>
-        <Router />
+        {/* Wrap Router with error boundary */}
+        {withErrorBoundary(Router, {
+          fallback: ErrorFallback,
+          onError: (error, componentStack, eventId) => {
+            console.error("Sentry caught an error:", error, componentStack);
+            console.log("Event ID:", eventId);
+          }
+        })()}
         <div className="fixed bottom-4 right-4 z-50 md:hidden">
           <AnimatedChonkCharacter />
         </div>
@@ -155,4 +226,11 @@ function App() {
   );
 }
 
-export default App;
+// Export with withErrorBoundary at the top level as well for global error catching
+export default withErrorBoundary(App, {
+  fallback: ErrorFallback,
+  onError: (error, componentStack, eventId) => {
+    console.error("Global error caught by Sentry:", error);
+    console.log("Event ID:", eventId);
+  }
+});
