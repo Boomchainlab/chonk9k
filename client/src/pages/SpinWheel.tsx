@@ -6,6 +6,7 @@ import { Link } from 'wouter';
 // Import buffer polyfill before solanaTokenService
 import '@/lib/buffer-polyfill';
 import { transferTokens } from '@/lib/solanaTokenService';
+import ChonkTokenLogo from '@/components/ChonkTokenLogo';
 import SpinWheelComponent from '@/components/SpinWheel';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -141,9 +142,12 @@ const SpinWheelPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-black">
       <div className="container max-w-6xl mx-auto px-4 py-8">
-        <h1 className="text-4xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-[#ff00ff] to-[#00e0ff]">
-          Community Rewards
-        </h1>
+        <div className="flex items-center gap-4 mb-2">
+          <ChonkTokenLogo size={60} />
+          <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#ff00ff] to-[#00e0ff]">
+            Community Rewards
+          </h1>
+        </div>
         <p className="text-gray-400 mb-8">
           Spin the wheel to win $CHONK9K tokens and compete on the leaderboard!
         </p>
@@ -178,7 +182,7 @@ const SpinWheelPage: React.FC = () => {
                     <div className="flex justify-between items-center">
                       <span className="text-gray-400">Total Earned:</span>
                       <Badge className="bg-gradient-to-r from-[#ff00ff] to-[#00e0ff] text-white">
-                        <Coins className="mr-1 h-4 w-4" /> {totalEarned} $CHONK9K
+                        <ChonkTokenLogo size={16} className="mr-1" /> {totalEarned} $CHONK9K
                       </Badge>
                     </div>
                     
@@ -244,8 +248,8 @@ const SpinWheelPage: React.FC = () => {
                               </div>
                             </div>
                           </div>
-                          <Badge variant="outline" className="border-[#00e0ff]/30 text-[#00e0ff]">
-                            {reward.rewardValue} $CHONK9K
+                          <Badge variant="outline" className="border-[#00e0ff]/30 text-[#00e0ff] flex items-center">
+                            <ChonkTokenLogo size={14} className="mr-1" /> {reward.rewardValue}
                           </Badge>
                         </div>
                       ))}
@@ -291,8 +295,8 @@ const SpinWheelPage: React.FC = () => {
                         </div>
                         <span className="text-white">{entry.name}</span>
                       </div>
-                      <Badge variant="outline" className="border-[#00e0ff]/30 text-[#00e0ff]">
-                        {entry.value} $CHONK9K
+                      <Badge variant="outline" className="border-[#00e0ff]/30 text-[#00e0ff] flex items-center">
+                        <ChonkTokenLogo size={14} className="mr-1" /> {entry.value}
                       </Badge>
                     </div>
                   ))}
@@ -333,7 +337,7 @@ const SpinWheelPage: React.FC = () => {
               <div className="p-3 rounded-lg bg-black/50 border border-gray-800">
                 <p className="text-white mb-2 font-semibold">Amount:</p>
                 <p className="text-[#00e0ff] font-bold flex items-center">
-                  <Coins className="mr-2 h-5 w-5" /> 1,000 $CHONK9K
+                  <ChonkTokenLogo size={24} className="mr-2" /> 1,000 $CHONK9K
                 </p>
               </div>
             </CardContent>
