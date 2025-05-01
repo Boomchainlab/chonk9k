@@ -108,7 +108,7 @@ export default function Mining() {
   // Claim mining rewards
   const claimRewardsMutation = useMutation({
     mutationFn: async (userRigId: number) => {
-      const res = await apiRequest('POST', `/api/mining/claim/${userRigId}`);
+      const res = await apiRequest('POST', `/api/mining/claim/${userRigId}`, {});
       return res.json();
     },
     onSuccess: (data) => {
