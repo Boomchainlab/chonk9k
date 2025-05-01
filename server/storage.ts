@@ -825,6 +825,130 @@ export class DatabaseStorage implements IStorage {
       return false;
     }
   }
+  
+  // Mining operations
+  async getMiningRigs(availableOnly: boolean = false): Promise<MiningRig[]> {
+    if (availableOnly) {
+      return db
+        .select()
+        .from(miningRigs)
+        .where(eq(miningRigs.isAvailable, true))
+        .orderBy(miningRigs.sortOrder);
+    }
+    return db.select().from(miningRigs).orderBy(miningRigs.sortOrder);
+  }
+  
+  async getMiningRig(id: number): Promise<MiningRig | undefined> {
+    const [rig] = await db.select().from(miningRigs).where(eq(miningRigs.id, id));
+    return rig;
+  }
+  
+  async createMiningRig(insertRig: InsertMiningRig): Promise<MiningRig> {
+    const [rig] = await db
+      .insert(miningRigs)
+      .values(insertRig)
+      .returning();
+    return rig;
+  }
+  
+  async getUserMiningRigs(userId: number): Promise<UserMiningRig[]> {
+    return db.select().from(userMiningRigs).where(eq(userMiningRigs.userId, userId));
+  }
+  
+  async getUserMiningRigsWithDetails(userId: number): Promise<(UserMiningRig & { rig: MiningRig })[]> {
+    const userRigs = await db.select().from(userMiningRigs).where(eq(userMiningRigs.userId, userId));
+    
+    const rigsWithDetails = await Promise.all(
+      userRigs.map(async (userRig) => {
+        const [rig] = await db.select().from(miningRigs).where(eq(miningRigs.id, userRig.rigId));
+        return { ...userRig, rig };
+      })
+    );
+    
+    return rigsWithDetails;
+  }
+  
+  async getUserMiningRig(id: number): Promise<UserMiningRig | undefined> {
+    const [userRig] = await db.select().from(userMiningRigs).where(eq(userMiningRigs.id, id));
+    return userRig;
+  }
+  
+  async createUserMiningRig(insertUserRig: InsertUserMiningRig): Promise<UserMiningRig> {
+    const [userRig] = await db
+      .insert(userMiningRigs)
+      .values(insertUserRig)
+      .returning();
+    return userRig;
+  }
+  
+  async updateUserMiningRigStatus(userRigId: number, isActive: boolean): Promise<boolean> {
+    try {
+      await db
+        .update(userMiningRigs)
+        .set({ isActive })
+        .where(eq(userMiningRigs.id, userRigId));
+      
+      return true;
+    } catch (error) {
+      console.error('Error updating user mining rig status:', error);
+      return false;
+    }
+  }
+  
+  async updateLastRewardDate(userRigId: number): Promise<boolean> {
+    try {
+      await db
+        .update(userMiningRigs)
+        .set({ lastRewardDate: new Date() })
+        .where(eq(userMiningRigs.id, userRigId));
+      
+      return true;
+    } catch (error) {
+      console.error('Error updating last reward date:', error);
+      return false;
+    }
+  }
+  
+  async updateTotalMined(userRigId: number, newTotal: number): Promise<boolean> {
+    try {
+      await db
+        .update(userMiningRigs)
+        .set({ totalMined: newTotal })
+        .where(eq(userMiningRigs.id, userRigId));
+      
+      return true;
+    } catch (error) {
+      console.error('Error updating total mined:', error);
+      return false;
+    }
+  }
+  
+  async getMiningRewards(userId?: number, userRigId?: number): Promise<MiningReward[]> {
+    let query = db.select().from(miningRewards);
+    
+    if (userId) {
+      query = query.where(eq(miningRewards.userId, userId));
+    }
+    
+    if (userRigId) {
+      query = query.where(eq(miningRewards.userRigId, userRigId));
+    }
+    
+    return query;
+  }
+  
+  async getMiningReward(id: number): Promise<MiningReward | undefined> {
+    const [reward] = await db.select().from(miningRewards).where(eq(miningRewards.id, id));
+    return reward;
+  }
+  
+  async createMiningReward(insertReward: InsertMiningReward): Promise<MiningReward> {
+    const [reward] = await db
+      .insert(miningRewards)
+      .values(insertReward)
+      .returning();
+    return reward;
+  }
 }
 
 export const storage = new DatabaseStorage();

@@ -214,6 +214,44 @@ export const premiumTiers = pgTable("premium_tiers", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Mining Rigs
+export const miningRigs = pgTable("mining_rigs", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  description: text("description").notNull(),
+  hashRate: doublePrecision("hash_rate").notNull(),
+  powerConsumption: doublePrecision("power_consumption").notNull(), // in watts
+  price: doublePrecision("price").notNull(),
+  isAvailable: boolean("is_available").default(true),
+  imageUrl: text("image_url"),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow()
+});
+
+// User Mining Rigs
+export const userMiningRigs = pgTable("user_mining_rigs", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  rigId: integer("rig_id").notNull().references(() => miningRigs.id),
+  purchaseDate: timestamp("purchase_date").defaultNow(),
+  lastRewardDate: timestamp("last_reward_date"),
+  totalMined: doublePrecision("total_mined").default(0),
+  isActive: boolean("is_active").default(true),
+  transactionHash: varchar("transaction_hash", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow()
+});
+
+// Mining Rewards
+export const miningRewards = pgTable("mining_rewards", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  userRigId: integer("user_rig_id").notNull().references(() => userMiningRigs.id),
+  amount: doublePrecision("amount").notNull(),
+  rewardDate: timestamp("reward_date").defaultNow(),
+  transactionHash: varchar("transaction_hash", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow()
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   tokenPurchases: many(tokenPurchases),
@@ -221,6 +259,8 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   triviaSubmissions: many(triviaSubmissions),
   userSpins: many(userSpins),
   userStakes: many(userStakes),
+  userMiningRigs: many(userMiningRigs),
+  miningRewards: many(miningRewards),
   referredUsers: many(users, { relationName: 'referrals' }),
   referrer: one(users, {
     fields: [users.referrerId],
@@ -301,6 +341,34 @@ export const userSpinsRelations = relations(userSpins, ({ one }) => ({
   reward: one(spinWheelRewards, {
     fields: [userSpins.rewardId],
     references: [spinWheelRewards.id],
+  }),
+}));
+
+// Mining relations
+export const miningRigsRelations = relations(miningRigs, ({ many }) => ({
+  userMiningRigs: many(userMiningRigs),
+}));
+
+export const userMiningRigsRelations = relations(userMiningRigs, ({ one, many }) => ({
+  user: one(users, {
+    fields: [userMiningRigs.userId],
+    references: [users.id],
+  }),
+  rig: one(miningRigs, {
+    fields: [userMiningRigs.rigId],
+    references: [miningRigs.id],
+  }),
+  rewards: many(miningRewards),
+}));
+
+export const miningRewardsRelations = relations(miningRewards, ({ one }) => ({
+  user: one(users, {
+    fields: [miningRewards.userId],
+    references: [users.id],
+  }),
+  userRig: one(userMiningRigs, {
+    fields: [miningRewards.userRigId],
+    references: [userMiningRigs.id],
   }),
 }));
 
@@ -388,3 +456,18 @@ export type ReferralReward = typeof referralRewards.$inferSelect;
 
 export type InsertPremiumTier = z.infer<typeof insertPremiumTierSchema>;
 export type PremiumTier = typeof premiumTiers.$inferSelect;
+
+// Mining schemas
+export const insertMiningRigSchema = createInsertSchema(miningRigs).omit({ id: true, createdAt: true });
+export const insertUserMiningRigSchema = createInsertSchema(userMiningRigs).omit({ id: true, purchaseDate: true, createdAt: true });
+export const insertMiningRewardSchema = createInsertSchema(miningRewards).omit({ id: true, rewardDate: true, createdAt: true });
+
+// Mining types
+export type InsertMiningRig = z.infer<typeof insertMiningRigSchema>;
+export type MiningRig = typeof miningRigs.$inferSelect;
+
+export type InsertUserMiningRig = z.infer<typeof insertUserMiningRigSchema>;
+export type UserMiningRig = typeof userMiningRigs.$inferSelect;
+
+export type InsertMiningReward = z.infer<typeof insertMiningRewardSchema>;
+export type MiningReward = typeof miningRewards.$inferSelect;

@@ -17,7 +17,10 @@ import {
   insertStakingPoolSchema,
   insertUserStakeSchema,
   insertReferralRewardSchema,
-  insertPremiumTierSchema
+  insertPremiumTierSchema,
+  insertMiningRigSchema,
+  insertUserMiningRigSchema,
+  insertMiningRewardSchema
 } from "@shared/schema";
 
 // Initialize database with some premium tiers if they don't exist yet
@@ -1122,6 +1125,260 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error claiming referral rewards:', error);
       res.status(500).json({ error: 'Failed to claim referral rewards' });
+    }
+  });
+
+  // Mining Routes
+
+  // Get all mining rigs
+  app.get('/api/mining/rigs', async (req: Request, res: Response) => {
+    try {
+      const availableOnly = req.query.available === 'true';
+      const rigs = await storage.getMiningRigs(availableOnly);
+      res.json(rigs);
+    } catch (error) {
+      console.error('Error fetching mining rigs:', error);
+      res.status(500).json({ error: 'Failed to fetch mining rigs' });
+    }
+  });
+
+  // Get mining rig by ID
+  app.get('/api/mining/rigs/:id', async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'Invalid rig ID' });
+      }
+      
+      const rig = await storage.getMiningRig(id);
+      if (!rig) {
+        return res.status(404).json({ error: 'Mining rig not found' });
+      }
+      
+      res.json(rig);
+    } catch (error) {
+      console.error('Error fetching mining rig:', error);
+      res.status(500).json({ error: 'Failed to fetch mining rig' });
+    }
+  });
+
+  // Create a new mining rig
+  app.post('/api/mining/rigs', async (req: Request, res: Response) => {
+    try {
+      const rigData = insertMiningRigSchema.parse(req.body);
+      const newRig = await storage.createMiningRig(rigData);
+      res.status(201).json(newRig);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      console.error('Error creating mining rig:', error);
+      res.status(500).json({ error: 'Failed to create mining rig' });
+    }
+  });
+
+  // Get user's mining rigs
+  app.get('/api/mining/user-rigs', async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.query.userId as string);
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: 'Invalid user ID' });
+      }
+      
+      const userRigs = await storage.getUserMiningRigsWithDetails(userId);
+      res.json(userRigs);
+    } catch (error) {
+      console.error('Error fetching user mining rigs:', error);
+      res.status(500).json({ error: 'Failed to fetch user mining rigs' });
+    }
+  });
+
+  // Purchase a mining rig
+  app.post('/api/mining/purchase', async (req: Request, res: Response) => {
+    try {
+      const { userId, rigId } = req.body;
+      
+      if (!userId || !rigId) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+      
+      // Check if user exists
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      // Check if rig exists and is available
+      const rig = await storage.getMiningRig(rigId);
+      if (!rig) {
+        return res.status(404).json({ error: 'Mining rig not found' });
+      }
+      
+      if (!rig.isAvailable) {
+        return res.status(400).json({ error: 'This mining rig is not available for purchase' });
+      }
+      
+      // Check if user has enough tokens
+      if (user.tokenBalance < rig.price) {
+        return res.status(400).json({ error: 'Insufficient token balance' });
+      }
+      
+      // Create user mining rig
+      const userRig = await storage.createUserMiningRig({
+        userId,
+        rigId,
+        isActive: true,
+        totalMined: 0,
+        lastRewardDate: null,
+        transactionHash: null
+      });
+      
+      // Update user token balance
+      await storage.updateUserTokenBalance(user.id, user.tokenBalance - rig.price);
+      
+      res.status(201).json(userRig);
+    } catch (error) {
+      console.error('Error purchasing mining rig:', error);
+      res.status(500).json({ error: 'Failed to purchase mining rig' });
+    }
+  });
+
+  // Claim mining rewards
+  app.post('/api/mining/claim/:userRigId', async (req: Request, res: Response) => {
+    try {
+      const userRigId = parseInt(req.params.userRigId);
+      if (isNaN(userRigId)) {
+        return res.status(400).json({ error: 'Invalid user rig ID' });
+      }
+      
+      // Check if user rig exists
+      const userRig = await storage.getUserMiningRig(userRigId);
+      if (!userRig) {
+        return res.status(404).json({ error: 'User mining rig not found' });
+      }
+      
+      if (!userRig.isActive) {
+        return res.status(400).json({ error: 'This mining rig is not active' });
+      }
+      
+      // Get the rig details
+      const rig = await storage.getMiningRig(userRig.rigId);
+      if (!rig) {
+        return res.status(404).json({ error: 'Mining rig not found' });
+      }
+      
+      // Get user
+      const user = await storage.getUser(userRig.userId);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      // Calculate rewards based on hash rate and time since last claim
+      const now = new Date();
+      const lastClaimDate = userRig.lastRewardDate || userRig.purchaseDate || now;
+      
+      // Calculate hours since last claim (max 24 hours)
+      const hoursSinceLastClaim = Math.min(
+        24,
+        Math.max(1, Math.floor((now.getTime() - lastClaimDate.getTime()) / (1000 * 60 * 60)))
+      );
+      
+      if (hoursSinceLastClaim < 1) {
+        return res.status(400).json({ error: 'You can only claim rewards once per hour' });
+      }
+      
+      // Base reward calculation: hashRate * hours * reward factor
+      const rewardFactor = 0.00001; // Adjust this based on your token economics
+      const rewards = rig.hashRate * hoursSinceLastClaim * rewardFactor;
+      
+      // Apply premium tier bonus if applicable
+      let finalRewards = rewards;
+      if (user.premiumTier > 0) {
+        const premiumTier = await storage.getPremiumTier(user.premiumTier);
+        if (premiumTier) {
+          finalRewards = rewards * (1 + premiumTier.stakingBonus / 100);
+        }
+      }
+      
+      // Create mining reward record
+      const miningReward = await storage.createMiningReward({
+        userId: user.id,
+        userRigId,
+        amount: finalRewards,
+        transactionHash: null
+      });
+      
+      // Update user token balance
+      await storage.updateUserTokenBalance(user.id, user.tokenBalance + finalRewards);
+      
+      // Update user rig's last reward date and total mined
+      await storage.updateLastRewardDate(userRigId);
+      await storage.updateTotalMined(userRigId, userRig.totalMined + finalRewards);
+      
+      res.json({
+        success: true,
+        reward: miningReward,
+        newBalance: user.tokenBalance + finalRewards,
+        totalMined: userRig.totalMined + finalRewards
+      });
+    } catch (error) {
+      console.error('Error claiming mining rewards:', error);
+      res.status(500).json({ error: 'Failed to claim mining rewards' });
+    }
+  });
+
+  // Get mining rewards for a user
+  app.get('/api/mining/rewards', async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.query.userId as string);
+      const userRigId = req.query.userRigId ? parseInt(req.query.userRigId as string) : undefined;
+      
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: 'Invalid user ID' });
+      }
+      
+      if (userRigId !== undefined && isNaN(userRigId)) {
+        return res.status(400).json({ error: 'Invalid user rig ID' });
+      }
+      
+      const rewards = await storage.getMiningRewards(userId, userRigId);
+      res.json(rewards);
+    } catch (error) {
+      console.error('Error fetching mining rewards:', error);
+      res.status(500).json({ error: 'Failed to fetch mining rewards' });
+    }
+  });
+
+  // Update mining rig status (activate/deactivate)
+  app.post('/api/mining/rigs/:userRigId/status', async (req: Request, res: Response) => {
+    try {
+      const userRigId = parseInt(req.params.userRigId);
+      const { isActive } = req.body;
+      
+      if (isNaN(userRigId)) {
+        return res.status(400).json({ error: 'Invalid user rig ID' });
+      }
+      
+      if (typeof isActive !== 'boolean') {
+        return res.status(400).json({ error: 'isActive must be a boolean value' });
+      }
+      
+      // Check if user rig exists
+      const userRig = await storage.getUserMiningRig(userRigId);
+      if (!userRig) {
+        return res.status(404).json({ error: 'User mining rig not found' });
+      }
+      
+      // Update status
+      await storage.updateUserMiningRigStatus(userRigId, isActive);
+      
+      res.json({
+        success: true,
+        message: isActive ? 'Mining rig activated' : 'Mining rig deactivated'
+      });
+    } catch (error) {
+      console.error('Error updating mining rig status:', error);
+      res.status(500).json({ error: 'Failed to update mining rig status' });
     }
   });
 
