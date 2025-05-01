@@ -12,7 +12,11 @@ import {
   triviaAnswers, type TriviaAnswer, type InsertTriviaAnswer,
   spinWheelRewards, type SpinWheelReward, type InsertSpinWheelReward,
   userSpins, type UserSpin, type InsertUserSpin,
-  marketplaceListings, type MarketplaceListing, type InsertMarketplaceListing
+  marketplaceListings, type MarketplaceListing, type InsertMarketplaceListing,
+  stakingPools, type StakingPool, type InsertStakingPool,
+  userStakes, type UserStake, type InsertUserStake,
+  referralRewards, type ReferralReward, type InsertReferralReward,
+  premiumTiers, type PremiumTier, type InsertPremiumTier
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
@@ -90,6 +94,36 @@ export interface IStorage {
   getMarketplaceListings(activeOnly?: boolean): Promise<MarketplaceListing[]>;
   getMarketplaceListing(id: number): Promise<MarketplaceListing | undefined>;
   createMarketplaceListing(listing: InsertMarketplaceListing): Promise<MarketplaceListing>;
+  
+  // Staking operations
+  getStakingPools(activeOnly?: boolean): Promise<StakingPool[]>;
+  getStakingPool(id: number): Promise<StakingPool | undefined>;
+  createStakingPool(pool: InsertStakingPool): Promise<StakingPool>;
+  getUserStakes(userId: number): Promise<UserStake[]>;
+  getUserStake(id: number): Promise<UserStake | undefined>;
+  createUserStake(stake: InsertUserStake): Promise<UserStake>;
+  updateUserStakeAfterClaim(stakeId: number, rewardsAmount: number): Promise<boolean>;
+  deactivateUserStake(stakeId: number): Promise<boolean>;
+  updatePoolTotalStaked(poolId: number, newTotalStaked: number): Promise<boolean>;
+  
+  // Referral operations
+  getReferredUsers(userId: number): Promise<User[]>;
+  getUserReferralRewards(userId: number): Promise<ReferralReward[]>;
+  getUserPendingReferralRewards(userId: number): Promise<ReferralReward[]>;
+  createReferralReward(reward: InsertReferralReward): Promise<ReferralReward>;
+  updateReferralRewardsStatus(rewardIds: number[], status: string): Promise<boolean>;
+  updateUserReferralCode(userId: number, referralCode: string): Promise<boolean>;
+  getUserByReferralCode(referralCode: string): Promise<User | undefined>;
+  updateUserReferrer(userId: number, referrerId: number): Promise<boolean>;
+  
+  // Premium membership operations
+  getPremiumTiers(): Promise<PremiumTier[]>;
+  getPremiumTier(id: number): Promise<PremiumTier | undefined>;
+  createPremiumTier(tier: InsertPremiumTier): Promise<PremiumTier>;
+  updateUserPremiumTier(userId: number, tierId: number): Promise<boolean>;
+  
+  // User token balance operations
+  updateUserTokenBalance(userId: number, newBalance: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
