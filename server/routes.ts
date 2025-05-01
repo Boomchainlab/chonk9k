@@ -9,7 +9,9 @@ import {
   insertTriviaQuestionSchema,
   insertTriviaSubmissionSchema,
   insertTriviaAnswerSchema,
-  insertMarketplaceListingSchema
+  insertMarketplaceListingSchema,
+  insertSpinWheelRewardSchema,
+  insertUserSpinSchema
 } from "@shared/schema";
 import { coinMarketCapService } from "./coinmarketcap";
 import { z } from "zod";
