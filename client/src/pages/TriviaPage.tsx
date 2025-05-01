@@ -1,384 +1,479 @@
-import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiRequest } from '../lib/queryClient';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'wouter';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useToast } from '@/hooks/use-toast';
-import { Loader2, Trophy, Check, AlertTriangle } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { useToast } from "@/hooks/use-toast";
+import { Trophy, Clock, CheckCircle, HelpCircle, AlertTriangle, Calendar, ChevronRight, Loader2 } from 'lucide-react';
+import { useChonkWallet } from '@/hooks/useChonkWallet';
+import ChonkTokenLogo from '@/components/ChonkTokenLogo';
+import { apiRequest } from '@/lib/queryClient';
 
-interface TriviaQuiz {
-  id: number;
-  title: string;
-  description: string;
-  rewardAmount: number;
-  startDate: string;
-  endDate: string;
-  isActive: boolean;
-  difficulty: string;
-}
+// Type-safe API request method wrappers
+const fetchAPI = async (url: string) => {
+  const response = await fetch(url, { credentials: 'include' });
+  return response;
+};
 
-interface TriviaQuestion {
-  id: number;
-  quizId: number;
-  question: string;
-  options: string[];
-  category: string;
-  points: number;
-}
+const postAPI = async (url: string, data?: any) => {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: data ? JSON.stringify(data) : undefined,
+    credentials: 'include'
+  });
+  return response;
+};
+import { TriviaQuiz, TriviaQuestion, TriviaSubmission } from '@shared/schema';
 
-interface TriviaSubmission {
-  id: number;
-  userId: number;
-  quizId: number;
-  score: number;
-  completed: boolean;
-  rewardClaimed: boolean;
-  submittedAt: string;
-}
-
-const mockUserId = 1; // In a real app, this would come from auth context
-
-export default function TriviaPage() {
+const TriviaPage: React.FC = () => {
+  const { account } = useChonkWallet();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [currentAnswers, setCurrentAnswers] = useState<number[]>([]);
-  const [submissionId, setSubmissionId] = useState<number | null>(null);
   
-  // Get current active quiz
-  const { data: currentQuiz, isLoading: isLoadingQuiz } = useQuery({
-    queryKey: ['/api/trivia/current-quiz'],
-    queryFn: async () => {
-      try {
-        const response = await apiRequest<TriviaQuiz>('/api/trivia/current-quiz');
-        return response;
-      } catch (error) {
-        // If there's no active quiz, return null
-        if (error instanceof Response && error.status === 404) {
-          return null;
-        }
-        throw error;
-      }
-    }
-  });
-  
-  // Get questions for the current quiz
-  const { data: questions, isLoading: isLoadingQuestions } = useQuery({
-    queryKey: ['/api/trivia/quizzes', currentQuiz?.id, 'questions'],
-    queryFn: async () => {
-      if (!currentQuiz) return [];
-      const response = await apiRequest<TriviaQuestion[]>(`/api/trivia/quizzes/${currentQuiz.id}/questions`);
-      return response;
-    },
-    enabled: !!currentQuiz
-  });
-  
-  // Get user's submission for this quiz
-  const { data: userSubmission, isLoading: isLoadingSubmission } = useQuery({
-    queryKey: ['/api/trivia/quizzes', currentQuiz?.id, 'submissions', mockUserId],
-    queryFn: async () => {
-      if (!currentQuiz) return null;
-      try {
-        const response = await apiRequest<TriviaSubmission>(
-          `/api/trivia/quizzes/${currentQuiz.id}/submissions/${mockUserId}`
-        );
-        return response;
-      } catch (error) {
-        // If there's no submission yet, return null
-        if (error instanceof Response && error.status === 404) {
-          return null;
-        }
-        throw error;
-      }
-    },
-    enabled: !!currentQuiz
-  });
-  
-  // Initialize answers array
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentQuiz, setCurrentQuiz] = useState<TriviaQuiz | null>(null);
+  const [userSubmission, setUserSubmission] = useState<TriviaSubmission | null>(null);
+  const [quizHistory, setQuizHistory] = useState<{ quiz: TriviaQuiz, submission: TriviaSubmission }[]>([]);
+  const [timeRemaining, setTimeRemaining] = useState<string>('');
+
   useEffect(() => {
-    if (questions?.length) {
-      setCurrentAnswers(new Array(questions.length).fill(-1));
-    }
-  }, [questions]);
-  
-  // Handle answer selection
-  const handleAnswerChange = (questionIndex: number, optionIndex: number) => {
-    setCurrentAnswers(prev => {
-      const newAnswers = [...prev];
-      newAnswers[questionIndex] = optionIndex;
-      return newAnswers;
-    });
-  };
-  
-  // Submit quiz answers
-  const submitAnswersMutation = useMutation({
-    mutationFn: async () => {
-      if (!currentQuiz) throw new Error('No active quiz');
-      if (!questions?.length) throw new Error('No questions loaded');
+    const fetchCurrentQuiz = async () => {
+      try {
+        setIsLoading(true);
+        const response = await apiRequest('GET', '/api/trivia/current-quiz');
+        const data = await response.json();
+        
+        if (data.quiz) {
+          setCurrentQuiz(data.quiz);
+          
+          // Check if user has already taken this quiz
+          if (account && data.quiz.id) {
+            const submissionResponse = await apiRequest('GET', `/api/trivia/quizzes/${data.quiz.id}/submissions/${account}`);
+            const submissionData = await submissionResponse.json();
+            
+            if (submissionData.submission) {
+              setUserSubmission(submissionData.submission);
+            }
+          }
+        }
+        
+        // Fetch quiz history
+        fetchQuizHistory();
+      } catch (error) {
+        console.error('Error fetching current quiz:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load the current trivia quiz.',
+          variant: 'destructive'
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    const fetchQuizHistory = async () => {
+      if (!account) return;
       
-      // Make sure all questions are answered
-      if (currentAnswers.some(a => a === -1)) {
-        throw new Error('Please answer all questions before submitting');
+      try {
+        const response = await apiRequest('GET', '/api/trivia/quizzes?limit=5');
+        const quizzes = await response.json();
+        
+        // For each quiz, get the user's submission if any
+        const history = await Promise.all(quizzes.data.map(async (quiz: TriviaQuiz) => {
+          const submissionResponse = await apiRequest('GET', `/api/trivia/quizzes/${quiz.id}/submissions/${account}`);
+          const submissionData = await submissionResponse.json();
+          
+          return {
+            quiz,
+            submission: submissionData.submission || null
+          };
+        }));
+        
+        setQuizHistory(history.filter(item => item.submission !== null));
+      } catch (error) {
+        console.error('Error fetching quiz history:', error);
+      }
+    };
+    
+    // Update time remaining
+    const updateTimeRemaining = () => {
+      if (!currentQuiz) return;
+      
+      const endDate = new Date(currentQuiz.endDate);
+      const now = new Date();
+      const difference = endDate.getTime() - now.getTime();
+      
+      if (difference <= 0) {
+        setTimeRemaining('Ended');
+        return;
       }
       
-      const response = await apiRequest(`/api/trivia/quizzes/${currentQuiz.id}/submit`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: mockUserId,
-          answers: currentAnswers
-        })
-      });
+      const days = Math.floor(difference / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
       
-      return response;
-    },
-    onSuccess: (data) => {
+      setTimeRemaining(`${days}d ${hours}h ${minutes}m`);
+    };
+    
+    fetchCurrentQuiz();
+    
+    // Update time remaining every minute
+    updateTimeRemaining();
+    const timer = setInterval(updateTimeRemaining, 60000);
+    
+    return () => clearInterval(timer);
+  }, [account, toast]);
+  
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  };
+
+  const handleTakeQuiz = () => {
+    if (!account) {
       toast({
-        title: 'Quiz Submitted!',
-        description: `You scored ${data.score} out of ${data.totalQuestions} questions.`,
-      });
-      
-      setSubmissionId(data.submission.id);
-      
-      // Invalidate queries to refresh data
-      queryClient.invalidateQueries({ 
-        queryKey: ['/api/trivia/quizzes', currentQuiz?.id, 'submissions', mockUserId] 
-      });
-    },
-    onError: (error) => {
-      console.error('Error submitting quiz:', error);
-      toast({
-        title: 'Submission Failed',
-        description: error instanceof Error ? error.message : 'Failed to submit answers',
+        title: 'Wallet Not Connected',
+        description: 'Please connect your wallet to participate in the trivia.',
         variant: 'destructive'
       });
+      return;
     }
-  });
+    
+    if (!currentQuiz) return;
+    
+    window.location.href = `/trivia/${currentQuiz.id}`;
+  };
   
-  // Claim rewards
-  const claimRewardMutation = useMutation({
-    mutationFn: async (submissionId: number) => {
-      const response = await apiRequest(`/api/trivia/submissions/${submissionId}/claim-reward`, {
-        method: 'POST'
-      });
-      return response;
-    },
-    onSuccess: (data) => {
-      toast({
-        title: 'Reward Claimed!',
-        description: `You received ${data.rewardAmount} $CHONK9K tokens!`,
-      });
+  const handleClaimReward = async (submissionId: number) => {
+    if (!account) return;
+    
+    try {
+      const response = await apiRequest('POST', `/api/trivia/submissions/${submissionId}/claim-reward`);
+      const data = await response.json();
       
-      // Invalidate queries to refresh data
-      queryClient.invalidateQueries({ 
-        queryKey: ['/api/trivia/quizzes', currentQuiz?.id, 'submissions', mockUserId] 
-      });
-    },
-    onError: (error) => {
+      if (data.success) {
+        toast({
+          title: 'Reward Claimed!',
+          description: `You've claimed ${data.rewardAmount} CHONK9K tokens.`,
+        });
+        
+        // Refresh user submission data
+        if (currentQuiz) {
+          const submissionResponse = await apiRequest('GET', `/api/trivia/quizzes/${currentQuiz.id}/submissions/${account}`);
+          const submissionData = await submissionResponse.json();
+          
+          if (submissionData.submission) {
+            setUserSubmission(submissionData.submission);
+          }
+        }
+      }
+    } catch (error) {
       console.error('Error claiming reward:', error);
       toast({
-        title: 'Failed to Claim Reward',
-        description: 'Something went wrong while claiming your reward.',
+        title: 'Error',
+        description: 'Failed to claim your reward. Please try again.',
         variant: 'destructive'
       });
     }
-  });
-  
-  // Helper to format date range
-  const formatDateRange = (startDate: string, endDate: string) => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    return `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`;
   };
-  
-  const isLoading = isLoadingQuiz || isLoadingQuestions || isLoadingSubmission;
-  
+
   return (
-    <div className="container mx-auto py-8 px-4">
-      <h1 className="text-3xl font-bold mb-2">Weekly Crypto Trivia Challenge</h1>
-      <p className="text-lg text-muted-foreground mb-6">
-        Test your crypto knowledge and earn $CHONK9K tokens!
-      </p>
-      
-      {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <span className="ml-2">Loading trivia challenge...</span>
+    <div className="min-h-screen bg-black">
+      <div className="container max-w-6xl mx-auto px-4 py-8">
+        <div className="flex items-center gap-4 mb-2">
+          <ChonkTokenLogo size={60} />
+          <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#ff00ff] to-[#00e0ff]">
+            Crypto Trivia Challenge
+          </h1>
         </div>
-      ) : !currentQuiz ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>No Active Trivia Challenge</CardTitle>
-            <CardDescription>
-              There's no active trivia challenge right now. Please check back later.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">
-              Trivia challenges are posted weekly with new questions about cryptocurrency, blockchain, and the crypto ecosystem.
-            </p>
-          </CardContent>
-          <CardFooter>
-            <Button variant="outline" asChild>
-              <Link href="/">Return to Home</Link>
-            </Button>
-          </CardFooter>
-        </Card>
-      ) : userSubmission?.completed ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Quiz Completed</CardTitle>
-            <CardDescription>
-              You've already completed this week's trivia challenge!
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-center flex-col my-6">
-                <Trophy className="h-16 w-16 text-yellow-500 mb-2" />
-                <h3 className="text-xl font-bold">Your Score: {userSubmission.score}</h3>
-                <p className="text-muted-foreground">
-                  {questions?.length ? `Out of ${questions.length} questions` : ''}
-                </p>
-              </div>
-              
-              {userSubmission.score > 0 && !userSubmission.rewardClaimed && (
-                <Alert className="bg-yellow-50 dark:bg-yellow-950 border-yellow-200 dark:border-yellow-800">
-                  <Trophy className="h-4 w-4 text-yellow-500" />
-                  <AlertTitle>Reward Available!</AlertTitle>
-                  <AlertDescription>
-                    You can claim your $CHONK9K token reward now.
-                  </AlertDescription>
-                </Alert>
+        <p className="text-gray-400 mb-8">
+          Test your crypto knowledge and earn $CHONK9K rewards by participating in our weekly trivia!
+        </p>
+        
+        {isLoading ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-[#ff00ff]" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Current Quiz */}
+            <div className="lg:col-span-2 space-y-6">
+              {currentQuiz ? (
+                <Card className="bg-black/80 border border-[#ff00ff]/30">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-xl font-bold">
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#ff00ff] to-[#00e0ff]">
+                          {currentQuiz.title}
+                        </span>
+                      </CardTitle>
+                      <Badge className="bg-gradient-to-r from-[#ff00ff] to-[#00e0ff] text-white">
+                        {currentQuiz.difficulty}
+                      </Badge>
+                    </div>
+                    <CardDescription className="text-gray-400">
+                      {currentQuiz.description}
+                    </CardDescription>
+                  </CardHeader>
+                  
+                  <CardContent className="space-y-4">
+                    <div className="bg-black/50 rounded-lg p-4 border border-gray-800">
+                      <div className="flex flex-wrap gap-4">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-5 w-5 text-[#ff00ff]" />
+                          <div>
+                            <p className="text-xs text-gray-500">Period</p>
+                            <p className="text-sm text-white">
+                              {formatDate(currentQuiz.startDate)} - {formatDate(currentQuiz.endDate)}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-5 w-5 text-[#00e0ff]" />
+                          <div>
+                            <p className="text-xs text-gray-500">Time Remaining</p>
+                            <p className="text-sm text-white">{timeRemaining}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <Trophy className="h-5 w-5 text-[#ff00ff]" />
+                          <div>
+                            <p className="text-xs text-gray-500">Reward</p>
+                            <p className="text-sm text-white flex items-center">
+                              <ChonkTokenLogo size={16} className="mr-1" /> {currentQuiz.rewardAmount} CHONK9K
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {userSubmission ? (
+                      <div className="bg-black/50 rounded-lg p-4 border border-gray-800">
+                        <div className="mb-3">
+                          <h3 className="text-md font-medium text-white mb-1">Your Results</h3>
+                          <p className="text-sm text-gray-400">
+                            You've completed this quiz on {formatDate(userSubmission.submittedAt || '')}
+                          </p>
+                        </div>
+                        
+                        <div className="mb-4">
+                          <div className="flex justify-between mb-2">
+                            <span className="text-sm text-gray-400">Score</span>
+                            <span className="text-sm font-medium text-white">{userSubmission.score}%</span>
+                          </div>
+                          <Progress
+                            value={userSubmission.score}
+                            className="h-2 bg-gray-800"
+                          />
+                        </div>
+                        
+                        {userSubmission.rewardClaimed ? (
+                          <Badge className="bg-green-500/20 text-green-400 border border-green-500/30">
+                            <CheckCircle className="h-3 w-3 mr-1" /> Reward Claimed
+                          </Badge>
+                        ) : userSubmission.completed ? (
+                          <Button
+                            onClick={() => handleClaimReward(userSubmission.id)}
+                            className="w-full bg-gradient-to-r from-[#ff00ff] to-[#00e0ff] text-white"
+                          >
+                            Claim {currentQuiz.rewardAmount} CHONK9K
+                          </Button>
+                        ) : (
+                          <Badge className="bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
+                            <AlertTriangle className="h-3 w-3 mr-1" /> Quiz not completed
+                          </Badge>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <HelpCircle className="h-12 w-12 mx-auto mb-3 text-[#ff00ff] opacity-80" />
+                        <h3 className="text-lg font-medium text-white mb-2">Ready to test your knowledge?</h3>
+                        <p className="text-sm text-gray-400 mb-4">
+                          Answer all questions correctly to maximize your CHONK9K rewards!
+                        </p>
+                        <Button
+                          onClick={handleTakeQuiz}
+                          className="bg-gradient-to-r from-[#ff00ff] to-[#00e0ff] text-white"
+                        >
+                          Take Quiz Now
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="bg-black/80 border border-[#ff00ff]/30">
+                  <CardContent className="text-center py-12">
+                    <Calendar className="h-16 w-16 mx-auto mb-4 text-[#ff00ff]/50" />
+                    <h3 className="text-xl font-medium text-white mb-2">No Active Trivia</h3>
+                    <p className="text-gray-400 mb-6">
+                      There's no active trivia challenge at the moment. Check back soon for new opportunities to earn CHONK9K tokens!
+                    </p>
+                  </CardContent>
+                </Card>
               )}
               
-              {userSubmission.rewardClaimed && (
-                <Alert className="bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800">
-                  <Check className="h-4 w-4 text-green-500" />
-                  <AlertTitle>Reward Claimed!</AlertTitle>
-                  <AlertDescription>
-                    You've already claimed your $CHONK9K tokens for this quiz.
-                  </AlertDescription>
-                </Alert>
-              )}
-            </div>
-          </CardContent>
-          <CardFooter className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2">
-            {userSubmission.score > 0 && !userSubmission.rewardClaimed && (
-              <Button 
-                className="w-full sm:w-auto" 
-                onClick={() => claimRewardMutation.mutate(userSubmission.id)}
-                disabled={claimRewardMutation.isPending}
-              >
-                {claimRewardMutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Claiming...
-                  </>
-                ) : (
-                  <>
-                    <Trophy className="mr-2 h-4 w-4" />
-                    Claim {currentQuiz.rewardAmount} $CHONK9K Tokens
-                  </>
-                )}
-              </Button>
-            )}
-            <Button variant="outline" className="w-full sm:w-auto" asChild>
-              <Link href="/">Return to Home</Link>
-            </Button>
-          </CardFooter>
-        </Card>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>{currentQuiz.title}</CardTitle>
-            <CardDescription>
-              {currentQuiz.description}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap justify-between mb-6 text-sm">
-              <div>
-                <span className="font-medium">Available:</span>{' '}
-                {formatDateRange(currentQuiz.startDate, currentQuiz.endDate)}
-              </div>
-              <div>
-                <span className="font-medium">Difficulty:</span>{' '}
-                <span className="capitalize">{currentQuiz.difficulty}</span>
-              </div>
-              <div>
-                <span className="font-medium">Reward:</span>{' '}
-                {currentQuiz.rewardAmount} $CHONK9K
-              </div>
+              {/* How It Works */}
+              <Card className="bg-black/80 border border-[#ff00ff]/30">
+                <CardHeader>
+                  <CardTitle className="text-xl font-bold">
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#ff00ff] to-[#00e0ff]">
+                      How It Works
+                    </span>
+                  </CardTitle>
+                </CardHeader>
+                
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="p-4 rounded-lg bg-black/50 border border-gray-800">
+                      <div className="w-10 h-10 rounded-full bg-[#ff00ff]/20 flex items-center justify-center mb-3">
+                        <span className="text-[#ff00ff] font-bold">1</span>
+                      </div>
+                      <h3 className="font-medium text-white mb-2">Take the Quiz</h3>
+                      <p className="text-sm text-gray-400">
+                        Connect your wallet and answer crypto-related questions in our weekly trivia challenge.
+                      </p>
+                    </div>
+                    
+                    <div className="p-4 rounded-lg bg-black/50 border border-gray-800">
+                      <div className="w-10 h-10 rounded-full bg-[#ff00ff]/20 flex items-center justify-center mb-3">
+                        <span className="text-[#ff00ff] font-bold">2</span>
+                      </div>
+                      <h3 className="font-medium text-white mb-2">Score Points</h3>
+                      <p className="text-sm text-gray-400">
+                        Your score is calculated based on the number of correct answers. Higher scores earn bigger rewards!
+                      </p>
+                    </div>
+                    
+                    <div className="p-4 rounded-lg bg-black/50 border border-gray-800">
+                      <div className="w-10 h-10 rounded-full bg-[#ff00ff]/20 flex items-center justify-center mb-3">
+                        <span className="text-[#ff00ff] font-bold">3</span>
+                      </div>
+                      <h3 className="font-medium text-white mb-2">Claim Rewards</h3>
+                      <p className="text-sm text-gray-400">
+                        Earn CHONK9K tokens based on your performance. Rewards are transferred directly to your wallet.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
             
-            <Separator className="mb-6" />
-            
-            {questions && questions.length > 0 ? (
-              <form 
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  submitAnswersMutation.mutate();
-                }}
-                className="space-y-8"
-              >
-                {questions.map((question, qIndex) => (
-                  <div key={question.id} className="space-y-4">
-                    <h3 className="text-lg font-medium">
-                      {qIndex + 1}. {question.question}
-                    </h3>
-                    <div className="bg-muted/40 p-4 rounded-md">
-                      <RadioGroup
-                        value={currentAnswers[qIndex]?.toString()}
-                        onValueChange={(value) => handleAnswerChange(qIndex, parseInt(value))}
-                      >
-                        {question.options.map((option, oIndex) => (
-                          <div key={oIndex} className="flex items-center space-x-2 py-2">
-                            <RadioGroupItem value={oIndex.toString()} id={`q${qIndex}-o${oIndex}`} />
-                            <Label htmlFor={`q${qIndex}-o${oIndex}`} className="cursor-pointer">{option}</Label>
+            {/* Quiz History & Leaderboard */}
+            <div className="space-y-6">
+              {/* Quiz History */}
+              <Card className="bg-black/80 border border-[#ff00ff]/30">
+                <CardHeader>
+                  <CardTitle className="text-xl font-bold">
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#ff00ff] to-[#00e0ff]">
+                      Your History
+                    </span>
+                  </CardTitle>
+                  <CardDescription className="text-gray-400">
+                    Your recent trivia challenges
+                  </CardDescription>
+                </CardHeader>
+                
+                <CardContent>
+                  {account ? (
+                    quizHistory.length > 0 ? (
+                      <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+                        {quizHistory.map(({ quiz, submission }) => (
+                          <div key={quiz.id} className="p-3 rounded-lg bg-black/50 border border-gray-800">
+                            <div className="flex justify-between items-start mb-2">
+                              <h4 className="font-medium text-white">{quiz.title}</h4>
+                              <Badge className={submission.rewardClaimed ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}>
+                                {submission.rewardClaimed ? 'Claimed' : 'Pending'}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-gray-400 mb-2">
+                              {formatDate(submission.submittedAt || '')}
+                            </p>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-400">Score:</span>
+                              <span className="text-white">{submission.score}%</span>
+                            </div>
+                            <Progress
+                              value={submission.score}
+                              className="h-1 mt-1 bg-gray-800"
+                            />
                           </div>
                         ))}
-                      </RadioGroup>
+                      </div>
+                    ) : (
+                      <div className="text-center py-6 text-gray-400">
+                        <p>You haven't taken any quizzes yet.</p>
+                        <p className="text-sm">Participate to earn CHONK9K tokens!</p>
+                      </div>
+                    )
+                  ) : (
+                    <div className="text-center py-6 text-gray-400">
+                      <p>Connect your wallet to see your quiz history.</p>
                     </div>
-                    {qIndex < questions.length - 1 && <Separator />}
+                  )}
+                </CardContent>
+              </Card>
+              
+              {/* Leaderboard */}
+              <Card className="bg-black/80 border border-[#ff00ff]/30">
+                <CardHeader>
+                  <CardTitle className="text-xl font-bold">
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#ff00ff] to-[#00e0ff]">
+                      Top Trivia Players
+                    </span>
+                  </CardTitle>
+                  <CardDescription className="text-gray-400">
+                    This week's leaderboard
+                  </CardDescription>
+                </CardHeader>
+                
+                <CardContent>
+                  <div className="space-y-2">
+                    {/* Mock leaderboard data */}
+                    {[
+                      { name: 'CryptoWhiz', score: 98, reward: '1500' },
+                      { name: 'BlockchainMaster', score: 95, reward: '1200' },
+                      { name: 'TokenGuru', score: 92, reward: '1000' },
+                      { name: 'SatoshiFan', score: 88, reward: '800' },
+                      { name: 'CoinCollector', score: 85, reward: '600' },
+                    ].map((entry, index) => (
+                      <div key={index} className="flex items-center justify-between p-2 rounded-lg bg-black/50 border border-gray-800">
+                        <div className="flex items-center">
+                          <div className="w-6 h-6 rounded-full bg-gradient-to-r from-[#ff00ff] to-[#00e0ff] mr-2 flex items-center justify-center text-xs font-bold text-white">
+                            {index + 1}
+                          </div>
+                          <div>
+                            <p className="font-medium text-white">{entry.name}</p>
+                            <p className="text-xs text-gray-400">Score: {entry.score}%</p>
+                          </div>
+                        </div>
+                        <Badge variant="outline" className="border-[#00e0ff]/30 text-[#00e0ff] flex items-center">
+                          <ChonkTokenLogo size={14} className="mr-1" /> {entry.reward}
+                        </Badge>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                </CardContent>
                 
-                {currentAnswers.some(a => a === -1) && (
-                  <Alert variant="destructive" className="mt-6">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertTitle>Incomplete Answers</AlertTitle>
-                    <AlertDescription>
-                      Please answer all questions before submitting.
-                    </AlertDescription>
-                  </Alert>
-                )}
-                
-                <Button 
-                  type="submit" 
-                  className="w-full"
-                  disabled={currentAnswers.some(a => a === -1) || submitAnswersMutation.isPending}
-                >
-                  {submitAnswersMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Submitting...
-                    </>
-                  ) : 'Submit Answers'}
-                </Button>
-              </form>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>No questions available for this quiz.</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+                <CardFooter>
+                  <Link href="/trivia/leaderboard">
+                    <Button variant="outline" className="w-full border-[#ff00ff]/30 text-[#ff00ff] hover:bg-[#ff00ff]/10">
+                      View Full Leaderboard <ChevronRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </Link>
+                </CardFooter>
+              </Card>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
-}
+};
+
+export default TriviaPage;
