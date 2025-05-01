@@ -44,16 +44,18 @@ const SimpleTokenDisplay: React.FC = () => {
                 SPL Token
               </Badge>
             </CardTitle>
-            <CardDescription className="text-gray-400">
-              Token Contract: {CHONK9K_TOKEN_ADDRESS.slice(0, 6)}...{CHONK9K_TOKEN_ADDRESS.slice(-4)}
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="ml-2 h-6 w-6 rounded-full p-0 text-[#ff00ff]/70 hover:text-[#ff00ff] hover:bg-[#ff00ff]/10"
-                onClick={() => copyToClipboard(CHONK9K_TOKEN_ADDRESS)}
-              >
-                📋
-              </Button>
+            <CardDescription className="text-gray-400 flex flex-col gap-1">
+              <div>
+                Token Contract: <span className="text-[#00e0ff] break-all font-mono text-xs">{CHONK9K_TOKEN_ADDRESS}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge className="bg-gray-800 hover:bg-gray-700 cursor-pointer" onClick={() => copyToClipboard(CHONK9K_TOKEN_ADDRESS)}>
+                  Copy Address 📋
+                </Badge>
+                <Badge className="bg-gray-800 hover:bg-gray-700 cursor-pointer">
+                  {CONTRACT_ADDRESSES.SOLANA.CHONK9K === CHONK9K_TOKEN_ADDRESS ? "✅ Verified" : "❌ Mismatch"}
+                </Badge>
+              </div>
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -84,23 +86,37 @@ const SimpleTokenDisplay: React.FC = () => {
               </p>
             </div>
           </CardContent>
-          <CardFooter className="flex justify-between">
-            <a 
-              href={`https://solscan.io/token/${CHONK9K_TOKEN_ADDRESS}`}
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-sm text-[#00e0ff] hover:underline flex items-center gap-1"
-            >
-              View on Solscan 🔗
-            </a>
-            <a 
-              href={`https://dexscreener.com/solana/${CHONK9K_TOKEN_ADDRESS}`}
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-sm text-[#00e0ff] hover:underline flex items-center gap-1"
-            >
-              View on DexScreener 🔗
-            </a>
+          <CardFooter className="flex flex-col gap-3">
+            <div className="text-sm font-medium text-[#ff00ff]">Transaction Explorers:</div>
+            <div className="flex flex-wrap gap-3">
+              <a 
+                href={`https://solscan.io/token/${CHONK9K_TOKEN_ADDRESS}`}
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-sm bg-gray-800 hover:bg-gray-700 px-3 py-2 rounded-md text-white flex items-center gap-1"
+              >
+                View on Solscan 🔗
+              </a>
+              <a 
+                href={`https://dexscreener.com/solana/${CHONK9K_TOKEN_ADDRESS}`}
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-sm bg-gray-800 hover:bg-gray-700 px-3 py-2 rounded-md text-white flex items-center gap-1"
+              >
+                View on DexScreener 🔗
+              </a>
+              <a 
+                href={`https://explorer.solana.com/address/${CHONK9K_TOKEN_ADDRESS}`}
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-sm bg-gray-800 hover:bg-gray-700 px-3 py-2 rounded-md text-white flex items-center gap-1"
+              >
+                Solana Explorer 🔗
+              </a>
+            </div>
+            <div className="text-xs text-gray-400 mt-1">
+              Token Address: <span className="font-mono">{CHONK9K_TOKEN_ADDRESS}</span>
+            </div>
           </CardFooter>
         </Card>
 
@@ -116,35 +132,42 @@ const SimpleTokenDisplay: React.FC = () => {
           <CardContent className="space-y-5">
             <div className="space-y-3">
               <h3 className="font-medium text-[#ff00ff]">DEX Trading</h3>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="mb-2 text-sm text-gray-300">
+                <div>Trade $CHONK9K with these approved DEXes</div>
+                <div className="text-xs text-gray-400">Using token address: <span className="font-mono">{CHONK9K_TOKEN_ADDRESS.slice(0, 8)}...{CHONK9K_TOKEN_ADDRESS.slice(-8)}</span></div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <a 
                   href={`https://raydium.io/swap/?inputCurrency=sol&outputCurrency=${CHONK9K_TOKEN_ADDRESS}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-3 rounded-lg border border-gray-800 hover:border-[#ff00ff]/50 flex items-center gap-2 transition-colors"
+                  className="p-3 rounded-lg border border-[#ff00ff]/20 hover:border-[#ff00ff]/50 flex items-center gap-2 transition-colors bg-black/40"
                 >
                   <div className="w-8 h-8 rounded-full bg-black/60 flex items-center justify-center">
                     <img src="/images/wallets/raydium.svg" alt="Raydium" className="w-6 h-6" />
                   </div>
                   <div>
                     <p className="font-medium">Raydium</p>
-                    <p className="text-xs text-gray-400">Swap on Raydium</p>
+                    <p className="text-xs text-gray-400">Swap SOL for CHONK9K on Raydium</p>
                   </div>
                 </a>
                 <a 
                   href={`https://jup.ag/swap/SOL-${CHONK9K_TOKEN_ADDRESS}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-3 rounded-lg border border-gray-800 hover:border-[#ff00ff]/50 flex items-center gap-2 transition-colors"
+                  className="p-3 rounded-lg border border-[#00e0ff]/20 hover:border-[#00e0ff]/50 flex items-center gap-2 transition-colors bg-black/40"
                 >
                   <div className="w-8 h-8 rounded-full bg-black/60 flex items-center justify-center">
                     <img src="/images/wallets/jupiter.svg" alt="Jupiter" className="w-6 h-6" />
                   </div>
                   <div>
                     <p className="font-medium">Jupiter</p>
-                    <p className="text-xs text-gray-400">Swap on Jupiter</p>
+                    <p className="text-xs text-gray-400">Best price swaps across Solana DEXes</p>
                   </div>
                 </a>
+              </div>
+              <div className="text-xs text-center text-[#ff00ff]/80 mt-2">
+                <div>⚠️ Always verify the token address matches: {CHONK9K_TOKEN_ADDRESS}</div>
               </div>
             </div>
 
@@ -255,30 +278,48 @@ const SimpleTokenDisplay: React.FC = () => {
         </Card>
       </div>
 
-      <div className="mt-12 text-center">
-        <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-[#ff00ff] to-[#00e0ff] bg-clip-text text-transparent">
-          Get Started with $CHONK9K
-        </h2>
-        <div className="flex flex-wrap justify-center gap-4">
-          <Link href="/crypto">
-            <Button className="bg-gradient-to-r from-[#ff00ff] to-[#ff00ff]/70 hover:from-[#ff00ff]/90 hover:to-[#ff00ff]/60 text-white flex items-center gap-2">
-              <ChonkTokenLogo size={20} /> Buy $CHONK9K
-            </Button>
-          </Link>
-          <a 
-            href={`https://raydium.io/swap/?inputCurrency=sol&outputCurrency=${CHONK9K_TOKEN_ADDRESS}`} 
-            target="_blank" 
-            rel="noopener noreferrer"
-          >
-            <Button variant="outline" className="border-[#00e0ff] text-[#00e0ff] hover:bg-[#00e0ff]/10">
-              Trade on Raydium
-            </Button>
-          </a>
-          <Link href="/mining">
-            <Button variant="outline" className="border-[#ff00ff] text-[#ff00ff] hover:bg-[#ff00ff]/10">
-              Start Mining
-            </Button>
-          </Link>
+      <div className="mt-12 py-12 bg-black/60 border-t border-b border-[#ff00ff]/30 backdrop-blur-lg">
+        <div className="max-w-3xl mx-auto px-4 text-center">
+          <h2 className="text-3xl font-bold mb-3 bg-gradient-to-r from-[#ff00ff] to-[#00e0ff] bg-clip-text text-transparent">
+            Get Started with $CHONK9K
+          </h2>
+          <div className="mb-6 text-gray-300">
+            <p>The official Solana token from the creators of Chonkpump 9000</p>
+            <div className="mt-2 bg-black/40 p-2 rounded-md inline-flex items-center gap-2 border border-[#ff00ff]/20">
+              <span className="text-xs text-gray-400">Token Address:</span>
+              <code className="text-xs font-mono text-[#00e0ff]">{CHONK9K_TOKEN_ADDRESS}</code>
+              <button 
+                onClick={() => copyToClipboard(CHONK9K_TOKEN_ADDRESS)}
+                className="px-2 py-1 text-xs bg-gray-800 rounded hover:bg-gray-700 transition-colors"
+              >
+                Copy
+              </button>
+            </div>
+          </div>
+          <div className="flex flex-wrap justify-center gap-4">
+            <Link href="/crypto">
+              <Button size="lg" className="bg-gradient-to-r from-[#ff00ff] to-[#ff00ff]/70 hover:from-[#ff00ff]/90 hover:to-[#ff00ff]/60 text-white flex items-center gap-2">
+                <ChonkTokenLogo size={20} /> Buy $CHONK9K
+              </Button>
+            </Link>
+            <a 
+              href={`https://raydium.io/swap/?inputCurrency=sol&outputCurrency=${CHONK9K_TOKEN_ADDRESS}`} 
+              target="_blank" 
+              rel="noopener noreferrer"
+            >
+              <Button size="lg" variant="outline" className="border-[#00e0ff] text-[#00e0ff] hover:bg-[#00e0ff]/10">
+                Trade on Raydium
+              </Button>
+            </a>
+            <Link href="/mining">
+              <Button size="lg" variant="outline" className="border-[#ff00ff] text-[#ff00ff] hover:bg-[#ff00ff]/10">
+                Start Mining
+              </Button>
+            </Link>
+          </div>
+          <div className="mt-4 text-xs text-gray-500">
+            Always verify the token address when trading to avoid scams
+          </div>
         </div>
       </div>
     </div>
