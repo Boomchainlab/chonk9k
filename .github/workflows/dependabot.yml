@@ -1,0 +1,15 @@
+# .github/workflows/use-dependabot.yml
+name: Use Reusable Dependabot Auto-Merge
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  security-events: write
+
+jobs:
+  call-dependabot:
+    uses: Boomchainlab/.github/.github/workflows/dependabot-reusable.yml@main
+    secrets:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
