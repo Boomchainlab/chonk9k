@@ -431,26 +431,38 @@ const GamifiedWalletConnect: React.FC<GamifiedWalletConnectProps> = ({
   };
   
   const finalizeConnection = async (wallet: WalletOption) => {
-    const success = await connectWallet(wallet.id, selectedChain);
-    
-    if (success) {
-      setGamificationStep(3); // Success animation
-      setTimeout(() => {
-        setWalletConnected(true);
-        setOpen(false);
+    try {
+      const success = await connectWallet(wallet.id, selectedChain);
+      
+      if (success) {
+        setGamificationStep(3); // Success animation
+        setTimeout(() => {
+          setWalletConnected(true);
+          setOpen(false);
+          
+          toast({
+            title: "Achievement Unlocked!",
+            description: "You've taken your first step into the world of CHONK9K!",
+            variant: "default"
+          });
+        }, 1500);
+      } else {
+        setGamificationStep(1); // Back to wallet selection on failure
         
         toast({
-          title: "Achievement Unlocked!",
-          description: "You've taken your first step into the world of CHONK9K!",
-          variant: "default"
+          title: "Connection Failed",
+          description: "Please try connecting again.",
+          variant: "destructive"
         });
-      }, 1500);
-    } else {
+      }
+    } catch (error) {
+      console.error('Error in finalizeConnection:', error);
       setGamificationStep(1); // Back to wallet selection on failure
+      setConnectionAnimationProgress(0);
       
       toast({
-        title: "Connection Failed",
-        description: "Please try connecting again.",
+        title: "Connection Error",
+        description: "There was an error connecting your wallet. Please try again.",
         variant: "destructive"
       });
     }
