@@ -20,7 +20,7 @@ const SimpleTokenDisplay: React.FC = () => {
       <div className="text-center mb-10">
         <ChonkTokenLogo size={120} className="mx-auto mb-4" />
         <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-[#ff00ff] to-[#00e0ff] bg-clip-text text-transparent">
-          $CHONK9K Token
+          CHONK 9000
         </h1>
         <div className="flex justify-center items-center gap-2 mb-3">
           <Badge className="bg-[#00e0ff]/20 text-[#00e0ff] border border-[#00e0ff]/30">
@@ -63,7 +63,7 @@ const SimpleTokenDisplay: React.FC = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-gray-400 mb-1">Total Supply</p>
-                <p className="font-medium">{tokenMetadata.totalSupply}</p>
+                <p className="font-medium">1,000,000,000</p>
               </div>
               <div>
                 <p className="text-sm text-gray-400 mb-1">Decimals</p>
@@ -82,7 +82,7 @@ const SimpleTokenDisplay: React.FC = () => {
             <div>
               <p className="text-sm text-gray-400 mb-1">Description</p>
               <p className="text-sm">
-                $CHONK9K is a community-driven meme token combining cryptocurrency enthusiasm with engaging web 
+                CHONK 9000 ($CHONK9K) is a community-driven meme token combining cryptocurrency enthusiasm with engaging web 
                 experiences and unique cyberpunk aesthetics.
               </p>
             </div>
@@ -179,7 +179,7 @@ const SimpleTokenDisplay: React.FC = () => {
                   </div>
                   <div>
                     <p className="font-medium">CHONK9K</p>
-                    <p className="text-xs text-gray-400">Chonk Token</p>
+                    <p className="text-xs text-gray-400">CHONK 9000</p>
                   </div>
                 </div>
                 <div className="p-3 rounded-lg border border-gray-800 hover:border-[#ff00ff]/50 flex items-center gap-2 transition-colors">
