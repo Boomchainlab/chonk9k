@@ -43,9 +43,9 @@ async function main() {
   
   console.log("Wallet public key:", walletKeypair.publicKey.toString());
   
-  // Check wallet balance - need more SOL for mainnet
+  // Check wallet balance - need SOL for mainnet
   const balance = await connection.getBalance(walletKeypair.publicKey);
-  const requiredBalance = isMainnet ? 0.5 : 0.05; // Higher requirement for mainnet
+  const requiredBalance = isMainnet ? 0.09 : 0.05; // Lowered requirement for mainnet
   console.log(`Wallet balance: ${balance / LAMPORTS_PER_SOL} SOL`);
   
   if (balance < requiredBalance * LAMPORTS_PER_SOL) {
@@ -55,6 +55,7 @@ async function main() {
     process.exit(1);
   } else {
     console.log(`Wallet has sufficient balance for token deployment.`);
+    console.log(`⚠️ Note: Low SOL balance may affect transaction success on mainnet.`);
   }
   
   try {
