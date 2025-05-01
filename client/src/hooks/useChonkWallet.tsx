@@ -35,7 +35,7 @@ const defaultContext: WalletContextType = {
 
 const WalletContext = createContext<WalletContextType>(defaultContext);
 
-export const WalletProvider = ({ children }: { children: ReactNode }) => {
+export function WalletProvider({ children }: { children: ReactNode }) {
   const [account, setAccount] = useState<WalletAccount | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [walletIcon, setWalletIcon] = useState<string | null>(null);
@@ -60,8 +60,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   // Get the appropriate logo for the selected wallet
   const getWalletIcon = (walletType: WalletType): string => {
-    // Path to wallet icons - update if the actual paths are different
-    return `/images/wallets/${walletType.toLowerCase()}.png`;
+    // Path to wallet icons - use SVG format
+    return `/images/wallets/${walletType.toLowerCase()}.svg`;
   };
 
   // Generate a simulated address for demo purposes
@@ -174,6 +174,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       {children}
     </WalletContext.Provider>
   );
-};
+}
 
-export const useChonkWallet = () => useContext(WalletContext);
+export function useChonkWallet() {
+  return useContext(WalletContext);
+}

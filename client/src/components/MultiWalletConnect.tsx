@@ -25,7 +25,7 @@ const walletOptions: WalletOption[] = [
   { 
     id: 'metamask', 
     name: 'MetaMask', 
-    logo: '/images/wallets/metamask.png', 
+    logo: '/images/wallets/metamask.svg', 
     type: 'wallet', 
     chainSupport: ['evm'],
     description: 'Connect to your MetaMask wallet',
@@ -34,7 +34,7 @@ const walletOptions: WalletOption[] = [
   { 
     id: 'coinbase', 
     name: 'Coinbase', 
-    logo: '/images/wallets/coinbase.png', 
+    logo: '/images/wallets/coinbase.svg', 
     type: 'wallet', 
     chainSupport: ['evm', 'solana'],
     description: 'Connect to Coinbase Wallet',
@@ -43,7 +43,7 @@ const walletOptions: WalletOption[] = [
   { 
     id: 'phantom', 
     name: 'Phantom', 
-    logo: '/images/wallets/phantom.png', 
+    logo: '/images/wallets/phantom.svg', 
     type: 'wallet', 
     chainSupport: ['solana', 'evm'],
     description: 'Connect to your Phantom wallet',
@@ -52,7 +52,7 @@ const walletOptions: WalletOption[] = [
   { 
     id: 'solflare', 
     name: 'Solflare', 
-    logo: '/images/wallets/solflare.png', 
+    logo: '/images/wallets/solflare.svg', 
     type: 'wallet', 
     chainSupport: ['solana'],
     description: "Solana's non-custodial wallet"
@@ -60,7 +60,7 @@ const walletOptions: WalletOption[] = [
   { 
     id: 'okx', 
     name: 'OKX', 
-    logo: '/images/wallets/okx.png', 
+    logo: '/images/wallets/okx.svg', 
     type: 'wallet', 
     chainSupport: ['evm', 'solana'],
     description: 'OKX multi-chain wallet'
@@ -68,7 +68,7 @@ const walletOptions: WalletOption[] = [
   { 
     id: 'jupiter', 
     name: 'Jupiter', 
-    logo: '/images/wallets/jupiter.png', 
+    logo: '/images/wallets/jupiter.svg', 
     type: 'aggregator', 
     chainSupport: ['solana'],
     description: "Solana's liquidity aggregator",
@@ -77,7 +77,7 @@ const walletOptions: WalletOption[] = [
   { 
     id: 'raydium', 
     name: 'Raydium', 
-    logo: '/images/wallets/raydium.png', 
+    logo: '/images/wallets/raydium.svg', 
     type: 'aggregator', 
     chainSupport: ['solana'],
     description: 'AMM and liquidity provider on Solana'
@@ -85,7 +85,7 @@ const walletOptions: WalletOption[] = [
   { 
     id: 'orca', 
     name: 'Orca', 
-    logo: '/images/wallets/orca.png', 
+    logo: '/images/wallets/orca.svg', 
     type: 'aggregator', 
     chainSupport: ['solana'],
     description: 'Trade on Solana with low fees'
@@ -93,7 +93,7 @@ const walletOptions: WalletOption[] = [
   { 
     id: 'wen', 
     name: 'Wen', 
-    logo: '/images/wallets/wen.png', 
+    logo: '/images/wallets/wen.svg', 
     type: 'aggregator', 
     chainSupport: ['solana'],
     description: 'Consumer crypto wallet by Drift Protocol'
