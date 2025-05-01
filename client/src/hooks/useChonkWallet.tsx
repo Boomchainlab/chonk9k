@@ -75,17 +75,20 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   };
 
   const connectWallet = async (walletType: WalletType, chainType: ChainType): Promise<boolean> => {
+    console.log(`Attempting to connect wallet: ${walletType} on chain: ${chainType}`);
     setIsConnecting(true);
     
     try {
       // In a real implementation, this would connect to an actual wallet
       // For demonstration, we'll simulate a successful connection
+      console.log('Starting wallet connection simulation...');
       
       // Simulate connection delay
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Generate an address based on chain type
       const address = generateAddress(chainType);
+      console.log('Generated address:', address);
       
       // Get the chain ID (for EVM chains)
       const chainId = chainType === 'evm' ? '0x1' : undefined;
@@ -98,9 +101,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         walletType,
         balance: '0.0'
       };
+      console.log('Created wallet account:', walletAccount);
       
       // Save the wallet icon
       const icon = getWalletIcon(walletType);
+      console.log('Wallet icon path:', icon);
       setWalletIcon(icon);
       
       // Update state
@@ -109,6 +114,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       // Save to local storage
       localStorage.setItem('chonk9k_wallet_account', JSON.stringify(walletAccount));
       localStorage.setItem('chonk9k_wallet_icon', icon);
+      console.log('Saved wallet data to localStorage');
       
       toast({
         title: "Wallet Connected",
@@ -119,6 +125,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       return true;
     } catch (error) {
       console.error('Error connecting wallet:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
       toast({
         title: "Connection Failed",
         description: `Failed to connect to ${walletType}. Please try again.`,
@@ -127,6 +134,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       return false;
     } finally {
       setIsConnecting(false);
+      console.log('Wallet connection attempt completed');
     }
   };
 

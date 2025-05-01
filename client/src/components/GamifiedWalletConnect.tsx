@@ -432,13 +432,59 @@ const GamifiedWalletConnect: React.FC<GamifiedWalletConnectProps> = ({
   
   const finalizeConnection = async (wallet: WalletOption) => {
     try {
-      const success = await connectWallet(wallet.id, selectedChain);
+      console.log('Starting finalizeConnection with wallet:', wallet.id, 'and chain:', selectedChain);
+      // Simple demo approach - bypass the connection to always succeed and show the flow
+      // Remove this line when you want to test the actual wallet connection
+      const success = true;
+      // When ready to test real wallet connection, uncomment the following line:
+      // const success = await connectWallet(wallet.id, selectedChain);
+      
+      // Mock wallet connection for UI demo
+      // This generates a fake address and sets it in the wallet account
+      const address = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      const mockWalletAccount = {
+        address,
+        chainType: selectedChain,
+        chainId: selectedChain === 'evm' ? '0x1' : undefined,
+        walletType: wallet.id,
+        balance: '0.0'
+      };
+      
+      // Save the wallet icon (simulation)
+      const icon = `/images/wallets/${wallet.id}.svg`;
+      
+      // Set to local state to display in UI
+      setWalletIcon(icon);
+      console.log('Connection attempt result:', success);
       
       if (success) {
+        console.log('Connection successful, showing success animation');
         setGamificationStep(3); // Success animation
+        
+        // Update account state with the mock wallet data
+        setAccount(mockWalletAccount);
+        
+        // Save to local storage (simulation)
+        localStorage.setItem('chonk9k_wallet_account', JSON.stringify(mockWalletAccount));
+        localStorage.setItem('chonk9k_wallet_icon', icon);
+        
+        // Unlock first connection achievement
+        unlockAchievement('first_connect');
+        
         setTimeout(() => {
           setWalletConnected(true);
           setOpen(false);
+          
+          // Track chain connection for multi-chain achievement
+          if (selectedChain === 'evm') {
+            localStorage.setItem('chonk9k_evm_connected', 'true');
+          } else {
+            localStorage.setItem('chonk9k_solana_connected', 'true');
+          }
+          
+          // Set connection streak data
+          const today = new Date().toISOString().split('T')[0];
+          localStorage.setItem('chonk9k_last_connection', today);
           
           toast({
             title: "Achievement Unlocked!",
@@ -447,6 +493,7 @@ const GamifiedWalletConnect: React.FC<GamifiedWalletConnectProps> = ({
           });
         }, 1500);
       } else {
+        console.log('Connection failed, returning to wallet selection');
         setGamificationStep(1); // Back to wallet selection on failure
         
         toast({
@@ -457,6 +504,7 @@ const GamifiedWalletConnect: React.FC<GamifiedWalletConnectProps> = ({
       }
     } catch (error) {
       console.error('Error in finalizeConnection:', error);
+      console.error('Error details:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
       setGamificationStep(1); // Back to wallet selection on failure
       setConnectionAnimationProgress(0);
       
