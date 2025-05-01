@@ -1,10 +1,6 @@
-<<<<<<< HEAD
-modules = ["nodejs-20", "web", "postgresql-16", "bun-1.1", "bun-1.2", "angular-node-20", "go-1.23", "gcloud", "nix", "nodejs-23", "nodejs-18", "nodejs-16", "php-8.3", "php-8.2", "postgresql-17", "python-3.9", "python-3.8", "qbasic", "replit-rtld-loader", "ruby-3.1", "rust-stable", "svelte-kit-node-20", "swift-5.8", "typescript-language-server", "vue-node-20", "vue-node-18", "zig-0.11", "docker", "swift-5.6", "pyright", "rust-nightly", "r-4.4", "python-3.11", "go-1.21", "elixir-1_17", "dart-2.18", "cpp-clang14", "bash", "dotnet-8.0", "clojure-1.12"]
-run = "npm run dev"
-=======
+
 modules = ["nodejs-20", "web", "postgresql-16"]
-run = "npm run start"
->>>>>>> d264972e5ae2cd17648e746d9eeec5d40b70b9bb
+run = "npm run dev"
 hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
@@ -12,20 +8,15 @@ channel = "stable-24_05"
 
 [deployment]
 deploymentTarget = "autoscale"
-<<<<<<< HEAD
 build = ["sh", "-c", "npm run build"]
-run = ["sh", "-c", "npm run start"]
-=======
-build = "npm run build"
-run = "npm run start"
->>>>>>> d264972e5ae2cd17648e746d9eeec5d40b70b9bb
+run = ["sh", "-c", "NODE_ENV=production node dist/index.js"]
 
 [[ports]]
 localPort = 5000
 externalPort = 80
 
 [workflows]
-runButton = "Project"
+runButton = "Run"
 
 [[workflows.workflow]]
 name = "Project"
@@ -50,3 +41,12 @@ task = "packager.installForAll"
 task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
+
+[[workflows.workflow]]
+name = "Run"
+author = 40604801
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
