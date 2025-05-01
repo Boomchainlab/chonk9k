@@ -78,9 +78,22 @@ const Footer = () => {
           <div className="text-gray-500 text-sm">
             &copy; 2024 Chonk9k. All rights reserved.
           </div>
-          <div className="text-gray-500 text-sm mt-4 md:mt-0">
-            Created by <a href="#" className="text-primary hover:underline">David Okeamah</a> | <a href="https://github.com/BoomchainLabs/chonk9k-dapp" target="_blank" rel="noopener noreferrer" className="hover:text-primary">BoomchainLabs</a>
+        </div>
+        
+        <div className="mt-8 bg-gradient-to-r from-black to-[#1a1a1a] border border-[#ff00ff]/20 rounded-lg p-6 text-center">
+          <div className="flex items-center justify-center gap-4 mb-3">
+            <div className="w-12 h-12 rounded-full border-2 border-[#ff00ff]/50 flex items-center justify-center bg-gradient-to-r from-[#ff00ff]/30 to-[#00e0ff]/30 text-xl font-bold text-white">
+              DO
+            </div>
+            <div>
+              <h4 className="font-bold text-xl bg-gradient-to-r from-[#ff00ff] to-[#00e0ff] bg-clip-text text-transparent">David Okeamah</h4>
+              <p className="text-gray-400 text-sm">Founder & Lead Developer</p>
+            </div>
           </div>
+          <a href="https://github.com/BoomchainLabs/chonk9k-dapp" target="_blank" rel="noopener noreferrer" 
+             className="inline-flex items-center gap-2 px-4 py-2 bg-[#ff00ff]/20 border border-[#ff00ff]/50 rounded-full hover:bg-[#ff00ff]/30 transition-colors mt-2">
+            <i className="fab fa-github"></i> BoomchainLabs/chonk9k
+          </a>
         </div>
       </div>
     </footer>

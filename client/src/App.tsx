@@ -40,7 +40,6 @@ function Header() {
               <NewChonkLogo size="small" />
               <span className="text-xl font-bold ml-2 bg-clip-text text-transparent bg-gradient-to-r from-[#ff00ff] to-[#00e0ff]">Chonk9k</span>
             </Link>
-            <span className="ml-2 text-xs md:text-sm opacity-80">by David Okeamah</span>
           </div>
           
           <nav className="flex flex-wrap gap-4 items-center">
@@ -65,9 +64,7 @@ function Header() {
             <Link href="/profile/1" className={`transition-colors ${isDashboard ? 'text-[#00e0ff] hover:text-[#00e0ff]/80' : 'hover:text-pink-200'}`}>
               Profile
             </Link>
-            <a href="https://github.com/BoomchainLabs/chonk9k-dapp" target="_blank" rel="noopener noreferrer" className={`flex items-center transition-colors ${isDashboard ? 'text-[#ff00ff] hover:text-[#ff00ff]/80' : 'hover:text-pink-200'}`}>
-              <i className="fas fa-code-branch mr-1"></i> GitHub
-            </a>
+
             <Link href="/admin/marketplace" className={isDashboard ? 
               "text-xs px-2 py-1 bg-[#ff00ff]/20 border border-[#ff00ff]/50 text-[#ff00ff] rounded" : 
               "hover:text-pink-200 transition-colors text-xs px-2 py-1 bg-pink-700 rounded"
@@ -121,7 +118,7 @@ function Router() {
           <Route component={NotFound} />
         </Switch>
       </main>
-      {!isDashboard && <Footer />}
+      <Footer />
     </>
   );
 }
