@@ -6,6 +6,7 @@ import Footer from "@/components/Footer";
 import NewChonkLogo from "@/components/NewChonkLogo";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
+import Dashboard from "@/pages/Dashboard";
 import Profile from "@/pages/Profile";
 import BadgeAdmin from "@/pages/BadgeAdmin";
 import TriviaPage from "@/pages/TriviaPage";
@@ -23,47 +24,61 @@ import { useLocation } from "wouter";
 // Header component with navigation
 function Header() {
   const [location] = useLocation();
+  const isDashboard = location === '/';
+  
   return (
-    <header className="bg-gradient-to-r from-pink-600 to-purple-600 text-white shadow-md">
+    <header className={isDashboard ? 
+      "bg-black/80 backdrop-blur-md border-b border-[#ff00ff]/30 text-white" : 
+      "bg-gradient-to-r from-pink-600 to-purple-600 text-white shadow-md"
+    }>
       <div className="container mx-auto px-4 py-2">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
             <Link href="/" className="flex items-center hover:opacity-90 transition-opacity">
               <NewChonkLogo size="small" />
-              <span className="text-xl font-bold ml-2">Chonk9k</span>
+              <span className="text-xl font-bold ml-2 bg-clip-text text-transparent bg-gradient-to-r from-[#ff00ff] to-[#00e0ff]">Chonk9k</span>
             </Link>
             <span className="ml-2 text-xs md:text-sm opacity-80">by David Okeamah</span>
           </div>
           
           <nav className="flex flex-wrap gap-4 items-center">
-            <Link href="/" className="hover:text-pink-200 transition-colors">
+            <Link href="/" className={`transition-colors ${isDashboard ? 'text-[#ff00ff] hover:text-[#ff00ff]/80' : 'hover:text-pink-200'}`}>
               Home
             </Link>
-            <Link href="/crypto" className="hover:text-pink-200 transition-colors">
+            <Link href="/crypto" className={`transition-colors ${isDashboard ? 'text-[#00e0ff] hover:text-[#00e0ff]/80' : 'hover:text-pink-200'}`}>
               Buy/Sell
             </Link>
-            <Link href="/marketplaces" className="hover:text-pink-200 transition-colors">
+            <Link href="/marketplaces" className={`transition-colors ${isDashboard ? 'text-[#ff00ff] hover:text-[#ff00ff]/80' : 'hover:text-pink-200'}`}>
               Exchanges
             </Link>
-            <Link href="/mining" className="hover:text-pink-200 transition-colors">
+            <Link href="/mining" className={`transition-colors ${isDashboard ? 'text-[#00e0ff] hover:text-[#00e0ff]/80' : 'hover:text-pink-200'}`}>
               Mining
             </Link>
-            <Link href="/trivia" className="hover:text-pink-200 transition-colors">
+            <Link href="/trivia" className={`transition-colors ${isDashboard ? 'text-[#ff00ff] hover:text-[#ff00ff]/80' : 'hover:text-pink-200'}`}>
               Trivia
             </Link>
-            <Link href="/profile/1" className="hover:text-pink-200 transition-colors">
+            <Link href="/profile/1" className={`transition-colors ${isDashboard ? 'text-[#00e0ff] hover:text-[#00e0ff]/80' : 'hover:text-pink-200'}`}>
               Profile
             </Link>
-            <a href="https://github.com/BoomchainLabs/chonk9k-dapp" target="_blank" rel="noopener noreferrer" className="hover:text-pink-200 transition-colors flex items-center">
+            <a href="https://github.com/BoomchainLabs/chonk9k-dapp" target="_blank" rel="noopener noreferrer" className={`flex items-center transition-colors ${isDashboard ? 'text-[#ff00ff] hover:text-[#ff00ff]/80' : 'hover:text-pink-200'}`}>
               <i className="fas fa-code-branch mr-1"></i> GitHub
             </a>
-            <Link href="/admin/marketplace" className="hover:text-pink-200 transition-colors text-xs px-2 py-1 bg-pink-700 rounded">
+            <Link href="/admin/marketplace" className={isDashboard ? 
+              "text-xs px-2 py-1 bg-[#ff00ff]/20 border border-[#ff00ff]/50 text-[#ff00ff] rounded" : 
+              "hover:text-pink-200 transition-colors text-xs px-2 py-1 bg-pink-700 rounded"
+            }>
               Marketplace Admin
             </Link>
-            <Link href="/admin/badges" className="hover:text-pink-200 transition-colors text-xs px-2 py-1 bg-pink-700 rounded">
+            <Link href="/admin/badges" className={isDashboard ? 
+              "text-xs px-2 py-1 bg-[#00e0ff]/20 border border-[#00e0ff]/50 text-[#00e0ff] rounded" : 
+              "hover:text-pink-200 transition-colors text-xs px-2 py-1 bg-pink-700 rounded"
+            }>
               Badge Admin
             </Link>
-            <Link href="/admin/trivia" className="hover:text-pink-200 transition-colors text-xs px-2 py-1 bg-pink-700 rounded">
+            <Link href="/admin/trivia" className={isDashboard ? 
+              "text-xs px-2 py-1 bg-[#ff00ff]/20 border border-[#ff00ff]/50 text-[#ff00ff] rounded" : 
+              "hover:text-pink-200 transition-colors text-xs px-2 py-1 bg-pink-700 rounded"
+            }>
               Trivia Admin
             </Link>
           </nav>
@@ -78,12 +93,16 @@ function Header() {
 }
 
 function Router() {
+  const [location] = useLocation();
+  const isDashboard = location === '/';
+  
   return (
     <>
       <Header />
       <main className="min-h-screen">
         <Switch>
-          <Route path="/" component={Home} />
+          <Route path="/" component={Dashboard} />
+          <Route path="/home" component={Home} />
           <Route path="/crypto" component={CryptoPayments} />
           <Route path="/marketplaces" component={Marketplaces} />
           <Route path="/nft/:id" component={NftCollectionDetail} />
@@ -96,7 +115,7 @@ function Router() {
           <Route component={NotFound} />
         </Switch>
       </main>
-      <Footer />
+      {!isDashboard && <Footer />}
     </>
   );
 }
