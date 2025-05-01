@@ -25,8 +25,8 @@ const CONTRACT_ADDRESSES = {
     testnet: "0x" // Replace with actual Base testnet address once deployed
   },
   solana: {
-    mainnet: "", // Replace with actual Solana mainnet address once deployed
-    testnet: "" // Replace with actual Solana testnet address once deployed
+    mainnet: "HMZK29UWMs3UotWymZtpNvuWi1bKLsD13vQQCcG9Bzaa", // Cyber Chonk NFT collection contract address
+    testnet: "HMZK29UWMs3UotWymZtpNvuWi1bKLsD13vQQCcG9Bzaa" // Using same address for testnet for now
   }
 };
 
