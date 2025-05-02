@@ -29,6 +29,9 @@ import ImprovedGamifiedWalletConnect from "@/components/ImprovedGamifiedWalletCo
 import TokenPage from "@/pages/TokenPage";
 import TokenBranding from "@/pages/TokenBranding";
 import TokenMood from "@/pages/TokenMood";
+import EmbedWidget from "@/pages/EmbedWidget";
+import EmbedLayout from "@/pages/EmbedLayout";
+import WordPressIntegration from "@/pages/WordPressIntegration";
 import SpinWheel from "@/pages/SpinWheel";
 import WalletFeatures from "@/pages/WalletFeatures";
 import AnimatedChonkCharacter from "@/components/AnimatedChonkCharacter";
@@ -44,9 +47,9 @@ function Header() {
   // Function to test Sentry error tracking
   const handleErrorTest = () => {
     try {
-      // This will cause an error
+      // This will cause an error for testing purposes
       console.log("Testing error tracking");
-      window.myUndefinedFunction(); // This function doesn't exist
+      throw new Error("Manual error test from header");
     } catch (error) {
       // We'll capture this error with Sentry
       import('./lib/sentry').then(({ captureException, captureMessage }) => {
@@ -152,6 +155,8 @@ function Router() {
           <Route path="/token" component={TokenPage} />
           <Route path="/token/branding" component={TokenBranding} />
           <Route path="/token/mood" component={TokenMood} />
+          <Route path="/token/wordpress" component={WordPressIntegration} />
+          <Route path="/embed/mood" component={EmbedWidget} />
           <Route path="/marketplaces" component={Marketplaces} />
           <Route path="/nft/:id" component={NftCollectionDetail} />
           <Route path="/mining" component={Mining} />
@@ -201,9 +206,9 @@ function App() {
   // We'll use this function to test error tracking
   const testErrorTracking = () => {
     try {
-      // This will cause an error
-      const undefinedFunc = window.myUndefinedFunction;
-      undefinedFunc();
+      // This will cause an error for testing purposes
+      console.log("Testing error tracking");
+      throw new Error("Test error for Sentry");
     } catch (error) {
       // We'll capture this error with Sentry
       import('./lib/sentry').then(({ captureException }) => {
@@ -214,6 +219,14 @@ function App() {
       });
     }
   };
+
+  const [location] = useLocation();
+  const isEmbedRoute = location.startsWith('/embed');
+
+  // If it's an embed route, use the simplified EmbedLayout
+  if (isEmbedRoute) {
+    return <EmbedLayout />;
+  }
 
   return (
     <QueryClientProvider client={queryClient}>

@@ -31,10 +31,16 @@ const TokenPage: React.FC = () => {
                 View Chonk Mood Tracker
               </Button>
             </Link>
+            
+            <Link href="/token/wordpress">
+              <Button className="bg-gradient-to-r from-[#ff00ff]/80 to-[#00e0ff]/80 hover:from-[#ff00ff] hover:to-[#00e0ff] text-white w-full sm:w-auto">
+                WordPress Integration
+              </Button>
+            </Link>
           </div>
           
           <p className="text-gray-400 text-sm mt-2">
-            Access $CHONK9K token resources, branding assets, and price performance indicators
+            Access $CHONK9K token resources, branding assets, price performance indicators, and WordPress integration tools
           </p>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import crypto from "crypto";
+import path from "path";
 import { storage } from "./storage";
 import { 
   insertBadgeSchema, 
@@ -1669,6 +1670,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // WordPress Embed Integration Routes
+  
+  // Get embed code for WordPress
+  app.get('/api/wordpress/embed', async (req: Request, res: Response) => {
+    try {
+      const { type = 'mood', width = '300px', height = '400px' } = req.query;
+      const baseUrl = req.protocol + '://' + req.get('host');
+      
+      // Generate iframe HTML
+      let embedUrl = '';
+      let title = '';
+      
+      switch (type) {
+        case 'mood':
+          embedUrl = `${baseUrl}/embed/mood`;
+          title = 'CHONK9K Token Mood';
+          break;
+        case 'price':
+          embedUrl = `${baseUrl}/embed/price`;
+          title = 'CHONK9K Token Price';
+          break;
+        default:
+          embedUrl = `${baseUrl}/embed/mood`;
+          title = 'CHONK9K Token Mood';
+      }
+      
+      const iframeCode = `<iframe 
+  src="${embedUrl}" 
+  width="${width}" 
+  height="${height}" 
+  title="${title}" 
+  frameborder="0" 
+  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope"
+></iframe>`;
+      
+      // Generate shortcode
+      const shortcode = `[chonk9k_embed type="${type}" width="${width}" height="${height}"]`;
+      
+      res.json({
+        iframeCode,
+        shortcode,
+        embedUrl
+      });
+    } catch (error) {
+      console.error('Error generating embed code:', error);
+      res.status(500).json({ error: 'Failed to generate embed code' });
+    }
+  });
+  
+  // Get embed resources for WordPress shortcode
+  app.get('/api/wordpress/embed-resources', async (req: Request, res: Response) => {
+    try {
+      const baseUrl = req.protocol + '://' + req.get('host');
+      
+      // Example PHP code for WordPress plugin
+      const phpCode = `<?php
+/**
+ * Plugin Name: CHONK9K Integration
+ * Description: Integrates CHONK9K token mood indicators and pricing widgets
+ * Version: 1.0
+ * Author: Boom Chain Lab
+ */
+
+// Register shortcode for CHONK9K embeds
+function chonk9k_embed_shortcode($atts) {
+    // Default attributes
+    $attributes = shortcode_atts(array(
+        'type' => 'mood',
+        'width' => '300px',
+        'height' => '400px',
+    ), $atts);
+    
+    $type = esc_attr($attributes['type']);
+    $width = esc_attr($attributes['width']);
+    $height = esc_attr($attributes['height']);
+    
+    // Generate iframe code
+    $embed_url = "${baseUrl}/embed/" . $type;
+    
+    return '<iframe src="' . esc_url($embed_url) . '" width="' . $width . '" height="' . $height . '" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope"></iframe>';
+}
+add_shortcode('chonk9k_embed', 'chonk9k_embed_shortcode');
+?>`;
+      
+      res.json({
+        phpCode,
+        baseUrl
+      });
+    } catch (error) {
+      console.error('Error generating WordPress resources:', error);
+      res.status(500).json({ error: 'Failed to generate WordPress resources' });
+    }
+  });
+  
   const httpServer = createServer(app);
 
   return httpServer;
