@@ -151,6 +151,7 @@ function Router() {
           <Route path="/crypto" component={CryptoPayments} />
           <Route path="/token" component={TokenPage} />
           <Route path="/token/branding" component={TokenBranding} />
+          <Route path="/token/mood" component={TokenMood} />
           <Route path="/marketplaces" component={Marketplaces} />
           <Route path="/nft/:id" component={NftCollectionDetail} />
           <Route path="/mining" component={Mining} />

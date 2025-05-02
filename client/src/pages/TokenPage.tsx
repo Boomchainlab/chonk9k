@@ -17,15 +17,24 @@ const TokenPage: React.FC = () => {
       <div className="relative z-10">
         <SimpleTokenDisplay />
         
-        {/* Branding page link */}
+        {/* Links to token-related pages */}
         <div className="max-w-4xl mx-auto -mt-8 mb-16 px-4 text-center">
-          <Link href="/token/branding">
-            <Button className="bg-gradient-to-r from-[#ff00ff]/80 to-[#00e0ff]/80 hover:from-[#ff00ff] hover:to-[#00e0ff] text-white">
-              View $CHONK9K Token Branding Assets
-            </Button>
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-4">
+            <Link href="/token/branding">
+              <Button className="bg-gradient-to-r from-[#ff00ff]/80 to-[#00e0ff]/80 hover:from-[#ff00ff] hover:to-[#00e0ff] text-white w-full sm:w-auto">
+                View Token Branding Assets
+              </Button>
+            </Link>
+            
+            <Link href="/token/mood">
+              <Button className="bg-gradient-to-r from-[#00e0ff]/80 to-[#ff00ff]/80 hover:from-[#00e0ff] hover:to-[#ff00ff] text-white w-full sm:w-auto">
+                View Chonk Mood Tracker
+              </Button>
+            </Link>
+          </div>
+          
           <p className="text-gray-400 text-sm mt-2">
-            Access comprehensive token documentation, logos, icons, and brand guidelines
+            Access $CHONK9K token resources, branding assets, and price performance indicators
           </p>
         </div>
       </div>

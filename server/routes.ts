@@ -594,6 +594,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const symbol = req.params.symbol.toUpperCase();
       const convert = (req.query.convert as string) || 'USD';
       
+      // Special case for CHONK9K - return mock data to demonstrate the mood indicator
+      if (symbol === 'CHONK9K') {
+        // Create current timestamp
+        const timestamp = new Date().toISOString();
+        
+        // Generate a semi-random price movement based on the current minute
+        // to demonstrate different moods over time
+        const currentMinute = new Date().getMinutes();
+        const randomFactor = Math.sin(currentMinute / 10) * 20; // Will vary between ~-20% and ~+20%
+        
+        // Create a structured response similar to CoinMarketCap API
+        const chonkData = {
+          status: {
+            timestamp,
+            error_code: 0,
+            error_message: null,
+            elapsed: 10,
+            credit_count: 1
+          },
+          data: {
+            CHONK9K: {
+              id: 9000,
+              name: "CHONK 9000",
+              symbol: "CHONK9K",
+              slug: "chonk-9000",
+              cmc_rank: 420,
+              num_market_pairs: 25,
+              circulating_supply: 1000000000,
+              total_supply: 1000000000,
+              max_supply: 1000000000,
+              last_updated: timestamp,
+              date_added: "2025-01-01T00:00:00.000Z",
+              tags: ["meme", "cyberpunk", "cat"],
+              platform: null,
+              self_reported_circulating_supply: null,
+              self_reported_market_cap: null,
+              quote: {
+                USD: {
+                  price: 0.0042 * (1 + (randomFactor / 100)),
+                  volume_24h: 1250000,
+                  volume_change_24h: 3.75,
+                  percent_change_1h: randomFactor / 2,
+                  percent_change_24h: randomFactor,
+                  percent_change_7d: randomFactor * 1.5,
+                  percent_change_30d: randomFactor * 0.8,
+                  market_cap: 4200000,
+                  market_cap_dominance: 0.001,
+                  fully_diluted_market_cap: 4200000,
+                  last_updated: timestamp
+                }
+              }
+            }
+          }
+        };
+        
+        return res.json(chonkData);
+      }
+      
+      // For other tokens, use the CoinMarketCap API
       const result = await coinMarketCapService.searchCryptocurrency(symbol, convert);
       res.json(result);
     } catch (error) {
