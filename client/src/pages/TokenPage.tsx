@@ -32,6 +32,15 @@ const TokenPage: React.FC = () => {
               </Button>
             </Link>
             
+            <Link href="/token/mood-visualizer">
+              <Button className="bg-gradient-to-r from-[#8a2be2]/80 to-[#ff1493]/80 hover:from-[#8a2be2] hover:to-[#ff1493] text-white w-full sm:w-auto">
+                <span className="inline-flex items-center gap-1">
+                  ✨ Mood-o-Meter
+                  <span className="inline-block w-2 h-2 bg-pink-300 rounded-full animate-pulse"></span>
+                </span>
+              </Button>
+            </Link>
+            
             <Link href="/token/wordpress">
               <Button className="bg-gradient-to-r from-[#ff00ff]/80 to-[#00e0ff]/80 hover:from-[#ff00ff] hover:to-[#00e0ff] text-white w-full sm:w-auto">
                 WordPress Integration

@@ -1,4 +1,6 @@
 import React from 'react';
+import { Link } from 'wouter';
+import { Button } from '@/components/ui/button';
 import TokenPerformanceMood from '@/components/TokenPerformanceMood';
 import ChonkMoodIndicator from '@/components/ChonkMoodIndicator';
 
@@ -11,9 +13,19 @@ const TokenMood: React.FC = () => {
           <h1 className="text-4xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-[#ff00ff] to-[#00e0ff]">
             CHONK9K Mood Tracker
           </h1>
-          <p className="text-lg text-muted-foreground">
+          <p className="text-lg text-muted-foreground mb-4">
             The Chonk character reacts to price movements of the $CHONK9K token
           </p>
+          <div className="flex justify-center">
+            <Link href="/token/mood-visualizer">
+              <Button className="bg-gradient-to-r from-[#8a2be2]/80 to-[#ff1493]/80 hover:from-[#8a2be2] hover:to-[#ff1493] text-white">
+                <span className="inline-flex items-center gap-2">
+                  Try the New Mood-o-Meter! ✨
+                  <span className="inline-block w-2 h-2 bg-pink-300 rounded-full animate-pulse"></span>
+                </span>
+              </Button>
+            </Link>
+          </div>
         </div>
         
         <TokenPerformanceMood className="mb-8" />

@@ -13,8 +13,6 @@ import Dashboard from "@/pages/Dashboard";
 import Profile from "@/pages/Profile";
 import BadgeAdmin from "@/pages/BadgeAdmin";
 import TriviaPage from "@/pages/TriviaPage";
-// QuizPage is temporarily commented out due to TypeScript errors
-// import QuizPage from "@/pages/QuizPage";
 import TriviaAdmin from "@/pages/TriviaAdmin";
 import CryptoPayments from "@/pages/CryptoPayments";
 import Marketplaces from "@/pages/Marketplaces";
@@ -38,6 +36,13 @@ import AnimatedChonkCharacter from "@/components/AnimatedChonkCharacter";
 import { useLocation } from "wouter";
 import { useState, useEffect } from 'react';
 import QuizPage from "@/pages/QuizPage";
+import SolanaMonitor from "@/pages/SolanaMonitor";
+import TokenTransactions from "@/pages/TokenTransactions";
+import TokenPriceTracker from "@/pages/TokenPriceTracker";
+import LiquidityPools from "@/pages/LiquidityPools";
+import TokenHolders from "@/pages/TokenHolders";
+import BaseTransactions from "@/pages/BaseTransactions";
+import TokenMoodVisualizerPage from "@/pages/TokenMoodVisualizer";
 
 // Header component with navigation
 function Header() {
@@ -92,6 +97,12 @@ function Header() {
             </Link>
             <Link href="/mining" className={`transition-colors ${isDashboard ? 'text-[#00e0ff] hover:text-[#00e0ff]/80' : 'hover:text-pink-200'}`}>
               Mining
+            </Link>
+            <Link href="/solana-monitor" className={`transition-colors ${isDashboard ? 'text-[#ff00ff] hover:text-[#ff00ff]/80' : 'hover:text-pink-200'}`}>
+              <span className="inline-flex items-center gap-1">
+                <span className="inline-block w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                Monitor
+              </span>
             </Link>
             <Link href="/trivia" className={`transition-colors ${isDashboard ? 'text-[#ff00ff] hover:text-[#ff00ff]/80' : 'hover:text-pink-200'}`}>
               Trivia
@@ -155,6 +166,7 @@ function Router() {
           <Route path="/token" component={TokenPage} />
           <Route path="/token/branding" component={TokenBranding} />
           <Route path="/token/mood" component={TokenMood} />
+          <Route path="/token/mood-visualizer" component={TokenMoodVisualizerPage} />
           <Route path="/token/wordpress" component={WordPressIntegration} />
           <Route path="/embed/mood" component={EmbedWidget} />
           <Route path="/marketplaces" component={Marketplaces} />
@@ -168,6 +180,13 @@ function Router() {
           <Route path="/admin/marketplace" component={MarketplaceAdmin} />
           <Route path="/admin/badges" component={BadgeAdmin} />
           <Route path="/admin/trivia" component={TriviaAdmin} />
+          {/* Blockchain Monitor Pages */}
+          <Route path="/solana-monitor" component={SolanaMonitor} />
+          <Route path="/token-transactions" component={TokenTransactions} />
+          <Route path="/token-price-tracker" component={TokenPriceTracker} />
+          <Route path="/liquidity-pools" component={LiquidityPools} />
+          <Route path="/token-holders" component={TokenHolders} />
+          <Route path="/base-transactions" component={BaseTransactions} />
           <Route component={NotFound} />
         </Switch>
       </main>
