@@ -51,6 +51,9 @@ function Router() {
 }
 
 function App() {
+  // Deliberate error to test Sentry integration
+  throw new Error("Deliberate error for Sentry testing");
+
   return (
     <QueryClientProvider client={queryClient}>
       <Router />
