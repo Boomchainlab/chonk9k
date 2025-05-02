@@ -689,6 +689,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Solana Connection Test Endpoint - tests QuickNode integration
+  app.get('/api/solana/connection-test', async (req: Request, res: Response) => {
+    try {
+      // Import the Solana web3.js library
+      const { Connection } = await import('@solana/web3.js');
+      
+      // QuickNode RPC endpoint from constants
+      const QUICKNODE_RPC = "https://necessary-warmhearted-water.solana-mainnet.quiknode.pro/bda0096f492c87a8be28bacba0f44ccb313e4f12/";
+      const BACKUP_RPC = "https://api.mainnet-beta.solana.com";
+      
+      // Create connections to both endpoints
+      const quickNodeConnection = new Connection(QUICKNODE_RPC, 'confirmed');
+      const backupConnection = new Connection(BACKUP_RPC, 'confirmed');
+      
+      // Get data from both connections to compare performance
+      console.time('quicknode-slot');
+      const quickNodeSlot = await quickNodeConnection.getSlot();
+      console.timeEnd('quicknode-slot');
+      
+      console.time('backup-slot');
+      const backupSlot = await backupConnection.getSlot();
+      console.timeEnd('backup-slot');
+      
+      console.time('quicknode-block');
+      const quickNodeBlockHeight = await quickNodeConnection.getBlockHeight();
+      console.timeEnd('quicknode-block');
+      
+      console.time('backup-block');
+      const backupBlockHeight = await backupConnection.getBlockHeight();
+      console.timeEnd('backup-block');
+      
+      res.json({
+        success: true,
+        quickNode: {
+          connected: true,
+          slot: quickNodeSlot,
+          blockHeight: quickNodeBlockHeight
+        },
+        backup: {
+          connected: true,
+          slot: backupSlot,
+          blockHeight: backupBlockHeight
+        },
+        timestamp: new Date().toISOString()
+      });
+    } catch (error: any) {
+      console.error('Solana connection test error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
   // Staking Pool Routes
 
   // Get all staking pools
