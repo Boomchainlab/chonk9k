@@ -24,6 +24,10 @@ export function initSentry(): void {
   try {
     Sentry.init({
       dsn: dsn,
+      // Organization specific settings - this format is for public DSNs
+      // If DSN is in the form sentry_xxx, we format it correctly
+      // If already in full URL form, we use it as is
+      ...(dsn?.startsWith('sentry') ? { dsn: `https://${dsn}@o4505550486241280.ingest.us.sentry.io/4505550487355392` } : {}),
       // Simple configuration without browser tracing to avoid type errors
       // Set tracesSampleRate to 1.0 to capture 100%
       // of transactions for performance monitoring.
