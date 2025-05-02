@@ -1,6 +1,18 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
+import * as Sentry from "@sentry/vue";
+
+Sentry.init({
+  dsn: "https://e1342180299b21a6e2f0eb98c81ffd8d@o4509250546696192.ingest.de.sentry.io/4509250550104144",
+  integrations: [
+    Sentry.feedbackIntegration({
+      colorScheme: "system",
+      isNameRequired: true,
+      isEmailRequired: true,
+    }),
+  ],
+});
 
 // Add Google Fonts import
 const link = document.createElement("link");
