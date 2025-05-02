@@ -28,6 +28,7 @@ import ImprovedGamifiedWalletConnect from "@/components/ImprovedGamifiedWalletCo
 import TokenPage from "@/pages/TokenPage";
 import TokenBranding from "@/pages/TokenBranding";
 import SpinWheel from "@/pages/SpinWheel";
+import WalletFeatures from "@/pages/WalletFeatures";
 import AnimatedChonkCharacter from "@/components/AnimatedChonkCharacter";
 import { useLocation } from "wouter";
 import { useState, useEffect } from 'react';
@@ -155,6 +156,7 @@ function Router() {
           <Route path="/trivia/:id" component={QuizPage} />
           <Route path="/spin" component={SpinWheel} />
           <Route path="/profile/:userId" component={Profile} />
+          <Route path="/wallet-features" component={WalletFeatures} />
           <Route path="/admin/marketplace" component={MarketplaceAdmin} />
           <Route path="/admin/badges" component={BadgeAdmin} />
           <Route path="/admin/trivia" component={TriviaAdmin} />

@@ -14,7 +14,8 @@ export function initSentry(): void {
 
   // Only initialize Sentry in production
   const isDevelopment = import.meta.env.DEV;
-  const dsn = import.meta.env.VITE_SENTRY_DSN;
+  // Using the provided DSN token
+  const dsn = "https://46bd734805d944469644cb9a2b8c07bf649c084bbe909d9f77933b22ee4b34d4@o4505550486241280.ingest.us.sentry.io/4505550487355392";
 
   if (!dsn && !isDevelopment) {
     console.warn('Sentry DSN not provided. Error tracking disabled.');
@@ -26,8 +27,8 @@ export function initSentry(): void {
       dsn: dsn,
       // Organization specific settings for BoomChainLab
       // Using the specific organization URL you provided
-      organization: 'boomchainlab-boomtoknlab-boomt',
-      project: 'javascript-vue',
+      // These values are set via tags since directly setting organization is not supported
+      // in the BrowserOptions type
       // Simple configuration without browser tracing to avoid type errors
       // Set tracesSampleRate to 1.0 to capture 100%
       // of transactions for performance monitoring.
@@ -51,6 +52,11 @@ export function initSentry(): void {
       environment: isDevelopment ? 'development' : 'production',
     });
 
+    // Set organization and project as tags instead
+    Sentry.setTag('organization', 'boomchainlab-boomtoknlab-boomt');
+    Sentry.setTag('project', 'javascript-vue');
+    Sentry.setTag('token-name', 'CHONK9K');
+    
     sentryInitialized = true;
     console.log('Sentry initialized successfully');
   } catch (error) {
