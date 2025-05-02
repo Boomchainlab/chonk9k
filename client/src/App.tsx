@@ -2,7 +2,8 @@ import { Switch, Route, Link } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
-import { withErrorBoundary } from "./lib/sentry";
+import * as Sentry from '@sentry/react';
+import { withErrorBoundary, initSentry } from "./lib/sentry";
 import Footer from "@/components/Footer";
 import NewChonkLogo from "@/components/NewChonkLogo";
 import LivePriceHeader from "@/components/LivePriceHeader";
@@ -169,14 +170,15 @@ function Router() {
 }
 
 // Error fallback component
-function ErrorFallback({ error, componentStack, resetError }: { error: Error; componentStack: string; resetError: () => void }) {
+function ErrorFallback({ error, componentStack, resetError, eventId }: { error: unknown; componentStack: string; resetError: () => void; eventId?: string }) {
   return (
     <div className="p-6 m-4 bg-red-50 border border-red-200 rounded-lg">
       <h2 className="text-xl font-bold text-red-600 mb-2">Something went wrong</h2>
       <p className="text-gray-800 mb-4">The application encountered an unexpected error. Our team has been notified and is working on a fix.</p>
       <div className="p-3 bg-white rounded border border-red-100 mb-4 overflow-auto max-h-40">
-        <p className="text-red-500 font-bold mb-1">{error.toString()}</p>
+        <p className="text-red-500 font-bold mb-1">{error instanceof Error ? error.message : String(error)}</p>
         <p className="text-xs font-mono text-gray-600">{componentStack}</p>
+        {eventId && <p className="text-xs mt-2">Event ID: {eventId}</p>}
       </div>
       <button
         onClick={resetError}
@@ -189,6 +191,11 @@ function ErrorFallback({ error, componentStack, resetError }: { error: Error; co
 }
 
 function App() {
+  // Initialize Sentry
+  useEffect(() => {
+    initSentry();
+  }, []);
+
   // We'll use this function to test error tracking
   const testErrorTracking = () => {
     try {
@@ -210,13 +217,15 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <WalletProvider>
         {/* Wrap Router with error boundary */}
-        {withErrorBoundary(Router, {
-          fallback: ErrorFallback,
-          onError: (error, componentStack, eventId) => {
+        <Sentry.ErrorBoundary
+          fallback={ErrorFallback}
+          onError={(error, componentStack, eventId) => {
             console.error("Sentry caught an error:", error, componentStack);
             console.log("Event ID:", eventId);
-          }
-        })()}
+          }}
+        >
+          <Router />
+        </Sentry.ErrorBoundary>
         <div className="fixed bottom-4 right-4 z-50 md:hidden">
           <div className="flex items-center space-x-2">
             <ImprovedGamifiedWalletConnect variant="outline" size="sm" />
@@ -232,11 +241,17 @@ function App() {
   );
 }
 
-// Export with withErrorBoundary at the top level as well for global error catching
-export default withErrorBoundary(App, {
-  fallback: ErrorFallback,
-  onError: (error, componentStack, eventId) => {
-    console.error("Global error caught by Sentry:", error);
-    console.log("Event ID:", eventId);
-  }
-});
+// Export with Sentry.ErrorBoundary at the top level as well for global error catching
+export default function AppWithErrorBoundary() {
+  return (
+    <Sentry.ErrorBoundary
+      fallback={ErrorFallback}
+      onError={(error, componentStack, eventId) => {
+        console.error("Global error caught by Sentry:", error);
+        console.log("Event ID:", eventId);
+      }}
+    >
+      <App />
+    </Sentry.ErrorBoundary>
+  );
+}
