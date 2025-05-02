@@ -43,6 +43,7 @@ import LiquidityPools from "@/pages/LiquidityPools";
 import TokenHolders from "@/pages/TokenHolders";
 import BaseTransactions from "@/pages/BaseTransactions";
 import TokenMoodVisualizerPage from "@/pages/TokenMoodVisualizer";
+import BlockchainStreams from "@/pages/BlockchainStreams";
 
 // Header component with navigation
 function Header() {
@@ -187,6 +188,7 @@ function Router() {
           <Route path="/liquidity-pools" component={LiquidityPools} />
           <Route path="/token-holders" component={TokenHolders} />
           <Route path="/base-transactions" component={BaseTransactions} />
+          <Route path="/blockchain-streams" component={BlockchainStreams} />
           <Route component={NotFound} />
         </Switch>
       </main>

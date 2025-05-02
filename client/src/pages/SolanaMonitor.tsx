@@ -199,9 +199,16 @@ const SolanaMonitor: React.FC = () => {
             Real-time CHONK9K token monitoring dashboard
           </p>
         </div>
-        <Button onClick={refreshAll}>
-          <RefreshCw className="mr-2 h-4 w-4" /> Refresh All
-        </Button>
+        <div className="flex gap-2">
+          <Link to="/blockchain-streams">
+            <Button variant="outline" size="sm">
+              <Activity className="mr-2 h-4 w-4" /> Blockchain Streams
+            </Button>
+          </Link>
+          <Button onClick={refreshAll}>
+            <RefreshCw className="mr-2 h-4 w-4" /> Refresh All
+          </Button>
+        </div>
       </div>
 
       {/* Price Overview Cards */}

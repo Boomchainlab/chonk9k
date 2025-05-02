@@ -26,8 +26,13 @@ const TokenMoodVisualizerPage: React.FC = () => {
               </Button>
             </Link>
             <Link href="/token">
-              <Button variant="outline" className="text-muted-foreground">
+              <Button variant="outline" className="text-muted-foreground mr-2">
                 Back to Token Page
+              </Button>
+            </Link>
+            <Link href="/blockchain-streams">
+              <Button variant="secondary" className="bg-gradient-to-r from-pink-500 to-purple-500 text-white hover:from-pink-600 hover:to-purple-600">
+                Blockchain Streams
               </Button>
             </Link>
           </div>

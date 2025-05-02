@@ -33,6 +33,11 @@ const TokenMoodVisualizer: React.FC<TokenMoodVisualizerProps> = ({
   const [animating, setAnimating] = useState(false);
   const [timeframeState, setTimeframe] = useState<'day' | 'week' | 'month'>(timeframe);
   
+  // When parent component changes the timeframe prop, update our internal state
+  useEffect(() => {
+    setTimeframe(timeframe);
+  }, [timeframe]);
+
   // Fetch token price data from CoinMarketCap API wrapper
   const { data: tokenData, isLoading, error } = useQuery<any>({
     queryKey: ['/api/crypto/search/CHONK9K'],
