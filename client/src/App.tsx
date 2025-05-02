@@ -28,6 +28,7 @@ import SimpleGamifiedWalletConnect from "@/components/SimpleGamifiedWalletConnec
 import ImprovedGamifiedWalletConnect from "@/components/ImprovedGamifiedWalletConnect";
 import TokenPage from "@/pages/TokenPage";
 import TokenBranding from "@/pages/TokenBranding";
+import TokenMood from "@/pages/TokenMood";
 import SpinWheel from "@/pages/SpinWheel";
 import WalletFeatures from "@/pages/WalletFeatures";
 import AnimatedChonkCharacter from "@/components/AnimatedChonkCharacter";
