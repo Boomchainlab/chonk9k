@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useChonkWallet } from '@/hooks/useChonkWallet';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,7 +10,15 @@ import LivePrice from '@/components/LivePrice';
 import AnimatedChonkCharacter from '@/components/AnimatedChonkCharacter';
 
 const Dashboard = () => {
-  const { connectWallet, account, balance } = useChonkWallet();
+  const { connectWallet, account, getTokenBalance } = useChonkWallet();
+  const [balance, setBalance] = useState<string | null>(null);
+  
+  // Get token balance when account is connected
+  useEffect(() => {
+    if (account) {
+      getTokenBalance(account.chainType).then(setBalance);
+    }
+  }, [account, getTokenBalance]);
   const [activeTab, setActiveTab] = useState("tokenomics");
 
   // Token Stats Data
@@ -214,7 +222,10 @@ const Dashboard = () => {
                     {!account ? (
                       <div className="flex justify-center">
                         <Button 
-                          onClick={connectWallet}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            connectWallet('phantom', 'solana');
+                          }}
                           className="w-full bg-gradient-to-r from-[#ff00ff] to-[#00e0ff] text-white hover:opacity-90 transition-opacity"
                         >
                           CONNECT WALLET
@@ -226,7 +237,7 @@ const Dashboard = () => {
                           <div>
                             <p className="text-xs text-gray-400">Connected Wallet</p>
                             <p className="text-sm text-[#00e0ff]">
-                              {account.substring(0, 6)}...{account.substring(account.length - 4)}
+                              {account.address.substring(0, 6)}...{account.address.substring(account.address.length - 4)}
                             </p>
                           </div>
                           <div>

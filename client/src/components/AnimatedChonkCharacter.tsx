@@ -159,7 +159,7 @@ const AnimatedChonkCharacter: React.FC = () => {
       <div className="mt-2 text-xs md:text-sm text-muted-foreground">
         {currentAnimation === 'idle' && 'Waiting for wallet...'}
         {currentAnimation === 'connecting' && 'Connecting to wallet...'}
-        {currentAnimation === 'connected' && !celebrating && account && `Connected: ${account.substring(0, 6)}...${account.substring(account.length - 4)}`}
+        {currentAnimation === 'connected' && !celebrating && account && `Connected: ${account.address.substring(0, 6)}...${account.address.substring(account.address.length - 4)}`}
         {currentAnimation === 'error' && 'Connection error!'}
         {currentAnimation === 'celebrating' && 'CHONK9K tokens detected!'}
       </div>
