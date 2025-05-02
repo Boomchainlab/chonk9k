@@ -41,6 +41,7 @@ export const TOKEN_METADATA = {
 export const RPC_URLS = {
   BASE: "https://mainnet.base.org",
   BASE_TESTNET: "https://sepolia.base.org",
-  SOLANA: "https://api.mainnet-beta.solana.com",
+  SOLANA: "https://necessary-warmhearted-water.solana-mainnet.quiknode.pro/bda0096f492c87a8be28bacba0f44ccb313e4f12/", // QuickNode RPC (high performance)
+  SOLANA_BACKUP: "https://api.mainnet-beta.solana.com", // Backup RPC
   SOLANA_DEVNET: "https://api.devnet.solana.com"
 };

@@ -8,8 +8,9 @@ export const CHONK9K_TOKEN_ADDRESS = CONTRACT_ADDRESSES.SOLANA.CHONK9K;
 export const RAYDIUM_LIQUIDITY_PROGRAM_ID = '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8';
 export const ORCA_WHIRLPOOL_PROGRAM_ID = 'whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc';
 
-// Configure RPC URL based on environment
-const SOLANA_RPC_URL = clusterApiUrl('mainnet-beta');
+// Configure RPC URLs based on environment
+const SOLANA_PRIMARY_RPC_URL = RPC_URLS.SOLANA;  // QuickNode RPC - high performance
+const SOLANA_BACKUP_RPC_URL = RPC_URLS.SOLANA_BACKUP;  // Fallback public RPC
 
 export interface TokenInfo {
   address: string;
@@ -53,9 +54,33 @@ export interface SwapRoute {
   bestRoute: boolean;
 }
 
-// Initialize Solana connection
+// Initialize Solana connection with QuickNode RPC and fallback capability
+const createRobustConnection = (endpoint: string, label: string) => {
+  try {
+    console.log(`Creating Solana connection to ${label} endpoint`);
+    return new Connection(endpoint, {
+      commitment: 'confirmed',
+      httpHeaders: {
+        'Content-Type': 'application/json',
+      },
+      disableRetryOnRateLimit: false, // Enable retry if rate limited
+      confirmTransactionInitialTimeout: 60000, // 60 seconds timeout for transaction confirmations
+    });
+  } catch (error) {
+    console.error(`Failed to create connection to ${label} endpoint:`, error);
+    throw error;
+  }
+};
+
 export const getSolanaConnection = () => {
-  return new Connection(SOLANA_RPC_URL, 'confirmed');
+  try {
+    // First try with the QuickNode RPC (high performance)
+    return createRobustConnection(SOLANA_PRIMARY_RPC_URL, 'QuickNode');
+  } catch (error) {
+    console.warn('Failed to connect to primary Solana RPC, falling back to backup:', error);
+    // Fallback to backup RPC if primary fails
+    return createRobustConnection(SOLANA_BACKUP_RPC_URL, 'Public RPC');
+  }
 };
 
 // Get token information for Chonk9k
