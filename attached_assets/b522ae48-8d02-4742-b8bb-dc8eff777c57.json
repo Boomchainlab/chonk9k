@@ -1,0 +1,121 @@
+{
+  "Progress": null,
+  "Attachments": true,
+  "XP": {
+    "xp": {
+      "docsId": "b522ae48-8d02-4742-b8bb-dc8eff777c57",
+      "totalXp": 0,
+      "currentLevel": 1,
+      "currentLevelLow": 0,
+      "currentLevelHigh": 1799,
+      "currentLevelPointsEarned": 0,
+      "nextLevel": 2,
+      "pointsUntilNextLevel": 1800,
+      "achievementCategories": {
+        "Unknown": 0,
+        "Modules": 0,
+        "Courses": 0,
+        "Qna": 0,
+        "Challenges": 0,
+        "Events": 0,
+        "LearningPaths": 0,
+        "Plans": 0,
+        "Special": 0
+      }
+    },
+    "achievements": []
+  },
+  "VerifiableCredentials": {
+    "docsId": "b522ae48-8d02-4742-b8bb-dc8eff777c57",
+    "userCredentials": []
+  },
+  "Assessments": null,
+  "Q&A": {
+    "docsId": "b522ae48-8d02-4742-b8bb-dc8eff777c57",
+    "questions": [],
+    "answers": [],
+    "comments": []
+  },
+  "SkillAssessment": null,
+  "TechProfile": {
+    "email": "support@boomchainlab.com",
+    "locale": "en-us",
+    "country": "NG",
+    "contactPointTopicSetting": "OptInExplicit",
+    "isInstructor": false,
+    "isChallengeAdmin": false,
+    "isQnaModerator": false,
+    "source": "docs",
+    "authenticationModes": [
+      {
+        "id": "0003000191EA9B63",
+        "type": "MSA",
+        "tenantId": "9188040d-6c67-4c5b-b112-36a304b66dad",
+        "upn": "support@boomchainlab.com",
+        "oid": "00000000-0000-0000-41ea-1da883b8c86e",
+        "dateAcceptedPrivacyNotice": "2025-04-16T21:54:16.438409+00:00",
+        "dateAdded": "2025-04-16T21:54:16.4384091+00:00"
+      }
+    ],
+    "transcriptSettings": {
+      "publicLink": {
+        "showModules": true,
+        "showLegalName": true,
+        "showMCID": true,
+        "showContactEmail": true
+      },
+      "print": {
+        "showModules": true,
+        "showLegalName": true,
+        "showMCID": true,
+        "showContactEmail": true
+      }
+    },
+    "certificationSettings": {
+      "print": {
+        "showLegalName": true,
+        "showMCID": true,
+        "showContactEmail": true
+      }
+    },
+    "qnaEmailPreferences": {
+      "allEmail": true,
+      "autoFollowAsked": true,
+      "autoFollowAnswered": true,
+      "autoFollowCommented": true,
+      "autoFollowTagged": true,
+      "emailEventSettings": {
+        "newMention": "instant",
+        "newModeration": "instant",
+        "answerPosted": "instant",
+        "answerAccepted": "instant",
+        "commentPosted": "instant",
+        "newPrivateMessage": "instant",
+        "questionUpdated": "off",
+        "questionPosted": "daily",
+        "unansweredQuestions": "off",
+        "newFollower": "weekly",
+        "answerUpdated": "off"
+      }
+    },
+    "sharingId": "6A168DD78E874CA",
+    "legalName": {
+      "first": "David",
+      "middle": "Onyedikachi",
+      "last": "Okeamah"
+    },
+    "userId": "b522ae48-8d02-4742-b8bb-dc8eff777c57",
+    "userName": "DavidOkeamah-4508",
+    "displayName": "David Okeamah",
+    "isPrivate": false,
+    "affiliations": [],
+    "followerCount": 0,
+    "followingCount": 0,
+    "answersAccepted": 0,
+    "reputationPoints": 0,
+    "createdOn": "4/16/2025 9:54:16 PM"
+  },
+  "Certifications": null,
+  "Lists": null,
+  "NextSteps": null
+}

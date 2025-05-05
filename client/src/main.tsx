@@ -1,8 +1,10 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
+
 // Import buffer polyfill before any other imports that might use Buffer
 import "./lib/buffer-polyfill";
+
 // Initialize Sentry error tracking
 import { initSentry } from "./lib/sentry";
 

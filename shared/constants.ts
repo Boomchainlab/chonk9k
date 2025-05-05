@@ -16,7 +16,12 @@ export const CONTRACT_ADDRESSES = {
   // Ethereum Mainnet
   ETHEREUM: {
     CHONK9K: "0xc9000b7D00C40nK900090009000Ch0nKPu4p"
-  }
+  },
+  // By network format for backwards compatibility
+  SOLANA_TOKEN: "51ey1T4UCFwb8poVBwyiLwwi1KdNTrZ8rSg7kBRmqray",
+  ETH_TOKEN: "0xc9000b7D00C40nK900090009000Ch0nKPu4p",
+  BSC_TOKEN: "0xbB5577CdDEF1c33E43B2e288Ff36D525335F9F12",
+  BASE_TOKEN: "0x9c0000b7D00000cH0000nK9000K90000b000se"
 };
 
 // Token metadata

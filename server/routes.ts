@@ -12,19 +12,21 @@ import {
   insertTriviaAnswerSchema,
   insertMarketplaceListingSchema,
   insertSpinWheelRewardSchema,
-  insertUserSpinSchema
-} from "@shared/schema";
-import { coinMarketCapService } from "./coinmarketcap";
-import { z } from "zod";
-import { 
+  insertUserSpinSchema,
   insertStakingPoolSchema,
   insertUserStakeSchema,
   insertReferralRewardSchema,
   insertPremiumTierSchema,
   insertMiningRigSchema,
   insertUserMiningRigSchema,
-  insertMiningRewardSchema
+  insertMiningRewardSchema,
+  insertTokenLaunchSchema,
+  insertUserInvestmentSchema,
+  insertUnstoppableDomainNFTSchema,
+  insertUnstoppableDomainBenefitSchema
 } from "@shared/schema";
+import { coinMarketCapService } from "./coinmarketcap";
+import { z } from "zod";
 
 // Initialize database with some premium tiers if they don't exist yet
 async function initializeDatabase() {
@@ -523,6 +525,187 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: 'Failed to claim trivia reward' });
     }
   });
+  
+  // Get a random trivia question for popups
+  app.get('/api/trivia/random-question', async (req: Request, res: Response) => {
+    try {
+      // Get a random active quiz
+      let activeQuizzes = await storage.getTriviaQuizzes(true);
+      
+      // If no active quizzes exist, create a default one for testing
+      if (activeQuizzes.length === 0) {
+        console.log('No active quiz found, creating a default one for testing');
+        
+        // Create a default quiz for testing
+        const today = new Date();
+        const futureDate = new Date();
+        futureDate.setDate(today.getDate() + 7); // Set end date to 7 days in the future
+        
+        const defaultQuiz = {
+          title: 'CHONK9K Trivia Challenge',
+          description: 'Test your knowledge about cryptocurrency and earn CHONK9K tokens!',
+          startDate: today.toISOString().split('T')[0],
+          endDate: futureDate.toISOString().split('T')[0],
+          isActive: true,
+          rewardAmount: 100,
+          maxAttempts: 1,
+          difficulty: 'medium' // Add the required difficulty field
+        };
+        
+        try {
+          const newQuiz = await storage.createTriviaQuiz(defaultQuiz);
+          
+          // Create some default questions
+          const defaultQuestions = [
+            {
+              quizId: newQuiz.id,
+              question: 'What is the ticker symbol for CHONK 9000?',
+              options: ['$CHONK', '$CHONK9K', '$CHONKER', '$C9000'],
+              correctAnswer: 1, // $CHONK9K
+              explanation: 'CHONK 9000 uses the ticker symbol $CHONK9K on all exchanges.',
+              difficulty: 'easy',
+              points: 10,
+              category: 'basics'
+            },
+            {
+              quizId: newQuiz.id,
+              question: 'Which blockchain is CHONK9K primarily built on?',
+              options: ['Ethereum', 'Bitcoin', 'Solana', 'Cardano'],
+              correctAnswer: 2, // Solana
+              explanation: 'CHONK9K is primarily built on the Solana blockchain for its speed and low transaction costs.',
+              difficulty: 'medium',
+              points: 15,
+              category: 'technology'
+            },
+            {
+              quizId: newQuiz.id,
+              question: 'What feature allows CHONK9K holders to earn passive income?',
+              options: ['Mining', 'Staking', 'Trading', 'Lending'],
+              correctAnswer: 1, // Staking
+              explanation: 'CHONK9K allows holders to stake their tokens to earn passive income through rewards.',
+              difficulty: 'medium',
+              points: 15,
+              category: 'features'
+            },
+            {
+              quizId: newQuiz.id,
+              question: 'Who is the founder of CHONK9K?',
+              options: ['Vitalik Buterin', 'David Okeamah', 'Elon Musk', 'Satoshi Nakamoto'],
+              correctAnswer: 1, // David Okeamah
+              explanation: 'CHONK9K was founded by David Okeamah (@Agunnnaya001).',
+              difficulty: 'easy',
+              points: 10,
+              category: 'team'
+            },
+            {
+              quizId: newQuiz.id,
+              question: 'What is the official website for CHONK9K?',
+              options: ['chonk9k.com', 'boomchainlabgravatar.link', 'chonkcoin.org', 'token9000.io'],
+              correctAnswer: 1, // boomchainlabgravatar.link
+              explanation: 'The official website for CHONK9K is boomchainlabgravatar.link',
+              difficulty: 'easy',
+              points: 10,
+              category: 'basics'
+            }
+          ];
+          
+          for (const question of defaultQuestions) {
+            await storage.createTriviaQuestion(question);
+          }
+          
+          // Refresh the active quizzes
+          activeQuizzes = await storage.getTriviaQuizzes(true);
+        } catch (error) {
+          console.error('Error creating default quiz and questions:', error);
+          return res.status(500).json({ error: 'Failed to create default quiz' });
+        }
+      }
+      
+      // Select a random quiz from the active ones
+      const randomQuiz = activeQuizzes[Math.floor(Math.random() * activeQuizzes.length)];
+      
+      // Get questions for this quiz
+      const questions = await storage.getTriviaQuestions(randomQuiz.id);
+      
+      if (questions.length === 0) {
+        return res.status(404).json({ error: 'No questions available for active quiz' });
+      }
+      
+      // Select a random question
+      const randomQuestion = questions[Math.floor(Math.random() * questions.length)];
+      
+      // Format the question for the popup
+      const popupQuestion = {
+        id: randomQuestion.id,
+        question: randomQuestion.question,
+        options: randomQuestion.options,
+        correctOption: randomQuestion.correctAnswer,
+        explanation: randomQuestion.explanation,
+        difficulty: randomQuiz.difficulty,
+        rewardAmount: randomQuestion.points * 10 // 10 tokens per point
+      };
+      
+      res.json(popupQuestion);
+    } catch (error) {
+      console.error('Error fetching random trivia question:', error);
+      res.status(500).json({ error: 'Failed to fetch random trivia question' });
+    }
+  });
+  
+  // Submit an answer for a popup trivia question
+  app.post('/api/trivia/submit-answer', async (req: Request, res: Response) => {
+    try {
+      const { questionId, selectedOption, isCorrect } = req.body;
+      
+      // Get the question to find its quiz
+      const question = await storage.getTriviaQuestion(questionId);
+      if (!question) {
+        return res.status(404).json({ error: 'Question not found' });
+      }
+      
+      // For popup trivia, we'll create a simple submission
+      // This is simplified compared to full quiz submissions
+      const userId = req.user?.id || 1; // Use authenticated user or default to 1 for demo
+      
+      // Create or get a submission for this user and quiz
+      let submission = await storage.getUserTriviaSubmission(userId, question.quizId);
+      
+      if (!submission) {
+        submission = await storage.createTriviaSubmission({
+          userId: userId,
+          quizId: question.quizId,
+          score: isCorrect ? question.points : 0,
+          completed: false
+        });
+      } else {
+        // Update the existing submission score
+        await storage.updateTriviaSubmission(submission.id, {
+          score: submission.score + (isCorrect ? question.points : 0)
+        });
+      }
+      
+      // Record the answer
+      await storage.createTriviaAnswer({
+        submissionId: submission.id,
+        questionId: questionId,
+        selectedAnswer: selectedOption,
+        isCorrect
+      });
+      
+      // Calculate reward
+      const rewardAmount = isCorrect ? question.points * 10 : 0; // 10 tokens per point
+      
+      res.status(201).json({
+        success: true,
+        submissionId: submission.id,
+        rewardAmount,
+        isCorrect
+      });
+    } catch (error) {
+      console.error('Error submitting trivia answer:', error);
+      res.status(500).json({ error: 'Failed to submit trivia answer' });
+    }
+  });
 
   // Marketplace Listing Routes
   
@@ -686,6 +869,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching market pairs:', error);
       res.status(500).json({ error: 'Failed to fetch market pairs' });
+    }
+  });
+
+  // QuickNode Blockchain Streaming API endpoint
+  app.post('/api/blockchain/streams/webhook', async (req: Request, res: Response) => {
+    try {
+      // Log the received blockchain stream data
+      console.log('Received blockchain stream data:', req.body);
+      
+      // Store or process the data as needed
+      // This endpoint receives real-time blockchain data from QuickNode streams
+      
+      res.status(200).json({ success: true });
+    } catch (error) {
+      console.error('Error handling blockchain stream webhook:', error);
+      res.status(500).json({ error: 'Failed to process blockchain stream data' });
     }
   });
 
@@ -905,6 +1104,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Calculate rewards
       const now = new Date();
       const startDate = new Date(stake.startDate);
+      // Handle null lastClaimDate case safely
       const lastClaimDate = stake.lastClaimDate ? new Date(stake.lastClaimDate) : startDate;
       
       // Calculate days since last claim
@@ -983,7 +1183,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Update pool total staked amount
       const pool = await storage.getStakingPool(stake.poolId);
-      if (pool) {
+      if (pool && pool.totalStaked !== null) {
         await storage.updatePoolTotalStaked(pool.id, pool.totalStaked - stake.amount);
       }
       
@@ -1430,13 +1630,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Update user rig's last reward date and total mined
       await storage.updateLastRewardDate(userRigId);
-      await storage.updateTotalMined(userRigId, userRig.totalMined + finalRewards);
+      const currentTotal = userRig.totalMined || 0;
+      await storage.updateTotalMined(userRigId, currentTotal + finalRewards);
       
       res.json({
         success: true,
         reward: miningReward,
         newBalance: user.tokenBalance + finalRewards,
-        totalMined: userRig.totalMined + finalRewards
+        totalMined: currentTotal + finalRewards
       });
     } catch (error) {
       console.error('Error claiming mining rewards:', error);
@@ -1816,6 +2017,339 @@ add_shortcode('chonk9k_embed', 'chonk9k_embed_shortcode');
     } catch (error) {
       console.error('Error generating WordPress resources:', error);
       res.status(500).json({ error: 'Failed to generate WordPress resources' });
+    }
+  });
+  
+  // ChonkPad Token Launch Routes
+  
+  // Get all token launches
+  app.get('/api/chonkpad/launches', async (req: Request, res: Response) => {
+    try {
+      const status = req.query.status as string | undefined;
+      const launches = await storage.getTokenLaunches(status);
+      res.json(launches);
+    } catch (error) {
+      console.error('Error fetching token launches:', error);
+      res.status(500).json({ error: 'Failed to fetch token launches' });
+    }
+  });
+  
+  // Get token launch by ID
+  app.get('/api/chonkpad/launches/:id', async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'Invalid launch ID' });
+      }
+      
+      const launch = await storage.getTokenLaunch(id);
+      if (!launch) {
+        return res.status(404).json({ error: 'Token launch not found' });
+      }
+      
+      res.json(launch);
+    } catch (error) {
+      console.error('Error fetching token launch:', error);
+      res.status(500).json({ error: 'Failed to fetch token launch' });
+    }
+  });
+  
+  // Create a new token launch
+  app.post('/api/chonkpad/launches', async (req: Request, res: Response) => {
+    try {
+      const launchData = insertTokenLaunchSchema.parse(req.body);
+      const newLaunch = await storage.createTokenLaunch(launchData);
+      res.status(201).json(newLaunch);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      console.error('Error creating token launch:', error);
+      res.status(500).json({ error: 'Failed to create token launch' });
+    }
+  });
+  
+  // Update token launch status
+  app.patch('/api/chonkpad/launches/:id/status', async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'Invalid launch ID' });
+      }
+      
+      const { status } = req.body;
+      if (!status || !['upcoming', 'live', 'ended'].includes(status)) {
+        return res.status(400).json({ error: 'Invalid status value' });
+      }
+      
+      const updatedLaunch = await storage.updateTokenLaunchStatus(id, status);
+      if (!updatedLaunch) {
+        return res.status(404).json({ error: 'Token launch not found' });
+      }
+      
+      res.json(updatedLaunch);
+    } catch (error) {
+      console.error('Error updating token launch status:', error);
+      res.status(500).json({ error: 'Failed to update token launch status' });
+    }
+  });
+  
+  // Invest in a token launch
+  app.post('/api/chonkpad/launches/:id/invest', async (req: Request, res: Response) => {
+    try {
+      const launchId = parseInt(req.params.id);
+      if (isNaN(launchId)) {
+        return res.status(400).json({ error: 'Invalid launch ID' });
+      }
+      
+      const { userId, amount } = req.body;
+      
+      if (!userId || isNaN(parseInt(userId))) {
+        return res.status(400).json({ error: 'Valid user ID is required' });
+      }
+      
+      if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+        return res.status(400).json({ error: 'Valid positive amount is required' });
+      }
+      
+      // Get the token launch to calculate tokens allocated
+      const launch = await storage.getTokenLaunch(launchId);
+      if (!launch) {
+        return res.status(404).json({ error: 'Token launch not found' });
+      }
+      
+      if (launch.status !== 'live') {
+        return res.status(400).json({ error: 'Token launch is not active' });
+      }
+      
+      // Calculate tokens allocated based on token price
+      const tokensAllocated = parseFloat(amount) / launch.tokenPrice;
+      
+      const investmentData = insertUserInvestmentSchema.parse({
+        userId: parseInt(userId),
+        launchId,
+        amount: parseFloat(amount),
+        tokensAllocated,
+        status: 'pending'
+      });
+      
+      const investment = await storage.createUserInvestment(investmentData);
+      
+      // Update current raise amount for the token launch
+      await storage.updateTokenLaunchCurrentRaise(launchId, parseFloat(amount));
+      
+      res.status(201).json(investment);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      console.error('Error investing in token launch:', error);
+      res.status(500).json({ error: 'Failed to invest in token launch' });
+    }
+  });
+  
+  // Get user investments
+  app.get('/api/chonkpad/users/:userId/investments', async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: 'Invalid user ID' });
+      }
+      
+      const investments = await storage.getUserInvestments(userId);
+      res.json(investments);
+    } catch (error) {
+      console.error('Error fetching user investments:', error);
+      res.status(500).json({ error: 'Failed to fetch user investments' });
+    }
+  });
+  
+  // Unstoppable Domain routes
+  
+  // Get all domains (admin endpoint)
+  app.get('/api/unstoppable-domains/all', async (req: Request, res: Response) => {
+    try {
+      // In a production app, this would check for admin privileges
+      const domains = await storage.getAllUnstoppableDomains();
+      res.json(domains);
+    } catch (error) {
+      console.error('Error fetching all domains:', error);
+      res.status(500).json({ error: 'Failed to fetch domains' });
+    }
+  });
+  
+  // Get all domains for a user
+  app.get('/api/users/:userId/unstoppable-domains', async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: 'Invalid user ID' });
+      }
+      
+      const domains = await storage.getUserUnstoppableDomains(userId);
+      res.json(domains);
+    } catch (error) {
+      console.error('Error fetching user domains:', error);
+      res.status(500).json({ error: 'Failed to fetch user domains' });
+    }
+  });
+  
+  // Get domain by ID
+  app.get('/api/unstoppable-domains/:id', async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'Invalid domain ID' });
+      }
+      
+      const domain = await storage.getUnstoppableDomain(id);
+      if (!domain) {
+        return res.status(404).json({ error: 'Domain not found' });
+      }
+      
+      res.json(domain);
+    } catch (error) {
+      console.error('Error fetching domain:', error);
+      res.status(500).json({ error: 'Failed to fetch domain' });
+    }
+  });
+  
+  // Get domain by name
+  app.get('/api/unstoppable-domains/name/:domainName', async (req: Request, res: Response) => {
+    try {
+      const domainName = req.params.domainName;
+      if (!domainName) {
+        return res.status(400).json({ error: 'Invalid domain name' });
+      }
+      
+      const domain = await storage.getUnstoppableDomainByName(domainName);
+      if (!domain) {
+        return res.status(404).json({ error: 'Domain not found' });
+      }
+      
+      res.json(domain);
+    } catch (error) {
+      console.error('Error fetching domain by name:', error);
+      res.status(500).json({ error: 'Failed to fetch domain' });
+    }
+  });
+  
+  // Register a new domain
+  app.post('/api/unstoppable-domains', async (req: Request, res: Response) => {
+    try {
+      const domainData = insertUnstoppableDomainNFTSchema.parse(req.body);
+      
+      // Check if domain already exists by name
+      const existingDomain = await storage.getUnstoppableDomainByName(domainData.domainName);
+      if (existingDomain) {
+        return res.status(409).json({ error: 'Domain name already registered' });
+      }
+      
+      const newDomain = await storage.createUnstoppableDomain(domainData);
+      res.status(201).json(newDomain);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      console.error('Error creating domain:', error);
+      res.status(500).json({ error: 'Failed to create domain' });
+    }
+  });
+  
+  // Verify a domain
+  app.post('/api/unstoppable-domains/:id/verify', async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'Invalid domain ID' });
+      }
+      
+      // Check if domain exists
+      const domain = await storage.getUnstoppableDomain(id);
+      if (!domain) {
+        return res.status(404).json({ error: 'Domain not found' });
+      }
+      
+      const success = await storage.verifyUnstoppableDomain(id);
+      if (success) {
+        res.json({ success: true, message: 'Domain verified successfully' });
+      } else {
+        res.status(500).json({ error: 'Failed to verify domain' });
+      }
+    } catch (error) {
+      console.error('Error verifying domain:', error);
+      res.status(500).json({ error: 'Failed to verify domain' });
+    }
+  });
+  
+  // Get benefits for a domain
+  app.get('/api/unstoppable-domains/:domainId/benefits', async (req: Request, res: Response) => {
+    try {
+      const domainId = parseInt(req.params.domainId);
+      if (isNaN(domainId)) {
+        return res.status(400).json({ error: 'Invalid domain ID' });
+      }
+      
+      const benefits = await storage.getUnstoppableDomainBenefits(domainId);
+      res.json(benefits);
+    } catch (error) {
+      console.error('Error fetching domain benefits:', error);
+      res.status(500).json({ error: 'Failed to fetch domain benefits' });
+    }
+  });
+  
+  // Add a benefit to a domain
+  app.post('/api/unstoppable-domains/:domainId/benefits', async (req: Request, res: Response) => {
+    try {
+      const domainId = parseInt(req.params.domainId);
+      if (isNaN(domainId)) {
+        return res.status(400).json({ error: 'Invalid domain ID' });
+      }
+      
+      // Check if domain exists
+      const domain = await storage.getUnstoppableDomain(domainId);
+      if (!domain) {
+        return res.status(404).json({ error: 'Domain not found' });
+      }
+      
+      const benefitData = insertUnstoppableDomainBenefitSchema.parse({
+        ...req.body,
+        domainId
+      });
+      
+      const newBenefit = await storage.createUnstoppableDomainBenefit(benefitData);
+      res.status(201).json(newBenefit);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      console.error('Error creating domain benefit:', error);
+      res.status(500).json({ error: 'Failed to create domain benefit' });
+    }
+  });
+  
+  // Update user's unstoppable domain preference
+  app.patch('/api/users/:userId/unstoppable-domain-preference', async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: 'Invalid user ID' });
+      }
+      
+      const { useAsUsername } = req.body;
+      if (typeof useAsUsername !== 'boolean') {
+        return res.status(400).json({ error: 'Invalid preference value' });
+      }
+      
+      const success = await storage.updateUserUnstoppableDomainPreference(userId, useAsUsername);
+      if (success) {
+        res.json({ success: true, message: 'Preference updated successfully' });
+      } else {
+        res.status(500).json({ error: 'Failed to update preference' });
+      }
+    } catch (error) {
+      console.error('Error updating user domain preference:', error);
+      res.status(500).json({ error: 'Failed to update preference' });
     }
   });
   

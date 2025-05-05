@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
+  <defs>
+    <linearGradient id="catGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF007A" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#00B2FF" stop-opacity="0.2" />
+    </linearGradient>
+  </defs>
+  <circle cx="60" cy="60" r="58" fill="url(#catGradient)" stroke="#FF007A" stroke-width="2" />
+  
+  <!-- Cat Face -->
+  <circle cx="60" cy="55" r="25" fill="#FF007A" opacity="0.7" />
+  
+  <!-- Cat Ears -->
+  <path d="M45 40l-10-15 15 10z" fill="#FF007A" />
+  <path d="M75 40l10-15-15 10z" fill="#FF007A" />
+  
+  <!-- Cat Eyes -->
+  <ellipse cx="50" cy="50" rx="3" ry="6" fill="#000" />
+  <ellipse cx="70" cy="50" rx="3" ry="6" fill="#000" />
+  
+  <!-- Cat Whiskers -->
+  <line x1="40" y1="60" x2="25" y2="55" stroke="#000" stroke-width="1" />
+  <line x1="40" y1="62" x2="25" y2="62" stroke="#000" stroke-width="1" />
+  <line x1="40" y1="64" x2="25" y2="69" stroke="#000" stroke-width="1" />
+  
+  <line x1="80" y1="60" x2="95" y2="55" stroke="#000" stroke-width="1" />
+  <line x1="80" y1="62" x2="95" y2="62" stroke="#000" stroke-width="1" />
+  <line x1="80" y1="64" x2="95" y2="69" stroke="#000" stroke-width="1" />
+  
+  <!-- Cat Mouth -->
+  <path d="M55 65q5 5 10 0" stroke="#000" stroke-width="1" fill="none" />
+  
+  <!-- Stars -->
+  <path d="M30 25l2 4 4 1-3 3 1 4-4-2-4 2 1-4-3-3 4-1z" fill="#FFD700" />
+  <path d="M90 25l2 4 4 1-3 3 1 4-4-2-4 2 1-4-3-3 4-1z" fill="#FFD700" />
+  <path d="M60 85l3 6 6 1-4 4 1 6-6-3-6 3 1-6-4-4 6-1z" fill="#FFD700" />
+</svg>

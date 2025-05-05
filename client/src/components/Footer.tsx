@@ -1,6 +1,6 @@
 import React from 'react';
 import { Separator } from "@/components/ui/separator";
-import NewChonkLogo from "./NewChonkLogo";
+import ChonkTokenLogo from "./ChonkTokenLogo";
 
 const Footer = () => {
   return (
@@ -9,7 +9,7 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="md:col-span-1">
             <div className="flex items-center mb-4">
-              <NewChonkLogo size="small" />
+              <ChonkTokenLogo size={32} useAnimation={false} />
               <h3 className="text-xl font-bold ml-3">Chonk9k</h3>
             </div>
             <p className="text-gray-400 text-sm mb-4">

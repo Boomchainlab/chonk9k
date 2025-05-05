@@ -1,60 +1,82 @@
-import React from "react";
-import { cn } from "@/lib/utils";
-import tokenLogo from '@assets/806ED59A-7B11-4101-953C-13897F5FFD73.jpeg';
+import React from 'react';
 
 interface NewChonkLogoProps {
-  size?: "small" | "medium" | "large";
+  size?: 'small' | 'medium' | 'large';
   isAnimated?: boolean;
-  showTwitter?: boolean;
   className?: string;
 }
 
 const NewChonkLogo: React.FC<NewChonkLogoProps> = ({ 
-  size = "medium", 
+  size = 'medium', 
   isAnimated = false,
-  showTwitter = false,
-  className
+  className = '' 
 }) => {
   const dimensions = {
-    small: "h-10 w-10",
-    medium: "h-16 w-16",
-    large: "h-64 w-64 md:h-80 md:w-80"
+    small: 'w-8 h-8',
+    medium: 'w-12 h-12',
+    large: 'w-20 h-20'
   };
 
+  const animationClass = isAnimated ? 'animate-pulse' : '';
+  
   return (
-    <div className={cn(`relative ${dimensions[size]} ${isAnimated ? "animate-bounce-slow" : ""}`, className)}>
-      {isAnimated && (
-        <div className="absolute inset-0 bg-primary/20 rounded-full animate-pulse"></div>
-      )}
-      
-      {showTwitter && (
-        <div className="absolute -top-8 right-0 bg-white/10 backdrop-blur-sm px-3 py-1 rounded-full text-sm font-medium text-white">
-          <a href="https://twitter.com/Chonkpump9000" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">
-            @Chonkpump9000
-          </a>
-        </div>
-      )}
-      
-      <div className="w-full h-full relative">
-        <img 
-          src={tokenLogo} 
-          alt="CHONK 9000 Logo" 
-          className={`w-full h-full rounded-full object-cover ${isAnimated ? `drop-shadow-[0_0_10px_#00e0ff80]` : ""}`}
-          onError={(e) => {
-            console.error('Logo loading error:', e);
-            const target = e.target as HTMLImageElement;
-            target.src = '/images/cyber_chonk_logo.png';
-          }}
-        />
-      </div>
-      
-      {/* Optional: Add "CHONK9K" text below when size is large */}
-      {size === "large" && (
-        <div className="mt-4 text-center">
-          <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#00e0ff] to-[#0095ff]">CHONK 9000</h1>
-          <p className="text-sm tracking-widest text-[#00e0ff]">TRADE. STAKE. EARN.</p>
-        </div>
-      )}
+    <div className={`${dimensions[size]} ${animationClass} ${className} relative`}>
+      <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[#ff00ff] to-[#00e0ff] opacity-25"></div>
+      <svg 
+        viewBox="0 0 100 100" 
+        fill="none" 
+        xmlns="http://www.w3.org/2000/svg"
+        className="relative z-10 w-full h-full"
+      >
+        <circle cx="50" cy="50" r="48" fill="#000" stroke="url(#chonk-gradient)" strokeWidth="4" />
+        
+        {/* Cat face features */}
+        <path d="M30 40 Q50 70 70 40" stroke="#ff00ff" strokeWidth="3" fill="none" />
+        <circle cx="35" cy="35" r="5" fill="#00e0ff" />
+        <circle cx="65" cy="35" r="5" fill="#00e0ff" />
+        
+        {/* Cat ears */}
+        <path d="M25 25 L35 35 L45 25 Z" fill="#ff00ff" />
+        <path d="M55 25 L65 35 L75 25 Z" fill="#ff00ff" />
+        
+        {/* Cat whiskers */}
+        <line x1="25" y1="50" x2="40" y2="48" stroke="#ffffff" strokeWidth="1.5" />
+        <line x1="25" y1="55" x2="40" y2="53" stroke="#ffffff" strokeWidth="1.5" />
+        <line x1="75" y1="50" x2="60" y2="48" stroke="#ffffff" strokeWidth="1.5" />
+        <line x1="75" y1="55" x2="60" y2="53" stroke="#ffffff" strokeWidth="1.5" />
+        
+        {/* Digital elements */}
+        <rect x="40" y="60" width="20" height="2" fill="#00e0ff" />
+        <rect x="35" y="65" width="30" height="2" fill="#00e0ff" />
+        <rect x="30" y="70" width="40" height="2" fill="#00e0ff" />
+
+        {/* Binary code bits around the edge */}
+        {Array.from({length: 16}).map((_, i) => {
+          const angle = (i * 22.5) * (Math.PI / 180);
+          const x = 50 + 42 * Math.cos(angle);
+          const y = 50 + 42 * Math.sin(angle);
+          return (
+            <text 
+              key={i} 
+              x={x} 
+              y={y} 
+              fill={i % 2 === 0 ? "#ff00ff" : "#00e0ff"} 
+              fontSize="8" 
+              textAnchor="middle" 
+              dominantBaseline="middle"
+            >
+              {i % 2 === 0 ? '1' : '0'}
+            </text>
+          );
+        })}
+        
+        <defs>
+          <linearGradient id="chonk-gradient" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#ff00ff" />
+            <stop offset="1" stopColor="#00e0ff" />
+          </linearGradient>
+        </defs>
+      </svg>
     </div>
   );
 };

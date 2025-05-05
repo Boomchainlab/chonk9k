@@ -19,7 +19,11 @@ import {
   premiumTiers, type PremiumTier, type InsertPremiumTier,
   miningRigs, type MiningRig, type InsertMiningRig,
   userMiningRigs, type UserMiningRig, type InsertUserMiningRig,
-  miningRewards, type MiningReward, type InsertMiningReward
+  miningRewards, type MiningReward, type InsertMiningReward,
+  tokenLaunches, type TokenLaunch, type InsertTokenLaunch,
+  userInvestments, type UserInvestment, type InsertUserInvestment,
+  unstoppableDomainNFTs, type UnstoppableDomainNFT, type InsertUnstoppableDomainNFT,
+  unstoppableDomainBenefits, type UnstoppableDomainBenefit, type InsertUnstoppableDomainBenefit
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
@@ -142,6 +146,29 @@ export interface IStorage {
   getMiningRewards(userId?: number, userRigId?: number): Promise<MiningReward[]>;
   getMiningReward(id: number): Promise<MiningReward | undefined>;
   createMiningReward(reward: InsertMiningReward): Promise<MiningReward>;
+  
+  // ChonkPad Token Launch operations
+  getTokenLaunches(status?: string): Promise<TokenLaunch[]>;
+  getTokenLaunch(id: number): Promise<TokenLaunch | undefined>;
+  createTokenLaunch(launch: InsertTokenLaunch): Promise<TokenLaunch>;
+  updateTokenLaunchStatus(id: number, status: string): Promise<TokenLaunch | undefined>;
+  updateTokenLaunchCurrentRaise(id: number, additionalAmount: number): Promise<boolean>;
+  
+  // ChonkPad User Investment operations
+  getUserInvestments(userId: number): Promise<UserInvestment[]>;
+  getUserInvestment(id: number): Promise<UserInvestment | undefined>;
+  createUserInvestment(investment: InsertUserInvestment): Promise<UserInvestment>;
+  
+  // Unstoppable Domain operations
+  getAllUnstoppableDomains(): Promise<UnstoppableDomainNFT[]>;
+  getUserUnstoppableDomains(userId: number): Promise<UnstoppableDomainNFT[]>;
+  getUnstoppableDomain(id: number): Promise<UnstoppableDomainNFT | undefined>;
+  getUnstoppableDomainByName(domainName: string): Promise<UnstoppableDomainNFT | undefined>;
+  createUnstoppableDomain(domain: InsertUnstoppableDomainNFT): Promise<UnstoppableDomainNFT>;
+  verifyUnstoppableDomain(id: number): Promise<boolean>;
+  getUnstoppableDomainBenefits(domainId: number): Promise<UnstoppableDomainBenefit[]>;
+  createUnstoppableDomainBenefit(benefit: InsertUnstoppableDomainBenefit): Promise<UnstoppableDomainBenefit>;
+  updateUserUnstoppableDomainPreference(userId: number, useAsUsername: boolean): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -463,6 +490,15 @@ export class DatabaseStorage implements IStorage {
       .values(insertSubmission)
       .returning();
     return submission;
+  }
+  
+  async updateTriviaSubmission(submissionId: number, data: Partial<InsertTriviaSubmission>): Promise<boolean> {
+    const result = await db
+      .update(triviaSubmissions)
+      .set(data)
+      .where(eq(triviaSubmissions.id, submissionId));
+    
+    return (result.rowCount || 0) > 0;
   }
   
   async getUserTriviaSubmission(userId: number, quizId: number): Promise<TriviaSubmission | undefined> {
@@ -966,6 +1002,140 @@ export class DatabaseStorage implements IStorage {
       .values(insertReward)
       .returning();
     return reward;
+  }
+
+  // ChonkPad Token Launch operations
+  async getTokenLaunches(status?: string): Promise<TokenLaunch[]> {
+    if (status) {
+      return db.select().from(tokenLaunches).where(eq(tokenLaunches.status, status));
+    }
+    return db.select().from(tokenLaunches);
+  }
+  
+  async getTokenLaunch(id: number): Promise<TokenLaunch | undefined> {
+    const [launch] = await db.select().from(tokenLaunches).where(eq(tokenLaunches.id, id));
+    return launch;
+  }
+  
+  async createTokenLaunch(insertLaunch: InsertTokenLaunch): Promise<TokenLaunch> {
+    const [launch] = await db
+      .insert(tokenLaunches)
+      .values(insertLaunch)
+      .returning();
+    return launch;
+  }
+  
+  async updateTokenLaunchStatus(id: number, status: string): Promise<TokenLaunch | undefined> {
+    const [updatedLaunch] = await db
+      .update(tokenLaunches)
+      .set({ status })
+      .where(eq(tokenLaunches.id, id))
+      .returning();
+    return updatedLaunch;
+  }
+  
+  async updateTokenLaunchCurrentRaise(id: number, additionalAmount: number): Promise<boolean> {
+    try {
+      const launch = await this.getTokenLaunch(id);
+      if (!launch) {
+        return false;
+      }
+      
+      const currentRaise = (launch.currentRaise || 0) + additionalAmount;
+      
+      await db
+        .update(tokenLaunches)
+        .set({ currentRaise })
+        .where(eq(tokenLaunches.id, id));
+      
+      return true;
+    } catch (error) {
+      console.error('Error updating token launch current raise:', error);
+      return false;
+    }
+  }
+  
+  // ChonkPad User Investment operations
+  async getUserInvestments(userId: number): Promise<UserInvestment[]> {
+    return db.select().from(userInvestments).where(eq(userInvestments.userId, userId));
+  }
+  
+  async getUserInvestment(id: number): Promise<UserInvestment | undefined> {
+    const [investment] = await db.select().from(userInvestments).where(eq(userInvestments.id, id));
+    return investment;
+  }
+  
+  async createUserInvestment(insertInvestment: InsertUserInvestment): Promise<UserInvestment> {
+    const [investment] = await db
+      .insert(userInvestments)
+      .values(insertInvestment)
+      .returning();
+    return investment;
+  }
+
+  // Unstoppable Domain operations
+  async getAllUnstoppableDomains(): Promise<UnstoppableDomainNFT[]> {
+    return db.select().from(unstoppableDomainNFTs);
+  }
+  
+  async getUserUnstoppableDomains(userId: number): Promise<UnstoppableDomainNFT[]> {
+    return db.select().from(unstoppableDomainNFTs).where(eq(unstoppableDomainNFTs.userId, userId));
+  }
+  
+  async getUnstoppableDomain(id: number): Promise<UnstoppableDomainNFT | undefined> {
+    const [domain] = await db.select().from(unstoppableDomainNFTs).where(eq(unstoppableDomainNFTs.id, id));
+    return domain;
+  }
+  
+  async getUnstoppableDomainByName(domainName: string): Promise<UnstoppableDomainNFT | undefined> {
+    const [domain] = await db.select().from(unstoppableDomainNFTs).where(eq(unstoppableDomainNFTs.domainName, domainName));
+    return domain;
+  }
+  
+  async createUnstoppableDomain(insertDomain: InsertUnstoppableDomainNFT): Promise<UnstoppableDomainNFT> {
+    const [domain] = await db
+      .insert(unstoppableDomainNFTs)
+      .values(insertDomain)
+      .returning();
+    return domain;
+  }
+  
+  async verifyUnstoppableDomain(id: number): Promise<boolean> {
+    try {
+      await db
+        .update(unstoppableDomainNFTs)
+        .set({ verified: true })
+        .where(eq(unstoppableDomainNFTs.id, id));
+      return true;
+    } catch (error) {
+      console.error('Error verifying Unstoppable Domain:', error);
+      return false;
+    }
+  }
+  
+  async getUnstoppableDomainBenefits(domainId: number): Promise<UnstoppableDomainBenefit[]> {
+    return db.select().from(unstoppableDomainBenefits).where(eq(unstoppableDomainBenefits.domainId, domainId));
+  }
+  
+  async createUnstoppableDomainBenefit(insertBenefit: InsertUnstoppableDomainBenefit): Promise<UnstoppableDomainBenefit> {
+    const [benefit] = await db
+      .insert(unstoppableDomainBenefits)
+      .values(insertBenefit)
+      .returning();
+    return benefit;
+  }
+  
+  async updateUserUnstoppableDomainPreference(userId: number, useAsUsername: boolean): Promise<boolean> {
+    try {
+      await db
+        .update(users)
+        .set({ useUnstoppableDomainAsUsername: useAsUsername })
+        .where(eq(users.id, userId));
+      return true;
+    } catch (error) {
+      console.error('Error updating user Unstoppable Domain preference:', error);
+      return false;
+    }
   }
 }
 

@@ -7,13 +7,15 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 export type TokenMood = 
-  | 'ecstatic' // >10%
-  | 'happy'    // 5-10%
+  | 'euphoric'  // >20%
+  | 'ecstatic'  // 10-20%
+  | 'happy'     // 5-10%
   | 'optimistic' // 1-5%
   | 'neutral'   // -1% to 1%
   | 'concerned' // -1% to -5%
   | 'worried'   // -5% to -10%
-  | 'panic'     // <-10%;
+  | 'panic'     // -10% to -20%
+  | 'catastrophic' // <-20%;
 
 interface TokenMoodVisualizerProps {
   timeframe?: 'day' | 'week' | 'month';
@@ -69,17 +71,20 @@ const TokenMoodVisualizer: React.FC<TokenMoodVisualizerProps> = ({
   }, [tokenData, timeframeState]);
 
   const determineMood = (changePercent: number): TokenMood => {
+    if (changePercent > 20) return 'euphoric';
     if (changePercent > 10) return 'ecstatic';
     if (changePercent > 5) return 'happy';
     if (changePercent > 1) return 'optimistic';
     if (changePercent >= -1) return 'neutral';
     if (changePercent >= -5) return 'concerned';
     if (changePercent >= -10) return 'worried';
-    return 'panic';
+    if (changePercent >= -20) return 'panic';
+    return 'catastrophic';
   };
 
   const getMoodEmoji = (mood: TokenMood): string => {
     switch(mood) {
+      case 'euphoric': return '🌟';
       case 'ecstatic': return '🚀';
       case 'happy': return '😄';
       case 'optimistic': return '😊';
@@ -87,12 +92,14 @@ const TokenMoodVisualizer: React.FC<TokenMoodVisualizerProps> = ({
       case 'concerned': return '🙁';
       case 'worried': return '😨';
       case 'panic': return '😱';
+      case 'catastrophic': return '💀';
       default: return '😐';
     }
   };
 
   const getMoodColor = (mood: TokenMood): string => {
     switch(mood) {
+      case 'euphoric': return 'text-purple-500';
       case 'ecstatic': return 'text-fuchsia-500';
       case 'happy': return 'text-green-500';
       case 'optimistic': return 'text-emerald-400';
@@ -100,12 +107,14 @@ const TokenMoodVisualizer: React.FC<TokenMoodVisualizerProps> = ({
       case 'concerned': return 'text-yellow-500';
       case 'worried': return 'text-amber-500';
       case 'panic': return 'text-red-500';
+      case 'catastrophic': return 'text-rose-800';
       default: return 'text-gray-400';
     }
   };
 
   const getMoodBgColor = (mood: TokenMood): string => {
     switch(mood) {
+      case 'euphoric': return 'bg-purple-100 dark:bg-purple-950';
       case 'ecstatic': return 'bg-fuchsia-100 dark:bg-fuchsia-950';
       case 'happy': return 'bg-green-100 dark:bg-green-950';
       case 'optimistic': return 'bg-emerald-100 dark:bg-emerald-950';
@@ -113,12 +122,14 @@ const TokenMoodVisualizer: React.FC<TokenMoodVisualizerProps> = ({
       case 'concerned': return 'bg-yellow-100 dark:bg-yellow-950';
       case 'worried': return 'bg-amber-100 dark:bg-amber-950';
       case 'panic': return 'bg-red-100 dark:bg-red-950';
+      case 'catastrophic': return 'bg-rose-100 dark:bg-rose-950';
       default: return 'bg-gray-100 dark:bg-gray-800';
     }
   };
 
   const getMoodBorderColor = (mood: TokenMood): string => {
     switch(mood) {
+      case 'euphoric': return 'border-purple-300 dark:border-purple-800';
       case 'ecstatic': return 'border-fuchsia-300 dark:border-fuchsia-800';
       case 'happy': return 'border-green-300 dark:border-green-800';
       case 'optimistic': return 'border-emerald-300 dark:border-emerald-800';
@@ -126,12 +137,14 @@ const TokenMoodVisualizer: React.FC<TokenMoodVisualizerProps> = ({
       case 'concerned': return 'border-yellow-300 dark:border-yellow-800';
       case 'worried': return 'border-amber-300 dark:border-amber-800';
       case 'panic': return 'border-red-300 dark:border-red-800';
+      case 'catastrophic': return 'border-rose-300 dark:border-rose-800';
       default: return 'border-gray-300 dark:border-gray-700';
     }
   };
 
   const getMoodText = (mood: TokenMood): string => {
     switch(mood) {
+      case 'euphoric': return 'Euphoric';
       case 'ecstatic': return 'Ecstatic';
       case 'happy': return 'Happy';
       case 'optimistic': return 'Optimistic';
@@ -139,12 +152,14 @@ const TokenMoodVisualizer: React.FC<TokenMoodVisualizerProps> = ({
       case 'concerned': return 'Concerned';
       case 'worried': return 'Worried';
       case 'panic': return 'Panic';
+      case 'catastrophic': return 'Catastrophic';
       default: return 'Unknown';
     }
   };
 
   const getMoodDescription = (mood: TokenMood): string => {
     switch(mood) {
+      case 'euphoric': return 'CHONK9K is experiencing a historic surge! Absolutely parabolic growth! 🌟';
       case 'ecstatic': return 'CHONK9K is mooning! All systems go! 🚀';
       case 'happy': return 'CHONK9K is on a strong uptrend. HODLers rejoice!';
       case 'optimistic': return 'CHONK9K is showing positive momentum. Things are looking good!';
@@ -152,6 +167,7 @@ const TokenMoodVisualizer: React.FC<TokenMoodVisualizerProps> = ({
       case 'concerned': return 'CHONK9K is experiencing a slight dip. Keep an eye on the market.';
       case 'worried': return 'CHONK9K is in a downtrend. Market sentiment is negative.';
       case 'panic': return 'CHONK9K is experiencing significant losses. High volatility detected!';
+      case 'catastrophic': return 'CHONK9K is in freefall! Extreme market conditions! Brace for impact! 💀';
       default: return 'Market status unknown.';
     }
   };
@@ -160,6 +176,7 @@ const TokenMoodVisualizer: React.FC<TokenMoodVisualizerProps> = ({
     if (!animating) return '';
     
     switch(mood) {
+      case 'euphoric': return 'animate-spin';
       case 'ecstatic': return 'animate-bounce';
       case 'happy': return 'animate-pulse';
       case 'optimistic': return 'animate-pulse';
@@ -167,6 +184,7 @@ const TokenMoodVisualizer: React.FC<TokenMoodVisualizerProps> = ({
       case 'concerned': return 'animate-pulse';
       case 'worried': return 'animate-pulse';
       case 'panic': return 'animate-ping';
+      case 'catastrophic': return 'animate-ping animate-bounce';
       default: return '';
     }
   };

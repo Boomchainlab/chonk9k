@@ -1,4 +1,3 @@
-
 modules = ["nodejs-20", "web", "postgresql-16"]
 run = "npm run dev"
 hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
@@ -9,7 +8,7 @@ packages = ["jq"]
 
 [deployment]
 deploymentTarget = "autoscale"
-build = ["sh", "-c", "npm run build"]
+build = ["npm", "run", "build"]
 run = ["sh", "-c", "NODE_ENV=production node dist/index.js"]
 
 [[ports]]
@@ -17,7 +16,7 @@ localPort = 5000
 externalPort = 9000
 
 [workflows]
-runButton = "Run"
+runButton = "Project"
 
 [[workflows.workflow]]
 name = "Project"
@@ -42,12 +41,3 @@ task = "packager.installForAll"
 task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
-
-[[workflows.workflow]]
-name = "Run"
-author = 40604801
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npm run dev"

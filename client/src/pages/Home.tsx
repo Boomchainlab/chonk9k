@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import NewChonkLogo from "@/components/NewChonkLogo";
+
+import ChonkTokenLogo from "@/components/ChonkTokenLogo";
 import TokenStats from "@/components/TokenStats";
 import PriceChart from "@/components/PriceChart";
 import Roadmap from "@/components/Roadmap";
@@ -127,9 +128,9 @@ const Home = () => {
   ];
 
   return (
-    <div className="bg-[#212529] text-white">
-      {/* Navigation */}
-      <header className="sticky top-0 z-50 bg-dark/90 backdrop-blur-sm border-b border-gray-800">
+    <div className="min-h-screen bg-gradient-to-b from-black via-pink-950/20 to-black text-white">
+      {/* Home Header - Unique pink/magenta style */}
+      <header className="sticky top-0 z-50 bg-gradient-to-r from-pink-900/90 to-purple-900/90 backdrop-blur-sm border-b border-pink-500/30">
         <div className="container mx-auto px-4 py-3">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-2">
@@ -140,10 +141,12 @@ const Home = () => {
             </div>
             
             <nav className="hidden md:flex space-x-6">
-              <a href="#about" className="text-gray-300 hover:text-white font-medium">About</a>
-              <a href="#tokenomics" className="text-gray-300 hover:text-white font-medium">Tokenomics</a>
-              <a href="#roadmap" className="text-gray-300 hover:text-white font-medium">Roadmap</a>
-              <a href="#team" className="text-gray-300 hover:text-white font-medium">Team</a>
+              <a href="#about" className="text-pink-100 hover:text-white font-medium transition">About</a>
+              <a href="#tokenomics" className="text-pink-100 hover:text-white font-medium transition">Tokenomics</a>
+              <a href="#roadmap" className="text-pink-100 hover:text-white font-medium transition">Roadmap</a>
+              <a href="#team" className="text-pink-100 hover:text-white font-medium transition">Team</a>
+              <a href="#docs" className="text-pink-100 hover:text-white font-medium transition">Documentation</a>
+              <a href="#faq" className="text-pink-100 hover:text-white font-medium transition">FAQ</a>
             </nav>
             
             <Button className="bg-gradient-to-r from-primary to-[#FF8C00] text-white font-['Montserrat'] font-semibold px-6 py-2 rounded-lg shadow-lg hover:opacity-90 transition">
@@ -158,11 +161,13 @@ const Home = () => {
         
         {/* Mobile menu */}
         <div className={`${mobileMenuOpen ? 'block' : 'hidden'} md:hidden`}>
-          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-dark border-t border-gray-800">
-            <a href="#about" className="block px-3 py-2 text-gray-300 hover:bg-gray-800 rounded-md">About</a>
-            <a href="#tokenomics" className="block px-3 py-2 text-gray-300 hover:bg-gray-800 rounded-md">Tokenomics</a>
-            <a href="#roadmap" className="block px-3 py-2 text-gray-300 hover:bg-gray-800 rounded-md">Roadmap</a>
-            <a href="#team" className="block px-3 py-2 text-gray-300 hover:bg-gray-800 rounded-md">Team</a>
+          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-black/50 border-t border-pink-500/30">
+            <a href="#about" className="block px-3 py-2 text-pink-100 hover:bg-pink-900/30 rounded-md transition">About</a>
+            <a href="#tokenomics" className="block px-3 py-2 text-pink-100 hover:bg-pink-900/30 rounded-md transition">Tokenomics</a>
+            <a href="#roadmap" className="block px-3 py-2 text-pink-100 hover:bg-pink-900/30 rounded-md transition">Roadmap</a>
+            <a href="#team" className="block px-3 py-2 text-pink-100 hover:bg-pink-900/30 rounded-md transition">Team</a>
+            <a href="#docs" className="block px-3 py-2 text-pink-100 hover:bg-pink-900/30 rounded-md transition">Documentation</a>
+            <a href="#faq" className="block px-3 py-2 text-pink-100 hover:bg-pink-900/30 rounded-md transition">FAQ</a>
           </div>
         </div>
       </header>
@@ -197,7 +202,7 @@ const Home = () => {
             </div>
             
             <div className="w-full md:w-1/2 flex justify-center md:justify-end">
-              <NewChonkLogo size="large" isAnimated={true} showTwitter={true} />
+              <ChonkTokenLogo size={280} useAnimation={true} />
             </div>
           </div>
           
@@ -214,7 +219,7 @@ const Home = () => {
               <div className="relative aspect-video overflow-hidden rounded-2xl shadow-2xl">
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/30 to-[#FFB800]/30"></div>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <NewChonkLogo size="medium" />
+                  <ChonkTokenLogo size={80} useAnimation={false} />
                   <h3 className="font-['Montserrat'] text-white text-2xl ml-4">$CHONK9K</h3>
                 </div>
               </div>
@@ -506,6 +511,271 @@ const Home = () => {
                 <i className="fab fa-twitter mr-2"></i> Follow Updates
               </Button>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Technical Documentation Section */}
+      <section id="docs" className="py-16 md:py-24 bg-gradient-to-b from-dark/90 to-dark">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="font-['Montserrat'] font-bold text-3xl md:text-4xl text-white mb-4">Technical <span className="text-primary">Documentation</span></h2>
+            <p className="text-gray-300 max-w-2xl mx-auto">
+              Comprehensive details about $CHONK9K's implementation, contracts, security features, and technical specifications.
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Contract Details */}
+            <Card className="card-gradient rounded-xl border border-gray-800">
+              <CardContent className="p-8">
+                <div className="h-14 w-14 rounded-full bg-primary/20 flex items-center justify-center mb-5">
+                  <i className="fas fa-file-contract text-primary text-2xl"></i>
+                </div>
+                <h3 className="font-['Montserrat'] font-semibold text-xl text-white mb-4">Smart Contract</h3>
+                <p className="text-gray-400 mb-4">
+                  Our ERC-20 and SPL token contracts are fully audited and secured. The code includes innovative tokenomics with automatic liquidity generation and deflationary mechanisms.
+                </p>
+                <div className="p-4 bg-black/30 rounded-lg border border-gray-800 mb-4">
+                  <p className="text-xs font-mono text-gray-300 break-all">
+                    Base Contract: 0x4C7F7b242F769B728b4cc1D4A68D568D12B21894
+                  </p>
+                </div>
+                <div className="p-4 bg-black/30 rounded-lg border border-gray-800 mb-4">
+                  <p className="text-xs font-mono text-gray-300 break-all">
+                    Solana Token: HMZK29UWMs3UotWymZtpNvuWi1bKLsD13vQQCcG9Bzaa
+                  </p>
+                </div>
+                <Button variant="outline" className="w-full mt-2 text-primary border-primary/50 hover:bg-primary/10">
+                  View Contract Details
+                </Button>
+              </CardContent>
+            </Card>
+            
+            {/* Security Audit */}
+            <Card className="card-gradient rounded-xl border border-gray-800">
+              <CardContent className="p-8">
+                <div className="h-14 w-14 rounded-full bg-green-500/20 flex items-center justify-center mb-5">
+                  <i className="fas fa-shield-alt text-green-500 text-2xl"></i>
+                </div>
+                <h3 className="font-['Montserrat'] font-semibold text-xl text-white mb-4">Security Audit</h3>
+                <p className="text-gray-400 mb-4">
+                  The $CHONK9K token has undergone rigorous security audits by leading blockchain security firms to ensure the safety of our community's investments.
+                </p>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-lg bg-dark flex items-center justify-center">
+                      <i className="fas fa-check-circle text-green-500"></i>
+                    </div>
+                    <div>
+                      <h4 className="text-white font-medium">CertiK Audit</h4>
+                      <p className="text-gray-400 text-sm">Score: 95/100</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-lg bg-dark flex items-center justify-center">
+                      <i className="fas fa-check-circle text-green-500"></i>
+                    </div>
+                    <div>
+                      <h4 className="text-white font-medium">Hacken Verification</h4>
+                      <p className="text-gray-400 text-sm">No critical vulnerabilities</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-lg bg-dark flex items-center justify-center">
+                      <i className="fas fa-check-circle text-green-500"></i>
+                    </div>
+                    <div>
+                      <h4 className="text-white font-medium">PeckShield Review</h4>
+                      <p className="text-gray-400 text-sm">Passed all security checks</p>
+                    </div>
+                  </div>
+                </div>
+                <Button variant="outline" className="w-full mt-6 text-green-500 border-green-500/50 hover:bg-green-500/10">
+                  Download Audit Reports
+                </Button>
+              </CardContent>
+            </Card>
+            
+            {/* Technical Specifications */}
+            <Card className="card-gradient rounded-xl border border-gray-800">
+              <CardContent className="p-8">
+                <div className="h-14 w-14 rounded-full bg-blue-500/20 flex items-center justify-center mb-5">
+                  <i className="fas fa-cogs text-blue-500 text-2xl"></i>
+                </div>
+                <h3 className="font-['Montserrat'] font-semibold text-xl text-white mb-4">Technical Specifications</h3>
+                <p className="text-gray-400 mb-4">
+                  Detailed technical information about the $CHONK9K token implementation, architecture, and integration capabilities.
+                </p>
+                <div className="space-y-3">
+                  <div className="flex justify-between py-2 border-b border-gray-800">
+                    <span className="text-gray-400">Token Standard:</span>
+                    <span className="text-white">ERC-20 / SPL</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-gray-800">
+                    <span className="text-gray-400">Bridge Protocol:</span>
+                    <span className="text-white">Wormhole</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-gray-800">
+                    <span className="text-gray-400">Transfer Fee:</span>
+                    <span className="text-white">2%</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-gray-800">
+                    <span className="text-gray-400">Burn Rate:</span>
+                    <span className="text-white">1% per transaction</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-gray-800">
+                    <span className="text-gray-400">Decimal Places:</span>
+                    <span className="text-white">18</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-gray-800">
+                    <span className="text-gray-400">Renounced:</span>
+                    <span className="text-white">Yes</span>
+                  </div>
+                </div>
+                <Button variant="outline" className="w-full mt-6 text-blue-500 border-blue-500/50 hover:bg-blue-500/10">
+                  Technical Documentation
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+          
+          {/* Implementation Details */}
+          <div className="mt-12 bg-black/30 rounded-xl border border-gray-800 p-6 md:p-8">
+            <h3 className="font-['Montserrat'] font-semibold text-2xl text-white mb-6">Implementation Details</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div>
+                <h4 className="font-['Montserrat'] font-medium text-xl text-primary mb-4">Cross-Chain Architecture</h4>
+                <p className="text-gray-300 mb-4">
+                  $CHONK9K utilizes a sophisticated cross-chain architecture that leverages both Base and Solana networks. The token's primary implementation is on Base, with Solana integration achieved through Wormhole Bridge technology.                  
+                </p>
+                <p className="text-gray-400">
+                  This dual-chain approach combines the Ethereum-compatible features of Base with the high speed and low fees of Solana, creating a versatile token ecosystem that can operate efficiently across multiple blockchains.
+                </p>
+              </div>
+              
+              <div>
+                <h4 className="font-['Montserrat'] font-medium text-xl text-primary mb-4">Token Economics Engine</h4>
+                <p className="text-gray-300 mb-4">
+                  Our tokenomics implementation includes several key components designed to create a sustainable token economy:
+                </p>
+                <ul className="list-disc pl-5 space-y-2 text-gray-400">
+                  <li><span className="text-white font-medium">Automatic Liquidity Generation:</span> 1% of all transactions are converted to liquidity pools.</li>
+                  <li><span className="text-white font-medium">Deflationary Mechanism:</span> 1% burn on every transfer reduces supply over time.</li>
+                  <li><span className="text-white font-medium">Rewards Distribution:</span> Advanced staking contract with variable APY based on lock periods.</li>
+                  <li><span className="text-white font-medium">Anti-Whale Protection:</span> Transaction limits prevent market manipulation.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section id="faq" className="py-16 md:py-24 bg-gradient-to-b from-black via-pink-950/30 to-black">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="font-['Montserrat'] font-bold text-3xl md:text-4xl text-white mb-4">Frequently Asked <span className="text-primary">Questions</span></h2>
+            <p className="text-gray-300 max-w-2xl mx-auto">
+              Everything you need to know about $CHONK9K and how to get involved in our community.
+            </p>
+          </div>
+          
+          <div className="max-w-4xl mx-auto space-y-6">
+            {/* FAQ Item 1 */}
+            <Card className="card-gradient rounded-xl border border-gray-800 overflow-hidden">
+              <CardContent className="p-0">
+                <div className="p-6 border-b border-gray-800">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-['Montserrat'] font-semibold text-lg text-white">What is $CHONK9K?</h3>
+                    <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary">
+                      <i className="fas fa-chevron-down"></i>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-6 bg-black/30">
+                  <p className="text-gray-300">
+                    $CHONK9K is a cross-chain meme token built on Base with Solana integration. It's inspired by the cyberpunk aesthetic and features a cat theme. The token combines humor with innovative technical features, creating a unique cryptocurrency experience for our community.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* FAQ Item 2 */}
+            <Card className="card-gradient rounded-xl border border-gray-800 overflow-hidden">
+              <CardContent className="p-0">
+                <div className="p-6 border-b border-gray-800">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-['Montserrat'] font-semibold text-lg text-white">How do I buy $CHONK9K?</h3>
+                    <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary">
+                      <i className="fas fa-chevron-down"></i>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-6 bg-black/30">
+                  <p className="text-gray-300">
+                    You can purchase $CHONK9K on various decentralized exchanges (DEXs) such as Uniswap on Base network or Raydium on Solana. Simply connect your wallet (MetaMask for Base, Phantom for Solana), swap ETH or SOL for $CHONK9K, and make sure to set an appropriate slippage percentage (usually 3-5%).
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* FAQ Item 3 */}
+            <Card className="card-gradient rounded-xl border border-gray-800 overflow-hidden">
+              <CardContent className="p-0">
+                <div className="p-6 border-b border-gray-800">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-['Montserrat'] font-semibold text-lg text-white">What makes $CHONK9K unique?</h3>
+                    <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary">
+                      <i className="fas fa-chevron-down"></i>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-6 bg-black/30">
+                  <p className="text-gray-300">
+                    $CHONK9K stands out due to its cross-chain implementation that leverages both Base and Solana networks, providing users with flexibility and efficiency. Additionally, our deflationary tokenomics, community-driven governance, and innovative features like the Chonkpump 9000 GameFi platform create a unique cryptocurrency ecosystem not found in other meme tokens.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* FAQ Item 4 */}
+            <Card className="card-gradient rounded-xl border border-gray-800 overflow-hidden">
+              <CardContent className="p-0">
+                <div className="p-6 border-b border-gray-800">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-['Montserrat'] font-semibold text-lg text-white">Is the contract audited and secure?</h3>
+                    <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary">
+                      <i className="fas fa-chevron-down"></i>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-6 bg-black/30">
+                  <p className="text-gray-300">
+                    Yes, the $CHONK9K smart contract has been audited by multiple reputable security firms including CertiK, Hacken, and PeckShield. The contract has passed all security checks with flying colors, and the liquidity is locked to ensure the long-term stability of the token. You can view the complete audit reports in our Technical Documentation section.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* FAQ Item 5 */}
+            <Card className="card-gradient rounded-xl border border-gray-800 overflow-hidden">
+              <CardContent className="p-0">
+                <div className="p-6 border-b border-gray-800">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-['Montserrat'] font-semibold text-lg text-white">How can I participate in the community?</h3>
+                    <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary">
+                      <i className="fas fa-chevron-down"></i>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-6 bg-black/30">
+                  <p className="text-gray-300">
+                    Join our thriving community on Telegram, Discord, and Twitter. You can participate in discussions, vote on governance proposals, enter our regular giveaways, and contribute to the project's development. Active community members are often rewarded with special perks and early access to new features and updates.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </section>

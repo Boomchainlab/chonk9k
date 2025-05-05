@@ -9,6 +9,7 @@ export const users = pgTable("users", {
   email: varchar("email", { length: 255 }).notNull().unique(),
   passwordHash: varchar("password_hash", { length: 255 }).notNull(),
   walletAddress: varchar("wallet_address", { length: 255 }).unique(),
+  unstoppableDomain: varchar("unstoppable_domain", { length: 255 }).unique(),
   referralCode: varchar("referral_code", { length: 20 }).unique(),
   referrerId: integer("referrer_id").references(() => users.id),
   tokenBalance: doublePrecision("token_balance").default(0),
@@ -16,6 +17,7 @@ export const users = pgTable("users", {
   stakingStartDate: timestamp("staking_start_date"),
   stakingEndDate: timestamp("staking_end_date"),
   premiumTier: integer("premium_tier").default(0),
+  useUnstoppableDomainAsUsername: boolean("use_unstoppable_domain_as_username").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -372,6 +374,113 @@ export const miningRewardsRelations = relations(miningRewards, ({ one }) => ({
   }),
 }));
 
+// Token Launches for ChonkPad
+export const tokenLaunches = pgTable("token_launches", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  symbol: varchar("symbol", { length: 20 }).notNull(),
+  logo: text("logo").notNull(),
+  description: text("description").notNull(),
+  status: varchar("status", { length: 20 }).notNull().default('upcoming'),
+  launchDate: timestamp("launch_date").notNull(),
+  endDate: timestamp("end_date"),
+  tokenPrice: doublePrecision("token_price").notNull(),
+  totalRaise: doublePrecision("total_raise").notNull(),
+  currentRaise: doublePrecision("current_raise").default(0),
+  allocationPerUser: doublePrecision("allocation_per_user").notNull(),
+  network: varchar("network", { length: 20 }).notNull(),
+  tags: text("tags").array(),
+  links: json("links").$type<{
+    website?: string;
+    twitter?: string;
+    telegram?: string;
+    discord?: string;
+    github?: string;
+  }>(),
+  tokenomics: json("tokenomics").$type<{
+    totalSupply: number;
+    initialCirculation: number;
+    publicSale: number;
+    team: number;
+    marketing: number;
+    ecosystem: number;
+    locked: boolean;
+    vestingInfo?: string;
+  }>(),
+  auditStatus: json("audit_status").$type<{
+    audited: boolean;
+    auditCompany?: string;
+    auditLink?: string;
+  }>(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const userInvestments = pgTable("user_investments", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  launchId: integer("launch_id").references(() => tokenLaunches.id).notNull(),
+  amount: doublePrecision("amount").notNull(),
+  tokensAllocated: doublePrecision("tokens_allocated").notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("pending"),
+  transactionHash: varchar("transaction_hash", { length: 255 }),
+  investmentDate: timestamp("investment_date").defaultNow(),
+});
+
+export const tokenLaunchesRelations = relations(tokenLaunches, ({ many }) => ({
+  userInvestments: many(userInvestments),
+}));
+
+export const userInvestmentsRelations = relations(userInvestments, ({ one }) => ({
+  user: one(users, {
+    fields: [userInvestments.userId],
+    references: [users.id],
+  }),
+  launch: one(tokenLaunches, {
+    fields: [userInvestments.launchId],
+    references: [tokenLaunches.id],
+  }),
+}));
+
+// Unstoppable Domains Integration
+export const unstoppableDomainNFTs = pgTable("unstoppable_domain_nfts", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  domainName: varchar("domain_name", { length: 255 }).notNull().unique(),
+  tokenId: varchar("token_id", { length: 255 }).notNull(),
+  network: varchar("network", { length: 50 }).notNull(),
+  verified: boolean("verified").default(false),
+  nftImageUrl: text("nft_image_url"),
+  metadata: json("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const unstoppableDomainBenefits = pgTable("unstoppable_domain_benefits", {
+  id: serial("id").primaryKey(),
+  domainId: integer("domain_id").references(() => unstoppableDomainNFTs.id).notNull(),
+  benefitType: varchar("benefit_type", { length: 50 }).notNull(), // staking_bonus, badge_access, trivia_multiplier, etc.
+  benefitValue: doublePrecision("benefit_value").notNull(),
+  description: text("description").notNull(),
+  startDate: timestamp("start_date").defaultNow(),
+  endDate: timestamp("end_date"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const unstoppableDomainNFTsRelations = relations(unstoppableDomainNFTs, ({ one, many }) => ({
+  user: one(users, {
+    fields: [unstoppableDomainNFTs.userId],
+    references: [users.id],
+  }),
+  benefits: many(unstoppableDomainBenefits),
+}));
+
+export const unstoppableDomainBenefitsRelations = relations(unstoppableDomainBenefits, ({ one }) => ({
+  domain: one(unstoppableDomainNFTs, {
+    fields: [unstoppableDomainBenefits.domainId],
+    references: [unstoppableDomainNFTs.id],
+  }),
+}));
+
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
 export const insertTokenStatSchema = createInsertSchema(tokenStats).omit({ id: true, timestamp: true });
 export const insertTeamMemberSchema = createInsertSchema(teamMembers).omit({ id: true });
@@ -471,3 +580,25 @@ export type UserMiningRig = typeof userMiningRigs.$inferSelect;
 
 export type InsertMiningReward = z.infer<typeof insertMiningRewardSchema>;
 export type MiningReward = typeof miningRewards.$inferSelect;
+
+// ChonkPad schemas
+export const insertTokenLaunchSchema = createInsertSchema(tokenLaunches).omit({ id: true, createdAt: true });
+export const insertUserInvestmentSchema = createInsertSchema(userInvestments).omit({ id: true, investmentDate: true });
+
+// Unstoppable Domain Schemas
+export const insertUnstoppableDomainNFTSchema = createInsertSchema(unstoppableDomainNFTs).omit({ id: true, createdAt: true });
+export const insertUnstoppableDomainBenefitSchema = createInsertSchema(unstoppableDomainBenefits).omit({ id: true, createdAt: true });
+
+// Unstoppable Domain Types
+export type UnstoppableDomainNFT = typeof unstoppableDomainNFTs.$inferSelect;
+export type InsertUnstoppableDomainNFT = z.infer<typeof insertUnstoppableDomainNFTSchema>;
+
+export type UnstoppableDomainBenefit = typeof unstoppableDomainBenefits.$inferSelect;
+export type InsertUnstoppableDomainBenefit = z.infer<typeof insertUnstoppableDomainBenefitSchema>;
+
+// ChonkPad types
+export type InsertTokenLaunch = z.infer<typeof insertTokenLaunchSchema>;
+export type TokenLaunch = typeof tokenLaunches.$inferSelect;
+
+export type InsertUserInvestment = z.infer<typeof insertUserInvestmentSchema>;
+export type UserInvestment = typeof userInvestments.$inferSelect;

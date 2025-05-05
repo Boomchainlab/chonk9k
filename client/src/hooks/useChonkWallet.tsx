@@ -1,6 +1,7 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { CONTRACT_ADDRESSES } from '@shared/constants';
 import { useToast } from '@/hooks/use-toast';
+import WalletConnectingOverlay from '@/components/WalletConnectingOverlay';
 
 type ChainType = 'evm' | 'solana';
 type WalletType = 'metamask' | 'phantom' | 'coinbase' | 'solflare' | 'okx' | 'jupiter' | 'raydium' | 'orca' | 'wen' | 'bitverse' | 'warpcast' | 'frame' | 'rainbow';
@@ -18,6 +19,7 @@ interface WalletContextType {
   connectWallet: (walletType: WalletType, chainType: ChainType) => Promise<boolean>;
   disconnectWallet: () => void;
   isConnecting: boolean;
+  connectingWallet: WalletType | null;
   getTokenBalance: (chainType: ChainType) => Promise<string>;
   isConnected: boolean;
   walletIcon: string | null;
@@ -28,6 +30,7 @@ const defaultContext: WalletContextType = {
   connectWallet: async () => false,
   disconnectWallet: () => {},
   isConnecting: false,
+  connectingWallet: null,
   getTokenBalance: async () => '0',
   isConnected: false,
   walletIcon: null,
@@ -38,6 +41,7 @@ const WalletContext = createContext<WalletContextType>(defaultContext);
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [account, setAccount] = useState<WalletAccount | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [connectingWallet, setConnectingWallet] = useState<WalletType | null>(null);
   const [walletIcon, setWalletIcon] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -77,6 +81,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const connectWallet = async (walletType: WalletType, chainType: ChainType): Promise<boolean> => {
     console.log(`Attempting to connect wallet: ${walletType} on chain: ${chainType}`);
     setIsConnecting(true);
+    setConnectingWallet(walletType);
     
     try {
       // In a real implementation, this would connect to an actual wallet
@@ -133,8 +138,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       });
       return false;
     } finally {
-      setIsConnecting(false);
-      console.log('Wallet connection attempt completed');
+      setTimeout(() => {
+        setIsConnecting(false);
+        setConnectingWallet(null);
+        console.log('Wallet connection attempt completed');
+      }, 2000); // Add a slight delay before removing overlay for a smoother transition
     }
   };
 
@@ -174,12 +182,19 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         connectWallet,
         disconnectWallet,
         isConnecting,
+        connectingWallet,
         getTokenBalance,
         isConnected: !!account,
         walletIcon,
       }}
     >
       {children}
+      {isConnecting && connectingWallet && (
+        <WalletConnectingOverlay 
+          isVisible={isConnecting} 
+          walletType={connectingWallet} 
+        />
+      )}
     </WalletContext.Provider>
   );
 }
