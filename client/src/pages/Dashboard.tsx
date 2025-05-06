@@ -16,10 +16,15 @@ import MarketDataPanel from '@/components/MarketDataPanel';
 import ExchangeListings from '@/components/ExchangeListings';
 import CommunityUpdates from '@/components/CommunityUpdates';
 import TokenClaimCard from '@/components/TokenClaimCard';
+import { MentorMascot } from '@/components/mascot';
+import { useMascot } from '@/hooks/useMascot';
 
 const Dashboard = () => {
   const { connectWallet, account, getTokenBalance } = useChonkWallet();
   const [balance, setBalance] = useState<string | null>(null);
+  const [showMascotSettings, setShowMascotSettings] = useState(false);
+  const mascot = useMascot({ autoFetch: true });
+  const [activeTab, setActiveTab] = useState("overview");
   
   // Get token balance when account is connected
   useEffect(() => {
@@ -27,7 +32,6 @@ const Dashboard = () => {
       getTokenBalance(account.chainType).then(setBalance);
     }
   }, [account, getTokenBalance]);
-  const [activeTab, setActiveTab] = useState("overview");
 
   // Token Stats Data
   const tokenStats = [
@@ -212,8 +216,19 @@ const Dashboard = () => {
     }
   ];
 
+  // Handle mascot settings toggle
+  const handleMascotSettingsToggle = () => {
+    setShowMascotSettings(prev => !prev);
+  };
+
+  // Handle saving mascot settings
+  const handleSaveMascotSettings = (settings: any) => {
+    mascot.updateSettings(settings);
+    setShowMascotSettings(false);
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-black via-purple-950 to-black text-white">
+    <div className="min-h-screen bg-gradient-to-b from-black via-purple-950 to-black text-white relative">
       {/* Hero Section with City Background */}
       <div className="relative overflow-hidden">
         {/* Cyberspace Background - Unique futuristic style */}
@@ -614,6 +629,82 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+    </div>
+  );
+  
+  // Handle mascot settings toggle
+  const handleMascotSettingsToggle = () => {
+    setShowMascotSettings(prev => !prev);
+  };
+
+  // Handle saving mascot settings
+  const handleSaveMascotSettings = (settings: any) => {
+    mascot.updateSettings(settings);
+    setShowMascotSettings(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-black via-purple-950 to-black text-white relative">
+      {/* Hero Section with City Background */}
+      <div className="relative overflow-hidden">
+        {/* Cyberspace Background - Unique futuristic style */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center z-0 opacity-50" 
+          style={{ 
+            backgroundImage: 'url(/images/cyber_city_background.png)',
+            filter: 'brightness(0.5) contrast(1.3) saturate(1.2)'
+          }}>
+        </div>
+        {/* Gradient overlay for dashboard */}
+        <div className="absolute inset-0 bg-gradient-to-b from-purple-900/50 via-transparent to-black/70 z-0"></div>
+        
+        {/* Content */}
+        <div className="container mx-auto px-4 py-8 md:py-16 relative z-10">
+          {/* Rest of the dashboard content... */}
+        </div>
+      </div>
+
+      {/* Mentor Mascot */}
+      <MentorMascot 
+        position="bottom-right" 
+        autoDisplay={true} 
+        displayDelay={5000} 
+        onTipClosed={() => console.log('Tip closed')} 
+      />
+
+      {/* Mascot Settings Modal */}
+      {showMascotSettings && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <MascotSettings 
+              onSave={handleSaveMascotSettings} 
+              className="w-full" 
+            />
+
+            <div className="flex justify-end mt-4">
+              <Button 
+                variant="outline" 
+                className="bg-black/40 border-[#ff00ff]/50 text-[#ff00ff] hover:bg-[#ff00ff]/20"
+                onClick={() => setShowMascotSettings(false)}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Settings Button */}
+      <Button
+        className="fixed z-50 bottom-4 right-4 bg-gradient-to-r from-[#ff00ff] to-[#00e0ff] rounded-full p-2 shadow-lg hover:opacity-90 transition-opacity"
+        size="icon"
+        onClick={handleMascotSettingsToggle}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </Button>
     </div>
   );
 };
