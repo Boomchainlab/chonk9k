@@ -1,149 +1,68 @@
 import { Request, Response, NextFunction } from 'express';
-import { randomBytes } from 'crypto';
+import session from 'express-session';
+import connectPgSimple from 'connect-pg-simple';
+import { pool } from './db';
 
-type Session = {
-  id: string;
-  data: Record<string, any>;
-  expires: Date;
-};
+// Create PostgreSQL session store
+const PgStore = connectPgSimple(session);
 
-// In-memory session store
-class MemorySessionStore {
-  private sessions: Map<string, Session> = new Map();
+// Session store instance
+export const sessionStore = new PgStore({
+  pool,
+  createTableIfMissing: true, // Auto-create the session table if it doesn't exist
+  tableName: 'user_sessions', // Custom table name (default is 'session')
+  pruneSessionInterval: 60 * 60 // Prune expired sessions every hour (in seconds)
+});
 
-  /**
-   * Create or update a session
-   */
-  set(sessionId: string, data: Record<string, any>, maxAge: number): void {
-    const expires = new Date(Date.now() + maxAge);
-    this.sessions.set(sessionId, { id: sessionId, data, expires });
-  }
-
-  /**
-   * Get a session by ID
-   */
-  get(sessionId: string): Record<string, any> | null {
-    const session = this.sessions.get(sessionId);
-    if (!session) return null;
-
-    // Check if session has expired
-    if (session.expires < new Date()) {
-      this.destroy(sessionId);
-      return null;
-    }
-
-    return session.data;
-  }
-
-  /**
-   * Delete a session
-   */
-  destroy(sessionId: string): void {
-    this.sessions.delete(sessionId);
-  }
-
-  /**
-   * Clean up expired sessions
-   */
-  cleanup(): void {
-    const now = new Date();
-    for (const [id, session] of this.sessions.entries()) {
-      if (session.expires < now) {
-        this.sessions.delete(id);
-      }
-    }
-  }
-}
-
-// Create a singleton store
-export const sessionStore = new MemorySessionStore();
-
-// Set up cleanup interval (every hour)
-setInterval(() => sessionStore.cleanup(), 60 * 60 * 1000);
-
-// Session middleware options
-type SessionOptions = {
-  name?: string;
-  secret: string;
-  cookie?: {
-    maxAge?: number;
-    httpOnly?: boolean;
-    secure?: boolean;
-    sameSite?: boolean | 'lax' | 'strict' | 'none';
-  };
-};
-
-// Default options
-const defaultOptions: SessionOptions = {
-  name: 'sid',
+// Session middleware configuration
+export const sessionConfig = {
+  store: sessionStore,
+  name: 'chonk9k_sid', // Custom cookie name
   secret: process.env.SESSION_SECRET || 'secret-key-change-in-production',
+  resave: false,
+  saveUninitialized: false,
   cookie: {
-    maxAge: 24 * 60 * 60 * 1000, // 1 day
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: 'lax' as 'lax', // TypeScript needs this assertion
   },
 };
 
 /**
- * Session middleware
+ * Remember Me functionality - extends session lifetime
  */
-export function session(options: SessionOptions = defaultOptions) {
-  const opts = { ...defaultOptions, ...options };
-
-  return (req: Request, res: Response, next: NextFunction) => {
-    // Parse cookies manually
-    const cookies: Record<string, string> = {};
-    const cookieHeader = req.headers.cookie || '';
-    
-    cookieHeader.split(';').forEach(cookie => {
-      const parts = cookie.split('=');
-      if (parts.length >= 2) {
-        const key = parts[0].trim();
-        const value = parts.slice(1).join('=').trim();
-        cookies[key] = value;
-      }
-    });
-    
-    // Get or generate session ID from cookie
-    let sessionId = cookies[opts.name || 'sid'];
-    if (!sessionId) {
-      sessionId = randomBytes(32).toString('hex');
-      
-      // Set cookie header manually
-      const cookieOptions: string[] = [`${opts.name || 'sid'}=${sessionId}`, 'Path=/']; 
-      
-      if (opts.cookie?.httpOnly) cookieOptions.push('HttpOnly');
-      if (opts.cookie?.secure) cookieOptions.push('Secure');
-      if (opts.cookie?.sameSite) cookieOptions.push(`SameSite=${opts.cookie.sameSite}`);
-      if (opts.cookie?.maxAge) {
-        const expires = new Date(Date.now() + opts.cookie.maxAge);
-        cookieOptions.push(`Expires=${expires.toUTCString()}`);
-      }
-      
-      res.setHeader('Set-Cookie', cookieOptions.join('; '));
-    }
-
-    // Get session data
-    const sessionData = sessionStore.get(sessionId) || {};
-
-    // Attach session to request
-    req.session = sessionData;
-
-    // Save session when response finishes
-    res.on('finish', () => {
-      sessionStore.set(sessionId, req.session, opts.cookie?.maxAge || 24 * 60 * 60 * 1000);
-    });
-
-    next();
-  };
+export function extendSession(req: Request, rememberMe: boolean = false) {
+  if (rememberMe && req.session.cookie) {
+    // Extend to 30 days if "remember me" is checked
+    req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000;
+  } else if (req.session.cookie) {
+    // Standard 24-hour session otherwise
+    req.session.cookie.maxAge = 24 * 60 * 60 * 1000;
+  }
 }
 
-// Extend Express Request type
-declare global {
-  namespace Express {
-    interface Request {
-      session: Record<string, any>;
-    }
+/**
+ * Set up express-session middleware
+ */
+export function setupSession(app: any) {
+  // Trust first proxy if in production
+  if (process.env.NODE_ENV === 'production') {
+    app.set('trust proxy', 1);
+  }
+  
+  // Use express-session middleware
+  app.use(session(sessionConfig));
+}
+
+// Extend express-session with our custom properties
+declare module 'express-session' {
+  interface SessionData {
+    userId?: number;
+    email?: string;
+    isVerified?: boolean;
+    lastActive?: Date;
+    isRemembered?: boolean;
+    csrfToken?: string;
   }
 }

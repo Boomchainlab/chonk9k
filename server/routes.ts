@@ -28,8 +28,25 @@ import {
 } from "@shared/schema";
 import { coinMarketCapService } from "./coinmarketcap";
 import { z } from "zod";
-import { registerUser, loginUser, getCurrentUser, requireAuth } from "./auth";
-import { session } from "./session";
+import { 
+  registerUser, 
+  loginUser, 
+  getCurrentUser, 
+  requireAuth, 
+  requireVerified,
+  generatePasswordResetToken,
+  resetPassword
+} from "./auth";
+import { setupSession, extendSession } from "./session";
+
+// Extend the Request interface if needed
+declare global {
+  namespace Express {
+    interface Request {
+      clientIp?: string;
+    }
+  }
+}
 
 // Initialize database with some premium tiers if they don't exist yet
 async function initializeDatabase() {
@@ -131,7 +148,34 @@ async function initializeDatabase() {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up session middleware
-  app.use(session());
+  setupSession(app);
+  
+  // Add IP tracking middleware for rate limiting
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    req.clientIp = req.headers['x-forwarded-for'] as string || 
+                    req.socket.remoteAddress || 
+                    'unknown';
+    next();
+  });
+  
+  // Tracking user activity middleware
+  app.use(async (req: Request, res: Response, next: NextFunction) => {
+    // Skip for static assets and certain paths
+    if (req.path.startsWith('/static') || req.path === '/api/health' || req.path === '/favicon.ico') {
+      return next();
+    }
+    
+    // Update last activity timestamp if user is logged in
+    if (req.session && req.session.userId) {
+      try {
+        await storage.updateUserLastActivity(req.session.userId);
+      } catch (error) {
+        console.error('Error updating user activity:', error);
+        // Don't block the request if activity tracking fails
+      }
+    }
+    next();
+  });
   
   // Initialize database with default data
   await initializeDatabase();
@@ -159,16 +203,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.post('/api/login', async (req: Request, res: Response) => {
     try {
-      const { username, password } = req.body;
+      const { username, password, rememberMe = false } = req.body;
       
       if (!username || !password) {
         return res.status(400).json({ error: 'Username and password are required' });
       }
       
-      const user = await loginUser(username, password);
+      const clientIp = req.clientIp || 'unknown';
+      const user = await loginUser(username, password, rememberMe, clientIp);
       
       // Set user ID in session
       req.session.userId = user.id;
+      req.session.isVerified = user.isVerified;
+      
+      // Set extended session if remember me is checked
+      if (rememberMe) {
+        extendSession(req, true);
+      }
       
       // Return user without sensitive data
       const { passwordHash, ...userWithoutPassword } = user;
@@ -180,9 +231,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   app.post('/api/logout', (req: Request, res: Response) => {
-    // Clear session
-    req.session = {};
-    res.status(200).json({ message: 'Logged out successfully' });
+    // Destroy session
+    if (req.session && typeof req.session.destroy === 'function') {
+      req.session.destroy((err) => {
+        if (err) {
+          console.error('Error destroying session:', err);
+          return res.status(500).json({ error: 'Failed to log out' });
+        }
+        res.clearCookie('connect.sid'); // Clear session cookie
+        res.status(200).json({ message: 'Logged out successfully' });
+      });
+    } else {
+      // Fallback if destroy method is not available
+      req.session = {} as any;
+      res.status(200).json({ message: 'Logged out successfully' });
+    }
   });
   
   app.get('/api/user', async (req: Request, res: Response) => {
@@ -199,6 +262,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching current user:', error);
       res.status(500).json({ error: 'Failed to fetch current user' });
+    }
+  });
+  
+  // Email verification route
+  app.get('/api/verify-email/:token', async (req: Request, res: Response) => {
+    try {
+      const { token } = req.params;
+      if (!token) {
+        return res.status(400).json({ error: 'Verification token is required' });
+      }
+      
+      // Find user with this verification token
+      const user = await storage.getUserByVerificationToken(token);
+      if (!user) {
+        return res.status(400).json({ error: 'Invalid verification token' });
+      }
+      
+      // Mark user as verified
+      await storage.verifyUser(user.id);
+      
+      // Update session if user is logged in
+      if (req.session && req.session.userId === user.id) {
+        req.session.isVerified = true;
+      }
+      
+      res.status(200).json({ message: 'Email verified successfully' });
+    } catch (error) {
+      console.error('Error verifying email:', error);
+      res.status(500).json({ error: 'Failed to verify email' });
+    }
+  });
+  
+  // Forgot password route
+  app.post('/api/forgot-password', async (req: Request, res: Response) => {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ error: 'Email is required' });
+      }
+      
+      // Generate reset token
+      const token = await generatePasswordResetToken(email);
+      
+      // Prevent user enumeration attacks by always returning success
+      if (!token) {
+        return res.status(200).json({ message: 'If an account with that email exists, we have sent a password reset link' });
+      }
+      
+      // In a real application, you would send an email with the reset link
+      // For this example, we'll just return the token
+      res.status(200).json({ 
+        message: 'If an account with that email exists, we have sent a password reset link',
+        token // In production, remove this and send via email
+      });
+    } catch (error) {
+      console.error('Error generating password reset token:', error);
+      // Still return 200 to prevent user enumeration
+      res.status(200).json({ message: 'If an account with that email exists, we have sent a password reset link' });
+    }
+  });
+  
+  // Reset password route
+  app.post('/api/reset-password', async (req: Request, res: Response) => {
+    try {
+      const { token, password } = req.body;
+      if (!token || !password) {
+        return res.status(400).json({ error: 'Token and password are required' });
+      }
+      
+      // Validate password
+      if (password.length < 8) {
+        return res.status(400).json({ error: 'Password must be at least 8 characters' });
+      }
+      
+      // Reset password
+      const success = await resetPassword(token, password);
+      if (!success) {
+        return res.status(400).json({ error: 'Invalid or expired token' });
+      }
+      
+      res.status(200).json({ message: 'Password reset successfully' });
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      res.status(500).json({ error: 'Failed to reset password' });
     }
   });
   // Badge routes

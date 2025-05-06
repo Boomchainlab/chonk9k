@@ -23,7 +23,8 @@ import {
   tokenLaunches, type TokenLaunch, type InsertTokenLaunch,
   userInvestments, type UserInvestment, type InsertUserInvestment,
   unstoppableDomainNFTs, type UnstoppableDomainNFT, type InsertUnstoppableDomainNFT,
-  unstoppableDomainBenefits, type UnstoppableDomainBenefit, type InsertUnstoppableDomainBenefit
+  unstoppableDomainBenefits, type UnstoppableDomainBenefit, type InsertUnstoppableDomainBenefit,
+  passwordResetTokens
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
@@ -32,7 +33,18 @@ export interface IStorage {
   // User operations
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByVerificationToken(token: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateLastLogin(userId: number): Promise<boolean>;
+  updateUserPassword(userId: number, passwordHash: string): Promise<boolean>;
+  verifyUser(userId: number): Promise<boolean>;
+  updateUserLastActivity(userId: number): Promise<boolean>;
+  
+  // Password reset operations
+  createPasswordResetToken(userId: number, token: string, expires: Date): Promise<{ id: number, userId: number, token: string, expires: Date }>;
+  validatePasswordResetToken(token: string): Promise<{ userId: number } | null>;
+  invalidatePasswordResetToken(token: string): Promise<boolean>;
   
   // Token stats operations
   getTokenStats(): Promise<TokenStat[]>;
@@ -183,13 +195,93 @@ export class DatabaseStorage implements IStorage {
     const [user] = await db.select().from(users).where(eq(users.username, username));
     return user;
   }
+  
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+  
+  async getUserByVerificationToken(token: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.verificationToken, token));
+    return user;
+  }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
+  async createUser(insertUser: any): Promise<User> {
     const [user] = await db
       .insert(users)
       .values(insertUser)
       .returning();
     return user;
+  }
+  
+  async verifyUser(userId: number): Promise<boolean> {
+    await db
+      .update(users)
+      .set({ 
+        isVerified: true,
+        verificationToken: null 
+      })
+      .where(eq(users.id, userId));
+    return true;
+  }
+  
+  async updateLastLogin(userId: number): Promise<boolean> {
+    const now = new Date();
+    await db
+      .update(users)
+      .set({ lastLoginAt: now })
+      .where(eq(users.id, userId));
+    return true;
+  }
+  
+  async updateUserPassword(userId: number, passwordHash: string): Promise<boolean> {
+    await db
+      .update(users)
+      .set({ passwordHash })
+      .where(eq(users.id, userId));
+    return true;
+  }
+  
+  async updateUserLastActivity(userId: number): Promise<boolean> {
+    const now = new Date();
+    await db
+      .update(users)
+      .set({ lastActiveAt: now })
+      .where(eq(users.id, userId));
+    return true;
+  }
+  
+  // Password reset operations
+  async createPasswordResetToken(userId: number, token: string, expires: Date): Promise<{ id: number, userId: number, token: string, expires: Date }> {
+    const [resetToken] = await db
+      .insert(passwordResetTokens)
+      .values({ userId, token, expires })
+      .returning();
+    return resetToken as { id: number, userId: number, token: string, expires: Date };
+  }
+  
+  async validatePasswordResetToken(token: string): Promise<{ userId: number } | null> {
+    const now = new Date();
+    const [resetToken] = await db
+      .select()
+      .from(passwordResetTokens)
+      .where(and(
+        eq(passwordResetTokens.token, token),
+        eq(passwordResetTokens.used, false),
+        gte(passwordResetTokens.expires, now)
+      ));
+      
+    if (!resetToken) return null;
+    
+    return { userId: resetToken.userId };
+  }
+  
+  async invalidatePasswordResetToken(token: string): Promise<boolean> {
+    await db
+      .update(passwordResetTokens)
+      .set({ used: true })
+      .where(eq(passwordResetTokens.token, token));
+    return true;
   }
   
   // Token stats operations

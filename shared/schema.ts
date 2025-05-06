@@ -8,6 +8,10 @@ export const users = pgTable("users", {
   username: varchar("username", { length: 255 }).notNull().unique(),
   email: varchar("email", { length: 255 }).notNull().unique(),
   passwordHash: varchar("password_hash", { length: 255 }).notNull(),
+  verificationToken: varchar("verification_token", { length: 255 }),
+  isVerified: boolean("is_verified").default(false),
+  lastLoginAt: timestamp("last_login_at"),
+  lastActiveAt: timestamp("last_active_at"),
   walletAddress: varchar("wallet_address", { length: 255 }).unique(),
   unstoppableDomain: varchar("unstoppable_domain", { length: 255 }).unique(),
   referralCode: varchar("referral_code", { length: 20 }).unique(),
@@ -251,6 +255,16 @@ export const miningRewards = pgTable("mining_rewards", {
   amount: doublePrecision("amount").notNull(),
   rewardDate: timestamp("reward_date").defaultNow(),
   transactionHash: varchar("transaction_hash", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow()
+});
+
+// Password Reset Tokens
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  token: varchar("token", { length: 255 }).notNull().unique(),
+  expires: timestamp("expires").notNull(),
+  used: boolean("used").default(false),
   createdAt: timestamp("created_at").defaultNow()
 });
 
