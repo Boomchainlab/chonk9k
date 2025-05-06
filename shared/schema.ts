@@ -911,6 +911,25 @@ export type MiningReward = typeof miningRewards.$inferSelect;
 export const insertTokenLaunchSchema = createInsertSchema(tokenLaunches).omit({ id: true, createdAt: true });
 export const insertUserInvestmentSchema = createInsertSchema(userInvestments).omit({ id: true, investmentDate: true });
 
+// Token Claims/Faucet System
+export const tokenClaims = pgTable("token_claims", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  amount: doublePrecision("amount").notNull(),
+  claimedAt: timestamp("claimed_at").defaultNow(),
+});
+
+export const tokenClaimRelations = relations(tokenClaims, ({ one }) => ({
+  user: one(users, {
+    fields: [tokenClaims.userId],
+    references: [users.id],
+  }),
+}));
+
+export const insertTokenClaimSchema = createInsertSchema(tokenClaims).omit({ id: true, claimedAt: true });
+export type InsertTokenClaim = z.infer<typeof insertTokenClaimSchema>;
+export type TokenClaim = typeof tokenClaims.$inferSelect;
+
 // Unstoppable Domain Schemas
 export const insertUnstoppableDomainNFTSchema = createInsertSchema(unstoppableDomainNFTs).omit({ id: true, createdAt: true });
 export const insertUnstoppableDomainBenefitSchema = createInsertSchema(unstoppableDomainBenefits).omit({ id: true, createdAt: true });

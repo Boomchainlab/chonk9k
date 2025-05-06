@@ -15,6 +15,7 @@ import TokenDistributionChart from '@/components/TokenDistributionChart';
 import MarketDataPanel from '@/components/MarketDataPanel';
 import ExchangeListings from '@/components/ExchangeListings';
 import CommunityUpdates from '@/components/CommunityUpdates';
+import TokenClaimCard from '@/components/TokenClaimCard';
 
 const Dashboard = () => {
   const { connectWallet, account, getTokenBalance } = useChonkWallet();
@@ -447,6 +448,11 @@ const Dashboard = () => {
                         </CardContent>
                       </Card>
                     )}
+                  </div>
+                  
+                  {/* Token Claim Card */}
+                  <div className="lg:col-span-6">
+                    <TokenClaimCard />
                   </div>
                 </div>
               </TabsContent>

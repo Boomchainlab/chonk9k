@@ -1,43 +1,48 @@
 import React from 'react';
-import tokenLogo from '@assets/806ED59A-7B11-4101-953C-13897F5FFD73.jpeg';
 
 interface ChonkTokenLogoProps {
   size?: number;
-  className?: string;
   useAnimation?: boolean;
+  className?: string;
 }
 
 const ChonkTokenLogo: React.FC<ChonkTokenLogoProps> = ({ 
-  size = 40, 
-  className = '',
-  useAnimation = true
- }) => {
+  size = 48, 
+  useAnimation = false,
+  className = ''
+}) => {
   return (
     <div 
-      className={`relative ${className}`}
+      className={`relative ${className} ${useAnimation ? 'animate-pulse' : ''}`}
       style={{ width: size, height: size }}
     >
-      {/* Using the actual token logo image */}
       <img 
-        src={tokenLogo} 
-        alt="CHONK 9000 Token" 
-        width={size} 
-        height={size}
-        className="rounded-full object-cover"
+        src="/chonk9k-logo.svg" 
+        alt="CHONK9K Token" 
+        className="w-full h-full object-contain"
         onError={(e) => {
-          console.error('Image loading error:', e);
-          // Fallback if image fails to load
+          // Fallback to a colored circle with text if image fails to load
           const target = e.target as HTMLImageElement;
-          target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNTAiIGZpbGw9IiNmZjAwZmYiLz48dGV4dCB4PSI1MCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyNCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5DSE9OSDwvdGV4dD48L3N2Zz4=';
+          target.style.display = 'none';
+          const parent = target.parentElement;
+          if (parent) {
+            parent.style.backgroundColor = '#ff00ff';
+            parent.style.borderRadius = '50%';
+            parent.style.display = 'flex';
+            parent.style.alignItems = 'center';
+            parent.style.justifyContent = 'center';
+            parent.style.color = 'white';
+            parent.style.fontWeight = 'bold';
+            parent.style.fontSize = `${size / 3}px`;
+            parent.textContent = '₵9K';
+          }
         }}
       />
-      
-      {/* Animated glow effect - only if animation is enabled */}
       {useAnimation && (
         <div 
-          className="absolute inset-0 rounded-full bg-[#ff00ff] opacity-30 blur-xl animate-pulse"
+          className="absolute inset-0 rounded-full bg-gradient-to-r from-[#ff00ff] to-[#00e0ff] opacity-30 animate-ping"
           style={{ animationDuration: '3s' }}
-        />
+        ></div>
       )}
     </div>
   );

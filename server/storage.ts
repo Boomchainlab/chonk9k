@@ -27,6 +27,7 @@ import {
   passwordResetTokens,
   userDevices, type UserDevice, type InsertUserDevice,
   userSessions, type UserSession, type InsertUserSession,
+  tokenClaims, type TokenClaim, type InsertTokenClaim,
   // Learning and social sharing imports
   learningModules, type LearningModule, type InsertLearningModule,
   learningLessons, type LearningLesson, type InsertLearningLesson,
@@ -158,6 +159,11 @@ export interface IStorage {
   
   // User token balance operations
   updateUserTokenBalance(userId: number, newBalance: number): Promise<boolean>;
+  
+  // Token Faucet operations
+  recordTokenClaim(userId: number, amount: number): Promise<TokenClaim>;
+  getLastTokenClaim(userId: number): Promise<TokenClaim | undefined>;
+  getUserTokenClaims(userId: number): Promise<TokenClaim[]>;
 
   // Mining operations
   getMiningRigs(availableOnly?: boolean): Promise<MiningRig[]>;
@@ -1744,6 +1750,51 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error(`Error updating learning streak for user ${userId}:`, error);
       return undefined;
+    }
+  }
+  // Token Faucet operations
+  async recordTokenClaim(userId: number, amount: number): Promise<TokenClaim> {
+    try {
+      const [claim] = await db
+        .insert(tokenClaims)
+        .values({
+          userId,
+          amount,
+        })
+        .returning();
+      return claim;
+    } catch (error) {
+      console.error('Error recording token claim:', error);
+      throw error;
+    }
+  }
+
+  async getLastTokenClaim(userId: number): Promise<TokenClaim | undefined> {
+    try {
+      const [lastClaim] = await db
+        .select()
+        .from(tokenClaims)
+        .where(eq(tokenClaims.userId, userId))
+        .orderBy(desc(tokenClaims.claimedAt))
+        .limit(1);
+      
+      return lastClaim;
+    } catch (error) {
+      console.error(`Error fetching last token claim for user ${userId}:`, error);
+      return undefined;
+    }
+  }
+
+  async getUserTokenClaims(userId: number): Promise<TokenClaim[]> {
+    try {
+      return db
+        .select()
+        .from(tokenClaims)
+        .where(eq(tokenClaims.userId, userId))
+        .orderBy(desc(tokenClaims.claimedAt));
+    } catch (error) {
+      console.error(`Error fetching token claims for user ${userId}:`, error);
+      return [];
     }
   }
 }

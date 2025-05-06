@@ -1752,6 +1752,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Referral Program Routes
 
+  // Token Faucet Routes
+  app.post('/api/faucet/claim', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      // Check if the user has already claimed tokens in the last 24 hours
+      const lastClaim = await storage.getLastTokenClaim(userId);
+      
+      if (lastClaim) {
+        const lastClaimTime = new Date(lastClaim.claimedAt).getTime();
+        const currentTime = Date.now();
+        const timeDiff = currentTime - lastClaimTime;
+        const hoursDiff = timeDiff / (1000 * 60 * 60);
+        
+        if (hoursDiff < 24) {
+          const timeRemaining = 24 - hoursDiff;
+          return res.status(429).json({ 
+            error: 'You can claim tokens only once every 24 hours.',
+            timeRemaining: Math.ceil(timeRemaining)
+          });
+        }
+      }
+      
+      // The amount of tokens to be claimed
+      const claimAmount = 1000;
+      
+      // Update the user's token balance
+      const currentBalance = user.tokenBalance || 0;
+      const newBalance = currentBalance + claimAmount;
+      
+      // Record the token claim in the database
+      await storage.recordTokenClaim(userId, claimAmount);
+      
+      // Update the user's token balance
+      await storage.updateUserTokenBalance(userId, newBalance);
+      
+      // Return the updated balance and claim information
+      return res.json({
+        success: true,
+        amount: claimAmount,
+        message: 'Successfully claimed CHONK9K tokens!',
+        newBalance: newBalance
+      });
+    } catch (error) {
+      console.error('Error claiming tokens:', error);
+      return res.status(500).json({ error: 'Failed to claim tokens. Please try again later.' });
+    }
+  });
+
+  app.get('/api/faucet/status', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      
+      // Check if the user has claimed tokens in the last 24 hours
+      const lastClaim = await storage.getLastTokenClaim(userId);
+      
+      if (lastClaim) {
+        const lastClaimTime = new Date(lastClaim.claimedAt).getTime();
+        const currentTime = Date.now();
+        const timeDiff = currentTime - lastClaimTime;
+        const hoursDiff = timeDiff / (1000 * 60 * 60);
+        
+        if (hoursDiff < 24) {
+          const timeRemaining = 24 - hoursDiff;
+          return res.json({ 
+            canClaim: false,
+            timeRemaining: Math.ceil(timeRemaining),
+            nextClaimTime: new Date(lastClaimTime + (24 * 60 * 60 * 1000)).toISOString()
+          });
+        }
+      }
+      
+      return res.json({
+        canClaim: true,
+        claimAmount: 1000
+      });
+    } catch (error) {
+      console.error('Error checking claim status:', error);
+      return res.status(500).json({ error: 'Failed to check claim status. Please try again later.' });
+    }
+  });
+
   // Get user referral stats
   app.get('/api/referrals/stats', async (req: Request, res: Response) => {
     try {
@@ -1998,6 +2085,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Faucet/Airdrop Route
+  app.post('/api/faucet/claim', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const user = await getCurrentUser(req);
+      
+      if (!user) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      // Define how many tokens to give (you can adjust this amount)
+      const airdropAmount = 1000; // 1000 CHONK9K tokens
+      
+      // Update user's token balance
+      const newBalance = user.tokenBalance + airdropAmount;
+      const success = await storage.updateUserTokenBalance(user.id, newBalance);
+      
+      if (success) {
+        res.status(200).json({ 
+          success: true, 
+          message: `Successfully claimed ${airdropAmount} CHONK9K tokens!`,
+          newBalance: newBalance,
+          claimedAmount: airdropAmount
+        });
+      } else {
+        res.status(500).json({ error: 'Failed to claim tokens' });
+      }
+    } catch (error) {
+      console.error('Error claiming tokens from faucet:', error);
+      res.status(500).json({ error: 'Failed to claim tokens' });
+    }
+  });
+  
   // Mining Routes
 
   // Get all mining rigs

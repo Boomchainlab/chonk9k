@@ -5,6 +5,7 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/hooks/use-auth";
+import { ToastProvider } from "@/hooks/use-toast";
 import { ProtectedRoute } from "@/lib/protected-route";
 import AuthPage from "@/pages/auth-page";
 import * as Sentry from '@sentry/react';
@@ -497,7 +498,8 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <WalletProvider>
+        <ToastProvider>
+          <WalletProvider>
           <TriviaPopupManager popupInterval={300000} minActiveTime={30} />
 
           {/* Wrap Router with error boundary */}
@@ -521,6 +523,7 @@ function App() {
           </div>
           <Toaster />
         </WalletProvider>
+        </ToastProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
