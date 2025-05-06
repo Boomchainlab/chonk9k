@@ -4,6 +4,8 @@ import { promisify } from 'util';
 import { InsertUser, User } from '@shared/schema';
 import { storage } from './storage';
 import { extendSession } from './session';
+import { mfaService } from './mfa-service';
+import { securityService } from './security-service';
 
 // Rate limiting for login attempts
 interface RateLimitEntry {
@@ -334,50 +336,115 @@ export async function registerUser(userData: any): Promise<User> {
 }
 
 /**
- * Login a user with rate limiting and remember me functionality
+ * Login a user with enhanced security features
+ * Returns user and MFA status information
  */
-export async function loginUser(username: string, password: string, rememberMe: boolean = false, ip: string): Promise<User> {
-  // Check both IP and username rate limiting
-  const rateLimit = checkRateLimit(ip, username);
-  if (!rateLimit.allowed) {
-    const sourceType = rateLimit.source === 'account' ? 'account' : 'IP address';
-    throw new Error(`Too many login attempts for this ${sourceType}. Please try again in ${rateLimit.timeRemaining} minutes.`);
+export async function loginUser(username: string, password: string, rememberMe: boolean = false, req: Request): Promise<{
+  user: User;
+  requireMfa: boolean;
+  mfaType: 'totp' | 'recovery' | null;
+  deviceId: string | null;
+  newDevice: boolean;
+}> {
+  const ip = securityService.getClientIp(req);
+  
+  // Use the improved rate limiting from securityService
+  const rateLimit = securityService.checkRateLimit(ip, username);
+  if (rateLimit.blocked) {
+    throw new Error(`Too many login attempts. Please try again in ${Math.ceil(rateLimit.waitTime / 60)} minutes.`);
   }
 
   try {
     // Find the user
     const user = await storage.getUserByUsername(username);
     if (!user) {
-      // Record failed attempt but don't expose that the username doesn't exist
-      recordLoginAttempt(ip, username, false);
+      // Don't expose that the username doesn't exist
+      securityService.recordLoginAttempt(ip, username, false);
       throw new Error('Invalid username or password');
     }
 
     // Verify password
     const isPasswordValid = await verifyPassword(password, user.passwordHash);
     if (!isPasswordValid) {
-      // Record failed attempt for both IP and username
-      recordLoginAttempt(ip, username, false);
+      securityService.recordLoginAttempt(ip, username, false);
+      await mfaService.logSecurityEvent(
+        user.id,
+        'LOGIN_FAILED',
+        'Failed login attempt: incorrect password',
+        { ip, userAgent: req.headers['user-agent'] }
+      );
       throw new Error('Invalid username or password');
+    }
+    
+    // Check if account is verified if email verification is required
+    if (user.email && !user.isVerified) {
+      throw new Error('Please verify your email address before logging in');
     }
 
     // Update last login timestamp
     await storage.updateLastLogin(user.id);
     
-    // Handle remember me functionality if requested
-    if (rememberMe) {
-      // Extend session lifetime
-      extendSession(user.id);
+    // Device management - check if device is known
+    const userDevices = await securityService.getUserDevices(user.id);
+    let deviceId = null;
+    let newDevice = false;
+    
+    // Try to identify the device by its fingerprint (simplified here)
+    const userAgent = req.headers['user-agent'] || '';
+    const existingDevice = userDevices.find(device => 
+      device.browser === securityService.parseUserAgent(userAgent).browser &&
+      device.ipAddress === ip
+    );
+    
+    if (existingDevice) {
+      // Known device
+      deviceId = existingDevice.deviceId;
+      // Update last login time for the device
+      await storage.updateDeviceLastLogin(existingDevice.id);
+    } else {
+      // New device - register it
+      deviceId = await securityService.registerDevice(user.id, req);
+      newDevice = true;
+      
+      // Log security event for new device
+      await mfaService.logSecurityEvent(
+        user.id, 
+        'NEW_DEVICE_LOGIN', 
+        'Login from a new device', 
+        { deviceId, ip, userAgent }
+      );
     }
     
-    // Reset failed login attempts for both IP and username
-    recordLoginAttempt(ip, username, true);
+    // Create a user session
+    const sessionToken = await securityService.createSession(user.id, req, deviceId, rememberMe);
+    
+    // Check if MFA is required
+    let requireMfa = false;
+    let mfaType: 'totp' | 'recovery' | null = null;
+    
+    if (user.mfaEnabled) {
+      // If MFA is enabled, check if this is a trusted device
+      const isTrustedDevice = await securityService.isDeviceTrusted(user.id, deviceId);
+      requireMfa = !isTrustedDevice;
+      mfaType = 'totp';
+    }
+    
+    // Record successful login
+    securityService.recordSuccessfulLogin(ip, username);
+    
+    // Log security event
+    await mfaService.logSecurityEvent(
+      user.id,
+      'LOGIN_SUCCESS',
+      `User logged in successfully${rememberMe ? ' with remember-me option' : ''}`,
+      { ip, deviceId, requireMfa, rememberMe }
+    );
 
-    return user;
+    return { user, requireMfa, mfaType, deviceId, newDevice };
   } catch (error) {
-    // Record failed attempt for both IP and username if not already done
+    // Record failed attempt if not already recorded
     if (error instanceof Error && error.message !== 'Invalid username or password') {
-      recordLoginAttempt(ip, username, false);
+      securityService.recordLoginAttempt(ip, username, false);
     }
     throw error;
   }
@@ -472,6 +539,300 @@ export async function resetPassword(token: string, newPassword: string): Promise
 
   // Invalidate token
   await storage.invalidatePasswordResetToken(token);
+  
+  // Log security event
+  await mfaService.logSecurityEvent(
+    resetRecord.userId,
+    'PASSWORD_RESET',
+    'Password was reset using a reset token',
+    {}
+  );
 
   return true;
+}
+
+/**
+ * Verify MFA TOTP code
+ */
+export async function verifyMfaCode(userId: number, code: string, req: Request): Promise<boolean> {
+  // Validate the TOTP code
+  const isValidCode = await mfaService.validateTotpCode(userId, code);
+  if (!isValidCode) {
+    await mfaService.logSecurityEvent(
+      userId,
+      'MFA_FAILED',
+      'Invalid MFA code entered',
+      { ip: securityService.getClientIp(req) }
+    );
+    return false;
+  }
+  
+  // Log successful MFA authentication
+  await mfaService.logSecurityEvent(
+    userId,
+    'MFA_SUCCESS',
+    'MFA verification successful',
+    { ip: securityService.getClientIp(req) }
+  );
+  
+  return true;
+}
+
+/**
+ * Verify MFA recovery code
+ */
+export async function verifyMfaRecoveryCode(userId: number, code: string, req: Request): Promise<boolean> {
+  // Validate the recovery code
+  const isValidCode = await mfaService.validateRecoveryCode(userId, code);
+  if (!isValidCode) {
+    await mfaService.logSecurityEvent(
+      userId,
+      'MFA_RECOVERY_FAILED',
+      'Invalid MFA recovery code entered',
+      { ip: securityService.getClientIp(req) }
+    );
+    return false;
+  }
+  
+  // Log successful MFA recovery authentication
+  await mfaService.logSecurityEvent(
+    userId,
+    'MFA_RECOVERY_SUCCESS',
+    'MFA recovery code used successfully',
+    { ip: securityService.getClientIp(req) }
+  );
+  
+  return true;
+}
+
+/**
+ * Setup MFA for a user
+ */
+export async function setupMfa(userId: number, req: Request): Promise<{ secret: string, recoveryCodes: string[] }> {
+  // Generate a new TOTP secret
+  const secret = await mfaService.generateSecret(userId);
+  
+  // Generate recovery codes
+  const recoveryCodes = await mfaService.generateRecoveryCodes(userId);
+  
+  // Log MFA setup initiation
+  await mfaService.logSecurityEvent(
+    userId,
+    'MFA_SETUP_INITIATED',
+    'MFA setup initiated',
+    { ip: securityService.getClientIp(req) }
+  );
+  
+  return { secret, recoveryCodes };
+}
+
+/**
+ * Enable MFA for a user after verification
+ */
+export async function enableMfa(userId: number, code: string, req: Request): Promise<boolean> {
+  // Verify the code against the secret
+  const isValidCode = await mfaService.validateTotpCode(userId, code);
+  if (!isValidCode) {
+    await mfaService.logSecurityEvent(
+      userId,
+      'MFA_SETUP_FAILED',
+      'Failed to validate TOTP code during MFA setup',
+      { ip: securityService.getClientIp(req) }
+    );
+    return false;
+  }
+  
+  // Enable MFA for the user
+  await mfaService.enableMfa(userId);
+  
+  // Log MFA enabled
+  await mfaService.logSecurityEvent(
+    userId,
+    'MFA_ENABLED',
+    'MFA has been enabled',
+    { ip: securityService.getClientIp(req) }
+  );
+  
+  return true;
+}
+
+/**
+ * Disable MFA for a user
+ */
+export async function disableMfa(userId: number, req: Request, password: string): Promise<boolean> {
+  // First, verify the user's password for critical action
+  const user = await storage.getUser(userId);
+  if (!user) {
+    return false;
+  }
+  
+  const isPasswordValid = await verifyPassword(password, user.passwordHash);
+  if (!isPasswordValid) {
+    await mfaService.logSecurityEvent(
+      userId,
+      'MFA_DISABLE_FAILED',
+      'Failed to disable MFA due to invalid password',
+      { ip: securityService.getClientIp(req) }
+    );
+    return false;
+  }
+  
+  // Disable MFA
+  await mfaService.disableMfa(userId);
+  
+  // Log MFA disabled
+  await mfaService.logSecurityEvent(
+    userId,
+    'MFA_DISABLED',
+    'MFA has been disabled',
+    { ip: securityService.getClientIp(req) }
+  );
+  
+  return true;
+}
+
+/**
+ * Trust a device to bypass MFA
+ */
+export async function trustDevice(userId: number, deviceId: string, req: Request): Promise<boolean> {
+  try {
+    await securityService.trustDevice(userId, deviceId);
+    
+    // Log device trusted
+    await mfaService.logSecurityEvent(
+      userId,
+      'DEVICE_TRUSTED',
+      'Device marked as trusted for MFA',
+      { deviceId, ip: securityService.getClientIp(req) }
+    );
+    
+    return true;
+  } catch (error) {
+    console.error('Error trusting device:', error);
+    return false;
+  }
+}
+
+/**
+ * Remove a device from trusted devices
+ */
+export async function untrustDevice(userId: number, deviceId: string, req: Request): Promise<boolean> {
+  try {
+    await securityService.untrustDevice(userId, deviceId);
+    
+    // Log device untrusted
+    await mfaService.logSecurityEvent(
+      userId,
+      'DEVICE_UNTRUSTED',
+      'Device removed from trusted devices for MFA',
+      { deviceId, ip: securityService.getClientIp(req) }
+    );
+    
+    return true;
+  } catch (error) {
+    console.error('Error untrusting device:', error);
+    return false;
+  }
+}
+
+/**
+ * Get all devices for a user
+ */
+export async function getUserDevices(userId: number): Promise<any[]> {
+  return await securityService.getUserDevices(userId);
+}
+
+/**
+ * Remove a device for a user
+ */
+export async function removeDevice(userId: number, deviceId: string, req: Request): Promise<boolean> {
+  try {
+    // Check if device exists and belongs to user
+    const devices = await securityService.getUserDevices(userId);
+    const deviceExists = devices.some(device => device.deviceId === deviceId);
+    
+    if (!deviceExists) {
+      return false;
+    }
+    
+    await securityService.removeDevice(userId, deviceId);
+    
+    // Log device removed
+    await mfaService.logSecurityEvent(
+      userId,
+      'DEVICE_REMOVED',
+      'Device removed from account',
+      { deviceId, ip: securityService.getClientIp(req) }
+    );
+    
+    return true;
+  } catch (error) {
+    console.error('Error removing device:', error);
+    return false;
+  }
+}
+
+/**
+ * Get active sessions for a user
+ */
+export async function getUserSessions(userId: number): Promise<any[]> {
+  try {
+    const sessions = await storage.getUserSessions(userId);
+    return sessions;
+  } catch (error) {
+    console.error('Error getting user sessions:', error);
+    return [];
+  }
+}
+
+/**
+ * Terminate a specific session
+ */
+export async function terminateSession(userId: number, sessionToken: string, req: Request): Promise<boolean> {
+  try {
+    // Verify session belongs to user
+    const sessions = await storage.getUserSessions(userId);
+    const sessionExists = sessions.some(session => session.sessionToken === sessionToken);
+    
+    if (!sessionExists) {
+      return false;
+    }
+    
+    await securityService.terminateSession(sessionToken);
+    
+    // Log session terminated
+    await mfaService.logSecurityEvent(
+      userId,
+      'SESSION_TERMINATED',
+      'User session was terminated',
+      { sessionToken, ip: securityService.getClientIp(req) }
+    );
+    
+    return true;
+  } catch (error) {
+    console.error('Error terminating session:', error);
+    return false;
+  }
+}
+
+/**
+ * Terminate all other sessions for a user
+ */
+export async function terminateOtherSessions(userId: number, currentSessionToken: string, req: Request): Promise<boolean> {
+  try {
+    await securityService.terminateOtherSessions(userId, currentSessionToken);
+    
+    // Log all other sessions terminated
+    await mfaService.logSecurityEvent(
+      userId,
+      'ALL_OTHER_SESSIONS_TERMINATED',
+      'All other user sessions were terminated',
+      { currentSessionToken, ip: securityService.getClientIp(req) }
+    );
+    
+    return true;
+  } catch (error) {
+    console.error('Error terminating other sessions:', error);
+    return false;
+  }
 }

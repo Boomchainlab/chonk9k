@@ -22,6 +22,20 @@ export const users = pgTable("users", {
   stakingEndDate: timestamp("staking_end_date"),
   premiumTier: integer("premium_tier").default(0),
   useUnstoppableDomainAsUsername: boolean("use_unstoppable_domain_as_username").default(false),
+  // MFA-related fields
+  mfaEnabled: boolean("mfa_enabled").default(false),
+  mfaSecret: varchar("mfa_secret", { length: 255 }),
+  mfaRecoveryCodes: json("mfa_recovery_codes").$type<string[]>(),
+  lastSecurityUpdate: timestamp("last_security_update"),
+  securityPreferences: json("security_preferences").$type<{
+    loginNotifications: boolean;
+    securityEvents: boolean;
+    passwordExpiryDays: number;
+  }>().default({
+    loginNotifications: true,
+    securityEvents: true,
+    passwordExpiryDays: 90,
+  }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -268,6 +282,62 @@ export const passwordResetTokens = pgTable("password_reset_tokens", {
   createdAt: timestamp("created_at").defaultNow()
 });
 
+// Security and MFA related tables
+
+// User devices for device management
+export const userDevices = pgTable("user_devices", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  deviceId: varchar("device_id", { length: 255 }).notNull(),
+  deviceName: varchar("device_name", { length: 255 }),
+  deviceType: varchar("device_type", { length: 50 }),
+  browser: varchar("browser", { length: 100 }),
+  operatingSystem: varchar("operating_system", { length: 100 }),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  lastLoginAt: timestamp("last_login_at").defaultNow(),
+  isTrusted: boolean("is_trusted").default(false),
+  createdAt: timestamp("created_at").defaultNow()
+});
+
+// Active Sessions
+export const userSessions = pgTable("user_sessions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  deviceId: varchar("device_id", { length: 255 }),
+  sessionToken: varchar("session_token", { length: 255 }).notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  location: varchar("location", { length: 255 }),
+  lastActiveAt: timestamp("last_active_at").defaultNow(),
+  userAgent: text("user_agent"),
+  isRememberMe: boolean("is_remember_me").default(false),
+  createdAt: timestamp("created_at").defaultNow()
+});
+
+// TOTP Backup codes
+export const mfaBackupCodes = pgTable("mfa_backup_codes", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  code: varchar("code", { length: 255 }).notNull(),
+  isUsed: boolean("is_used").default(false),
+  usedAt: timestamp("used_at"),
+  createdAt: timestamp("created_at").defaultNow()
+});
+
+// Security Event Log
+export const securityEvents = pgTable("security_events", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id),
+  eventType: varchar("event_type", { length: 50 }).notNull(),
+  eventDescription: text("event_description").notNull(),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userAgent: text("user_agent"),
+  location: varchar("location", { length: 255 }),
+  deviceId: varchar("device_id", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow(),
+  metadata: json("metadata").$type<Record<string, any>>()
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   tokenPurchases: many(tokenPurchases),
@@ -285,6 +355,12 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   }),
   referralsGiven: many(referralRewards, { relationName: 'referrer' }),
   referralsReceived: many(referralRewards, { relationName: 'referred' }),
+  // Security and MFA relations
+  passwordResetTokens: many(passwordResetTokens),
+  devices: many(userDevices),
+  sessions: many(userSessions),
+  mfaBackupCodes: many(mfaBackupCodes),
+  securityEvents: many(securityEvents),
 }));
 
 export const tokenPurchasesRelations = relations(tokenPurchases, ({ one }) => ({
@@ -495,6 +571,42 @@ export const unstoppableDomainBenefitsRelations = relations(unstoppableDomainBen
   }),
 }));
 
+// Security and MFA relations
+export const userDevicesRelations = relations(userDevices, ({ one }) => ({
+  user: one(users, {
+    fields: [userDevices.userId],
+    references: [users.id],
+  }),
+}));
+
+export const userSessionsRelations = relations(userSessions, ({ one }) => ({
+  user: one(users, {
+    fields: [userSessions.userId],
+    references: [users.id],
+  }),
+}));
+
+export const mfaBackupCodesRelations = relations(mfaBackupCodes, ({ one }) => ({
+  user: one(users, {
+    fields: [mfaBackupCodes.userId],
+    references: [users.id],
+  }),
+}));
+
+export const securityEventsRelations = relations(securityEvents, ({ one }) => ({
+  user: one(users, {
+    fields: [securityEvents.userId],
+    references: [users.id],
+  }),
+}));
+
+export const passwordResetTokensRelations = relations(passwordResetTokens, ({ one }) => ({
+  user: one(users, {
+    fields: [passwordResetTokens.userId],
+    references: [users.id],
+  }),
+}));
+
 export const insertUserSchema = createInsertSchema(users)
   .omit({ id: true, createdAt: true, passwordHash: true })
   .extend({
@@ -571,6 +683,13 @@ export const insertUserStakeSchema = createInsertSchema(userStakes).omit({ id: t
 export const insertReferralRewardSchema = createInsertSchema(referralRewards).omit({ id: true, createdAt: true });
 export const insertPremiumTierSchema = createInsertSchema(premiumTiers).omit({ id: true, createdAt: true });
 
+// Security and MFA schemas
+export const insertUserDeviceSchema = createInsertSchema(userDevices).omit({ id: true, createdAt: true, lastLoginAt: true });
+export const insertUserSessionSchema = createInsertSchema(userSessions).omit({ id: true, createdAt: true, lastActiveAt: true });
+export const insertMfaBackupCodeSchema = createInsertSchema(mfaBackupCodes).omit({ id: true, createdAt: true, usedAt: true });
+export const insertSecurityEventSchema = createInsertSchema(securityEvents).omit({ id: true, createdAt: true });
+export const insertPasswordResetTokenSchema = createInsertSchema(passwordResetTokens).omit({ id: true, createdAt: true });
+
 // Add types for new tables
 export type InsertStakingPool = z.infer<typeof insertStakingPoolSchema>;
 export type StakingPool = typeof stakingPools.$inferSelect;
@@ -620,3 +739,19 @@ export type TokenLaunch = typeof tokenLaunches.$inferSelect;
 
 export type InsertUserInvestment = z.infer<typeof insertUserInvestmentSchema>;
 export type UserInvestment = typeof userInvestments.$inferSelect;
+
+// Security and MFA types
+export type InsertUserDevice = z.infer<typeof insertUserDeviceSchema>;
+export type UserDevice = typeof userDevices.$inferSelect;
+
+export type InsertUserSession = z.infer<typeof insertUserSessionSchema>;
+export type UserSession = typeof userSessions.$inferSelect;
+
+export type InsertMfaBackupCode = z.infer<typeof insertMfaBackupCodeSchema>;
+export type MfaBackupCode = typeof mfaBackupCodes.$inferSelect;
+
+export type InsertSecurityEvent = z.infer<typeof insertSecurityEventSchema>;
+export type SecurityEvent = typeof securityEvents.$inferSelect;
+
+export type InsertPasswordResetToken = z.infer<typeof insertPasswordResetTokenSchema>;
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;

@@ -42,6 +42,10 @@ export interface IStorage {
   updateUserLastActivity(userId: number): Promise<boolean>;
   updateVerificationToken(userId: number, token: string): Promise<boolean>;
   
+  // Device and session operations
+  updateDeviceLastLogin(deviceId: number): Promise<boolean>;
+  getUserSessions(userId: number): Promise<any[]>;
+  
   // Password reset operations
   createPasswordResetToken(userId: number, token: string, expires: Date): Promise<{ id: number, userId: number, token: string, expires: Date }>;
   validatePasswordResetToken(token: string): Promise<{ userId: number } | null>;
@@ -250,6 +254,23 @@ export class DatabaseStorage implements IStorage {
       .set({ lastActiveAt: now })
       .where(eq(users.id, userId));
     return true;
+  }
+  
+  async updateDeviceLastLogin(deviceId: number): Promise<boolean> {
+    const now = new Date();
+    await db
+      .update(userDevices)
+      .set({ lastLoginAt: now })
+      .where(eq(userDevices.id, deviceId));
+    return true;
+  }
+  
+  async getUserSessions(userId: number): Promise<any[]> {
+    return db
+      .select()
+      .from(userSessions)
+      .where(eq(userSessions.userId, userId))
+      .orderBy(desc(userSessions.lastActiveAt));
   }
   
   async updateVerificationToken(userId: number, token: string): Promise<boolean> {
