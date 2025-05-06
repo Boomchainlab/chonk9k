@@ -37,6 +37,9 @@ import {
   generatePasswordResetToken,
   resetPassword
 } from "./auth";
+import { sendVerificationEmail } from "./email-service";
+import { eq } from "drizzle-orm";
+import { users } from "@shared/schema";
 import { setupSession, extendSession } from "./session";
 
 // Extend the Request interface if needed
@@ -310,11 +313,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(200).json({ message: 'If an account with that email exists, we have sent a password reset link' });
       }
       
-      // In a real application, you would send an email with the reset link
-      // For this example, we'll just return the token
+      // In development, we'll also return the token to make testing easier
       res.status(200).json({ 
         message: 'If an account with that email exists, we have sent a password reset link',
-        token // In production, remove this and send via email
+        token // Keep token in development, remove in production
       });
     } catch (error) {
       console.error('Error generating password reset token:', error);
@@ -346,6 +348,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error resetting password:', error);
       res.status(500).json({ error: 'Failed to reset password' });
+    }
+  });
+  
+  // Request a new verification email
+  app.post('/api/resend-verification', async (req: Request, res: Response) => {
+    try {
+      // User must be logged in
+      const user = await getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      // Only for unverified users
+      if (user.isVerified) {
+        return res.status(400).json({ error: 'Email already verified' });
+      }
+      
+      if (!user.email) {
+        return res.status(400).json({ error: 'No email address associated with account' });
+      }
+      
+      // Generate new verification token
+      const verificationToken = crypto.randomBytes(32).toString('hex');
+      
+      // Update user with new token
+      await storage.updateVerificationToken(user.id, verificationToken);
+      
+      // Get updated user
+      const updatedUser = await storage.getUser(user.id);
+      if (!updatedUser) {
+        return res.status(500).json({ error: 'Failed to update user' });
+      }
+      
+      // Send verification email
+      await sendVerificationEmail(updatedUser);
+      
+      res.status(200).json({ message: 'Verification email sent successfully' });
+    } catch (error) {
+      console.error('Error sending verification email:', error);
+      res.status(500).json({ error: 'Failed to send verification email' });
     }
   });
   // Badge routes

@@ -133,6 +133,8 @@ export function recordLoginAttempt(ip: string, success: boolean): void {
   });
 }
 
+import { sendVerificationEmail, sendPasswordResetEmail } from './email-service';
+
 /**
  * Register a new user with improved validation
  */
@@ -170,6 +172,16 @@ export async function registerUser(userData: any): Promise<User> {
     verificationToken,
     isVerified: false, // Default to unverified if email verification is enabled
   } as any);
+  
+  // Send verification email if email is provided
+  if (user.email) {
+    try {
+      await sendVerificationEmail(user);
+    } catch (error) {
+      console.error('Failed to send verification email:', error);
+      // Continue even if email fails - user can request a new verification email
+    }
+  }
 
   return user;
 }
@@ -274,6 +286,14 @@ export async function generatePasswordResetToken(email: string): Promise<string 
 
   // Store token in database
   await storage.createPasswordResetToken(user.id, token, expires);
+  
+  // Send password reset email
+  try {
+    await sendPasswordResetEmail(email, token);
+  } catch (error) {
+    console.error('Failed to send password reset email:', error);
+    // Continue anyway, token is still valid
+  }
 
   return token;
 }

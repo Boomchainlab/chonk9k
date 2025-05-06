@@ -40,6 +40,7 @@ export interface IStorage {
   updateUserPassword(userId: number, passwordHash: string): Promise<boolean>;
   verifyUser(userId: number): Promise<boolean>;
   updateUserLastActivity(userId: number): Promise<boolean>;
+  updateVerificationToken(userId: number, token: string): Promise<boolean>;
   
   // Password reset operations
   createPasswordResetToken(userId: number, token: string, expires: Date): Promise<{ id: number, userId: number, token: string, expires: Date }>;
@@ -247,6 +248,14 @@ export class DatabaseStorage implements IStorage {
     await db
       .update(users)
       .set({ lastActiveAt: now })
+      .where(eq(users.id, userId));
+    return true;
+  }
+  
+  async updateVerificationToken(userId: number, token: string): Promise<boolean> {
+    await db
+      .update(users)
+      .set({ verificationToken: token })
       .where(eq(users.id, userId));
     return true;
   }
