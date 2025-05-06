@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -22,6 +22,40 @@ const TokenClaimCard: React.FC = () => {
   const [lastClaimTime, setLastClaimTime] = useState<number | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
 
+  // Check claim status when component loads
+  useEffect(() => {
+    if (user) {
+      checkClaimStatus();
+      
+      // Set up interval to update the countdown timer
+      const interval = setInterval(() => {
+        setTimeRemaining(prevTime => prevTime && prevTime > 1000 ? prevTime - 1000 : null);
+      }, 1000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+  
+  // Function to check token claim status
+  const checkClaimStatus = async () => {
+    if (!user) return;
+    
+    try {
+      const response = await apiRequest<{canClaim: boolean; timeRemaining?: number; nextClaimTime?: string}>('/api/faucet/status', {
+        method: 'GET'
+      });
+      
+      if (response.canClaim === false && response.timeRemaining) {
+        setTimeRemaining(response.timeRemaining * 60 * 60 * 1000); // Convert hours to milliseconds
+        if (response.nextClaimTime) {
+          setLastClaimTime(new Date(response.nextClaimTime).getTime() - (24 * 60 * 60 * 1000));
+        }
+      }
+    } catch (error) {
+      console.error('Error checking claim status:', error);
+    }
+  };
+
   // Claim token mutation
   const claimMutation = useMutation<ClaimResponse>({
     mutationFn: async () => {
@@ -42,7 +76,7 @@ const TokenClaimCard: React.FC = () => {
       toast({
         title: "Tokens Claimed!",
         description: `Successfully claimed ${data.amount} CHONK9K tokens.`,
-        variant: "success",
+        variant: "default",
         duration: 5000,
       });
     },

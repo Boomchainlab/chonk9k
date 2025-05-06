@@ -1755,7 +1755,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Token Faucet Routes
   app.post('/api/faucet/claim', requireAuth, async (req: Request, res: Response) => {
     try {
-      const userId = (req as any).user.id;
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+      
       const user = await storage.getUser(userId);
       
       if (!user) {
@@ -1808,7 +1812,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/faucet/status', requireAuth, async (req: Request, res: Response) => {
     try {
-      const userId = (req as any).user.id;
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
       
       // Check if the user has claimed tokens in the last 24 hours
       const lastClaim = await storage.getLastTokenClaim(userId);
@@ -2085,38 +2092,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Faucet/Airdrop Route
-  app.post('/api/faucet/claim', requireAuth, async (req: Request, res: Response) => {
-    try {
-      const user = await getCurrentUser(req);
-      
-      if (!user) {
-        return res.status(401).json({ error: 'Not authenticated' });
-      }
-      
-      // Define how many tokens to give (you can adjust this amount)
-      const airdropAmount = 1000; // 1000 CHONK9K tokens
-      
-      // Update user's token balance
-      const newBalance = user.tokenBalance + airdropAmount;
-      const success = await storage.updateUserTokenBalance(user.id, newBalance);
-      
-      if (success) {
-        res.status(200).json({ 
-          success: true, 
-          message: `Successfully claimed ${airdropAmount} CHONK9K tokens!`,
-          newBalance: newBalance,
-          claimedAmount: airdropAmount
-        });
-      } else {
-        res.status(500).json({ error: 'Failed to claim tokens' });
-      }
-    } catch (error) {
-      console.error('Error claiming tokens from faucet:', error);
-      res.status(500).json({ error: 'Failed to claim tokens' });
-    }
-  });
-  
   // Mining Routes
 
   // Get all mining rigs

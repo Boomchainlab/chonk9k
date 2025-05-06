@@ -1765,7 +1765,7 @@ export class DatabaseStorage implements IStorage {
       return claim;
     } catch (error) {
       console.error('Error recording token claim:', error);
-      throw error;
+      throw new Error('Failed to record token claim');
     }
   }
 
@@ -1787,11 +1787,12 @@ export class DatabaseStorage implements IStorage {
 
   async getUserTokenClaims(userId: number): Promise<TokenClaim[]> {
     try {
-      return db
+      const claims = await db
         .select()
         .from(tokenClaims)
         .where(eq(tokenClaims.userId, userId))
         .orderBy(desc(tokenClaims.claimedAt));
+      return claims;
     } catch (error) {
       console.error(`Error fetching token claims for user ${userId}:`, error);
       return [];
