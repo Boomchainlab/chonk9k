@@ -12,15 +12,39 @@ interface RateLimitEntry {
   lastAttempt: number;
   blocked: boolean;
   blockedUntil?: number;
+  // Track consecutive failures for exponential backoff
+  consecutiveFailures?: number;
 }
 
 // In-memory rate limiting store (would move to Redis in production)
-const loginAttempts = new Map<string, RateLimitEntry>();
+const ipLoginAttempts = new Map<string, RateLimitEntry>();
+const usernameLoginAttempts = new Map<string, RateLimitEntry>();
+
+// Auto-cleanup old entries every 6 hours (prevent memory leaks)
+setInterval(() => {
+  const now = Date.now();
+  const expiryTime = now - (12 * 60 * 60 * 1000); // 12 hours
+  
+  // Clean up IP attempts
+  for (const [ip, entry] of ipLoginAttempts.entries()) {
+    if (entry.lastAttempt < expiryTime) {
+      ipLoginAttempts.delete(ip);
+    }
+  }
+  
+  // Clean up username attempts
+  for (const [username, entry] of usernameLoginAttempts.entries()) {
+    if (entry.lastAttempt < expiryTime) {
+      usernameLoginAttempts.delete(username);
+    }
+  }
+}, 6 * 60 * 60 * 1000); // Run every 6 hours
 
 // Rate limiting constants
 const MAX_ATTEMPTS = 5;
 const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
 const BLOCK_DURATION = 30 * 60 * 1000; // 30 minutes
+const ACCOUNT_BLOCK_DURATION = 60 * 60 * 1000; // 60 minutes (longer for account-specific)
 
 // Convert callback-based scrypt to Promise-based
 const scrypt = promisify(scryptCallback);
@@ -54,11 +78,11 @@ export async function verifyPassword(plainPassword: string, hashedPassword: stri
 }
 
 /**
- * Check if login attempts are rate limited
+ * Check if login attempts are rate limited by IP address
  */
-export function checkRateLimit(ip: string): { allowed: boolean; timeRemaining?: number } {
+export function checkIpRateLimit(ip: string): { allowed: boolean; timeRemaining?: number } {
   const now = Date.now();
-  const entry = loginAttempts.get(ip);
+  const entry = ipLoginAttempts.get(ip);
   
   if (!entry) {
     return { allowed: true };
@@ -74,28 +98,35 @@ export function checkRateLimit(ip: string): { allowed: boolean; timeRemaining?: 
   
   // Reset if window has expired
   if (now - entry.firstAttempt > RATE_LIMIT_WINDOW) {
-    loginAttempts.set(ip, {
+    ipLoginAttempts.set(ip, {
       count: 0,
       firstAttempt: now,
       lastAttempt: now,
-      blocked: false
+      blocked: false,
+      consecutiveFailures: 0
     });
     return { allowed: true };
   }
   
   // Check if too many attempts
   if (entry.count >= MAX_ATTEMPTS) {
+    // Calculate block duration with exponential backoff
+    const consecutiveFailures = entry.consecutiveFailures || 1;
+    const blockMultiplier = Math.min(Math.pow(2, consecutiveFailures - 1), 6); // Cap at 6x (3 hours)
+    const blockDuration = BLOCK_DURATION * blockMultiplier;
+    
     // Block the IP
-    const blockedUntil = now + BLOCK_DURATION;
-    loginAttempts.set(ip, {
+    const blockedUntil = now + blockDuration;
+    ipLoginAttempts.set(ip, {
       ...entry,
       blocked: true,
-      blockedUntil
+      blockedUntil,
+      consecutiveFailures: consecutiveFailures + 1
     });
     
     return { 
       allowed: false, 
-      timeRemaining: Math.ceil(BLOCK_DURATION / 1000 / 60) // minutes
+      timeRemaining: Math.ceil(blockDuration / 1000 / 60) // minutes
     };
   }
   
@@ -103,34 +134,150 @@ export function checkRateLimit(ip: string): { allowed: boolean; timeRemaining?: 
 }
 
 /**
+ * Check if login attempts are rate limited by username
+ */
+export function checkUsernameRateLimit(username: string): { allowed: boolean; timeRemaining?: number } {
+  const now = Date.now();
+  const entry = usernameLoginAttempts.get(username);
+  
+  if (!entry) {
+    return { allowed: true };
+  }
+  
+  // Check if username is blocked
+  if (entry.blocked && entry.blockedUntil && entry.blockedUntil > now) {
+    return { 
+      allowed: false, 
+      timeRemaining: Math.ceil((entry.blockedUntil - now) / 1000 / 60) // minutes
+    };
+  }
+  
+  // Reset if window has expired
+  if (now - entry.firstAttempt > RATE_LIMIT_WINDOW) {
+    usernameLoginAttempts.set(username, {
+      count: 0,
+      firstAttempt: now,
+      lastAttempt: now,
+      blocked: false,
+      consecutiveFailures: 0
+    });
+    return { allowed: true };
+  }
+  
+  // Check if too many attempts for this username
+  if (entry.count >= MAX_ATTEMPTS) {
+    // Calculate block duration with exponential backoff
+    const consecutiveFailures = entry.consecutiveFailures || 1;
+    const blockMultiplier = Math.min(Math.pow(2, consecutiveFailures - 1), 8); // Cap at 8x (8 hours)
+    const blockDuration = ACCOUNT_BLOCK_DURATION * blockMultiplier;
+    
+    // Block the username
+    const blockedUntil = now + blockDuration;
+    usernameLoginAttempts.set(username, {
+      ...entry,
+      blocked: true,
+      blockedUntil,
+      consecutiveFailures: consecutiveFailures + 1
+    });
+    
+    // Account lockout could trigger security notification in a real app
+    console.warn(`Account locked: ${username} - multiple failed login attempts`);
+    
+    return { 
+      allowed: false, 
+      timeRemaining: Math.ceil(blockDuration / 1000 / 60) // minutes
+    };
+  }
+  
+  return { allowed: true };
+}
+
+/**
+ * Check both IP and username rate limits
+ * If either is blocked, login is blocked
+ */
+export function checkRateLimit(ip: string, username?: string): { allowed: boolean; timeRemaining?: number; source?: string } {
+  // Always check IP rate limit
+  const ipLimit = checkIpRateLimit(ip);
+  if (!ipLimit.allowed) {
+    return { ...ipLimit, source: 'ip' };
+  }
+  
+  // If username is provided, also check username rate limit
+  if (username) {
+    const usernameLimit = checkUsernameRateLimit(username);
+    if (!usernameLimit.allowed) {
+      return { ...usernameLimit, source: 'account' };
+    }
+  }
+  
+  // Both checks passed
+  return { allowed: true };
+}
+
+/**
  * Record a login attempt
  */
-export function recordLoginAttempt(ip: string, success: boolean): void {
+export function recordLoginAttempt(ip: string, username: string | undefined, success: boolean): void {
   const now = Date.now();
-  const entry = loginAttempts.get(ip);
   
-  if (success && entry) {
+  // Always track IP-based attempts
+  const ipEntry = ipLoginAttempts.get(ip);
+  
+  if (success) {
     // Reset on successful login
-    loginAttempts.delete(ip);
+    if (ipEntry) {
+      ipLoginAttempts.delete(ip);
+    }
+    
+    // Also reset username tracking if provided
+    if (username && usernameLoginAttempts.has(username)) {
+      usernameLoginAttempts.delete(username);
+    }
     return;
   }
   
-  if (!entry) {
-    loginAttempts.set(ip, {
+  // Handle IP tracking for failed attempt
+  if (!ipEntry) {
+    ipLoginAttempts.set(ip, {
       count: 1,
       firstAttempt: now,
       lastAttempt: now,
-      blocked: false
+      blocked: false,
+      consecutiveFailures: 1
     });
-    return;
+  } else {
+    // Update attempt count
+    ipLoginAttempts.set(ip, {
+      ...ipEntry,
+      count: ipEntry.count + 1,
+      lastAttempt: now,
+      consecutiveFailures: (ipEntry.consecutiveFailures || 0) + 1
+    });
   }
   
-  // Update attempt count
-  loginAttempts.set(ip, {
-    ...entry,
-    count: entry.count + 1,
-    lastAttempt: now
-  });
+  // Handle username tracking if provided
+  if (username) {
+    const usernameEntry = usernameLoginAttempts.get(username);
+    
+    if (!usernameEntry) {
+      usernameLoginAttempts.set(username, {
+        count: 1,
+        firstAttempt: now,
+        lastAttempt: now,
+        blocked: false,
+        consecutiveFailures: 1
+      });
+    } else {
+      // Update attempt count
+      usernameLoginAttempts.set(username, {
+        ...usernameEntry,
+        count: usernameEntry.count + 1,
+        lastAttempt: now,
+        consecutiveFailures: (usernameEntry.consecutiveFailures || 0) + 1
+      });
+    }
+  }
 }
 
 import { sendVerificationEmail, sendPasswordResetEmail } from './email-service';
@@ -190,37 +337,48 @@ export async function registerUser(userData: any): Promise<User> {
  * Login a user with rate limiting and remember me functionality
  */
 export async function loginUser(username: string, password: string, rememberMe: boolean = false, ip: string): Promise<User> {
-  // Check rate limiting
-  const rateLimit = checkRateLimit(ip);
+  // Check both IP and username rate limiting
+  const rateLimit = checkRateLimit(ip, username);
   if (!rateLimit.allowed) {
-    throw new Error(`Too many login attempts. Please try again in ${rateLimit.timeRemaining} minutes.`);
+    const sourceType = rateLimit.source === 'account' ? 'account' : 'IP address';
+    throw new Error(`Too many login attempts for this ${sourceType}. Please try again in ${rateLimit.timeRemaining} minutes.`);
   }
 
   try {
     // Find the user
     const user = await storage.getUserByUsername(username);
     if (!user) {
-      recordLoginAttempt(ip, false);
+      // Record failed attempt but don't expose that the username doesn't exist
+      recordLoginAttempt(ip, username, false);
       throw new Error('Invalid username or password');
     }
 
     // Verify password
     const isPasswordValid = await verifyPassword(password, user.passwordHash);
     if (!isPasswordValid) {
-      recordLoginAttempt(ip, false);
+      // Record failed attempt for both IP and username
+      recordLoginAttempt(ip, username, false);
       throw new Error('Invalid username or password');
     }
 
     // Update last login timestamp
     await storage.updateLastLogin(user.id);
     
-    // Reset failed login attempts
-    recordLoginAttempt(ip, true);
+    // Handle remember me functionality if requested
+    if (rememberMe) {
+      // Extend session lifetime
+      extendSession(user.id);
+    }
+    
+    // Reset failed login attempts for both IP and username
+    recordLoginAttempt(ip, username, true);
 
     return user;
   } catch (error) {
-    // Record failed attempt and rethrow
-    recordLoginAttempt(ip, false);
+    // Record failed attempt for both IP and username if not already done
+    if (error instanceof Error && error.message !== 'Invalid username or password') {
+      recordLoginAttempt(ip, username, false);
+    }
     throw error;
   }
 }
