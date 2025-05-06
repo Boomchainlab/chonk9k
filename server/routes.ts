@@ -24,7 +24,15 @@ import {
   insertUserInvestmentSchema,
   insertUnstoppableDomainNFTSchema,
   insertUnstoppableDomainBenefitSchema,
-  insertUserSchema
+  insertUserSchema,
+  // Learning and social sharing imports
+  insertLearningModuleSchema,
+  insertLearningLessonSchema,
+  insertUserModuleProgressSchema,
+  insertUserLessonProgressSchema,
+  insertSocialShareSchema,
+  insertLearningAchievementSchema,
+  insertUserLearningStatsSchema
 } from "@shared/schema";
 import { coinMarketCapService } from "./coinmarketcap";
 import { z } from "zod";
