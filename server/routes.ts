@@ -1,4 +1,4 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import crypto from "crypto";
 import path from "path";
@@ -23,10 +23,13 @@ import {
   insertTokenLaunchSchema,
   insertUserInvestmentSchema,
   insertUnstoppableDomainNFTSchema,
-  insertUnstoppableDomainBenefitSchema
+  insertUnstoppableDomainBenefitSchema,
+  insertUserSchema
 } from "@shared/schema";
 import { coinMarketCapService } from "./coinmarketcap";
 import { z } from "zod";
+import { registerUser, loginUser, getCurrentUser, requireAuth } from "./auth";
+import { session } from "./session";
 
 // Initialize database with some premium tiers if they don't exist yet
 async function initializeDatabase() {
@@ -127,8 +130,77 @@ async function initializeDatabase() {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Set up session middleware
+  app.use(session());
+  
   // Initialize database with default data
   await initializeDatabase();
+  
+  // Authentication routes
+  app.post('/api/register', async (req: Request, res: Response) => {
+    try {
+      const userData = insertUserSchema.parse(req.body);
+      const user = await registerUser(userData);
+      
+      // Set user ID in session
+      req.session.userId = user.id;
+      
+      // Return user without sensitive data
+      const { passwordHash, ...userWithoutPassword } = user;
+      res.status(201).json(userWithoutPassword);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      console.error('Error registering user:', error);
+      res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to register user' });
+    }
+  });
+  
+  app.post('/api/login', async (req: Request, res: Response) => {
+    try {
+      const { username, password } = req.body;
+      
+      if (!username || !password) {
+        return res.status(400).json({ error: 'Username and password are required' });
+      }
+      
+      const user = await loginUser(username, password);
+      
+      // Set user ID in session
+      req.session.userId = user.id;
+      
+      // Return user without sensitive data
+      const { passwordHash, ...userWithoutPassword } = user;
+      res.status(200).json(userWithoutPassword);
+    } catch (error) {
+      console.error('Error logging in:', error);
+      res.status(401).json({ error: error instanceof Error ? error.message : 'Invalid username or password' });
+    }
+  });
+  
+  app.post('/api/logout', (req: Request, res: Response) => {
+    // Clear session
+    req.session = {};
+    res.status(200).json({ message: 'Logged out successfully' });
+  });
+  
+  app.get('/api/user', async (req: Request, res: Response) => {
+    try {
+      const user = await getCurrentUser(req);
+      
+      if (!user) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      // Return user without sensitive data
+      const { passwordHash, ...userWithoutPassword } = user;
+      res.status(200).json(userWithoutPassword);
+    } catch (error) {
+      console.error('Error fetching current user:', error);
+      res.status(500).json({ error: 'Failed to fetch current user' });
+    }
+  });
   // Badge routes
   
   // Get all badges

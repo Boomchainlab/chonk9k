@@ -481,7 +481,11 @@ export const unstoppableDomainBenefitsRelations = relations(unstoppableDomainBen
   }),
 }));
 
-export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
+export const insertUserSchema = createInsertSchema(users)
+  .omit({ id: true, createdAt: true, passwordHash: true })
+  .extend({
+    password: z.string().min(6).max(100),
+  });
 export const insertTokenStatSchema = createInsertSchema(tokenStats).omit({ id: true, timestamp: true });
 export const insertTeamMemberSchema = createInsertSchema(teamMembers).omit({ id: true });
 export const insertRoadmapItemSchema = createInsertSchema(roadmapItems).omit({ id: true });

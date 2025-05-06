@@ -4,6 +4,9 @@ import Fundraising from "@/pages/Fundraising";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
+import { AuthProvider } from "@/hooks/use-auth";
+import { ProtectedRoute } from "@/lib/protected-route";
+import AuthPage from "@/pages/auth-page";
 import * as Sentry from '@sentry/react';
 import { withErrorBoundary, initSentry } from "./lib/sentry";
 import Footer from "@/components/Footer";
@@ -371,13 +374,15 @@ function Header() {
 function Router() {
   const [location] = useLocation();
   const isDashboard = location === '/';
+  const isAuthPage = location === '/auth';
   
   return (
     <>
-      <Header />
+      {!isAuthPage && <Header />}
       <main className="min-h-screen">
         <Switch>
-          <Route path="/" component={Dashboard} />
+          <ProtectedRoute path="/" component={Dashboard} />
+          <Route path="/auth" component={AuthPage} />
           <Route path="/home" component={Home} />
           <Route path="/crypto" component={CryptoPayments} />
           <Route path="/token" component={TokenPage} />
@@ -394,7 +399,7 @@ function Router() {
           <Route path="/trivia" component={TriviaPage} />
           <Route path="/trivia/:id" component={QuizPage} />
           <Route path="/spin" component={SpinWheel} />
-          <Route path="/profile/:userId" component={Profile} />
+          <ProtectedRoute path="/profile/:userId" component={Profile} />
           <Route path="/wallet-features" component={WalletFeatures} />
           <Route path="/admin/marketplace" component={MarketplaceAdmin} />
           <Route path="/admin/badges" component={BadgeAdmin} />
@@ -481,30 +486,32 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <WalletProvider>
-        <TriviaPopupManager popupInterval={300000} minActiveTime={30} />
+      <AuthProvider>
+        <WalletProvider>
+          <TriviaPopupManager popupInterval={300000} minActiveTime={30} />
 
-        {/* Wrap Router with error boundary */}
-        <Sentry.ErrorBoundary
-          fallback={ErrorFallback}
-          onError={(error, componentStack, eventId) => {
-            console.error("Sentry caught an error:", error, componentStack);
-            console.log("Event ID:", eventId);
-          }}
-        >
-          <Router />
-        </Sentry.ErrorBoundary>
-        <div className="fixed bottom-4 right-4 z-50 md:hidden">
-          <div className="flex items-center space-x-2">
-            <ImprovedGamifiedWalletConnect variant="outline" size="sm" />
-            <AnimatedChonkCharacter />
+          {/* Wrap Router with error boundary */}
+          <Sentry.ErrorBoundary
+            fallback={ErrorFallback}
+            onError={(error, componentStack, eventId) => {
+              console.error("Sentry caught an error:", error, componentStack);
+              console.log("Event ID:", eventId);
+            }}
+          >
+            <Router />
+          </Sentry.ErrorBoundary>
+          <div className="fixed bottom-4 right-4 z-50 md:hidden">
+            <div className="flex items-center space-x-2">
+              <ImprovedGamifiedWalletConnect variant="outline" size="sm" />
+              <AnimatedChonkCharacter />
+            </div>
           </div>
-        </div>
-        <div className="fixed top-4 right-4 z-50 hidden md:flex">
-          <ImprovedGamifiedWalletConnect variant="outline" />
-        </div>
-        <Toaster />
-      </WalletProvider>
+          <div className="fixed top-4 right-4 z-50 hidden md:flex">
+            <ImprovedGamifiedWalletConnect variant="outline" />
+          </div>
+          <Toaster />
+        </WalletProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
