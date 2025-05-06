@@ -25,6 +25,15 @@ import {
   insertUnstoppableDomainNFTSchema,
   insertUnstoppableDomainBenefitSchema,
   insertUserSchema,
+  // Community Challenge imports
+  insertCommunityChallengeSchema,
+  insertChallengeSubmissionSchema,
+  // Mascot Daily Tips imports
+  insertDailyTipSchema,
+  insertMascotSettingsSchema,
+  insertCommunityVoteSchema,
+  insertChallengeTagSchema,
+  insertChallengeToTagSchema,
   // Learning and social sharing imports
   insertLearningModuleSchema,
   insertLearningLessonSchema,
@@ -2997,6 +3006,647 @@ add_shortcode('chonk9k_embed', 'chonk9k_embed_shortcode');
     } catch (error) {
       console.error('Error updating user domain preference:', error);
       res.status(500).json({ error: 'Failed to update preference' });
+    }
+  });
+
+  // ===================================================
+  // COMMUNITY CHALLENGE BOARD API ROUTES
+  // ===================================================
+
+  // Get all challenges with optional filters
+  app.get('/api/challenges', async (req: Request, res: Response) => {
+    try {
+      const activeOnly = req.query.active === 'true';
+      const type = typeof req.query.type === 'string' ? req.query.type : undefined;
+      const difficultyLevel = typeof req.query.difficulty === 'string' ? req.query.difficulty : undefined;
+      
+      const challenges = await storage.getChallenges(activeOnly, type, difficultyLevel);
+      res.json(challenges);
+    } catch (error) {
+      console.error('Error fetching challenges:', error);
+      res.status(500).json({ error: 'Failed to fetch challenges' });
+    }
+  });
+
+  // Get the active challenge
+  app.get('/api/challenges/active', async (req: Request, res: Response) => {
+    try {
+      const activeChallenge = await storage.getActiveChallenge();
+      if (!activeChallenge) {
+        return res.status(404).json({ error: 'No active challenge found' });
+      }
+      
+      res.json(activeChallenge);
+    } catch (error) {
+      console.error('Error fetching active challenge:', error);
+      res.status(500).json({ error: 'Failed to fetch active challenge' });
+    }
+  });
+
+  // Get a specific challenge by ID
+  app.get('/api/challenges/:id', async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'Invalid challenge ID' });
+      }
+      
+      const challenge = await storage.getChallenge(id);
+      if (!challenge) {
+        return res.status(404).json({ error: 'Challenge not found' });
+      }
+      
+      res.json(challenge);
+    } catch (error) {
+      console.error(`Error fetching challenge:`, error);
+      res.status(500).json({ error: 'Failed to fetch challenge' });
+    }
+  });
+
+  // Create a new challenge (admin or authorized users only)
+  app.post('/api/challenges', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ error: 'Unauthorized to create challenges' });
+      }
+      
+      const challengeData = insertCommunityChallengeSchema.parse(req.body);
+      const newChallenge = await storage.createChallenge({
+        ...challengeData,
+        createdBy: user.id
+      });
+      
+      res.status(201).json(newChallenge);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      console.error('Error creating challenge:', error);
+      res.status(500).json({ error: 'Failed to create challenge' });
+    }
+  });
+
+  // Update an existing challenge (admin only)
+  app.patch('/api/challenges/:id', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ error: 'Unauthorized to update challenges' });
+      }
+      
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'Invalid challenge ID' });
+      }
+      
+      const existingChallenge = await storage.getChallenge(id);
+      if (!existingChallenge) {
+        return res.status(404).json({ error: 'Challenge not found' });
+      }
+      
+      const updates = req.body;
+      const updatedChallenge = await storage.updateChallenge(id, updates);
+      
+      res.json(updatedChallenge);
+    } catch (error) {
+      console.error('Error updating challenge:', error);
+      res.status(500).json({ error: 'Failed to update challenge' });
+    }
+  });
+
+  // Get submissions for a challenge
+  app.get('/api/challenges/:id/submissions', async (req: Request, res: Response) => {
+    try {
+      const challengeId = parseInt(req.params.id);
+      if (isNaN(challengeId)) {
+        return res.status(400).json({ error: 'Invalid challenge ID' });
+      }
+      
+      const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+      const submissions = await storage.getChallengeSubmissions(challengeId, undefined, status);
+      
+      res.json(submissions);
+    } catch (error) {
+      console.error('Error fetching challenge submissions:', error);
+      res.status(500).json({ error: 'Failed to fetch challenge submissions' });
+    }
+  });
+
+  // Submit a solution to a challenge
+  app.post('/api/challenges/:id/submit', requireAuth, requireVerified, async (req: Request, res: Response) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      const challengeId = parseInt(req.params.id);
+      if (isNaN(challengeId)) {
+        return res.status(400).json({ error: 'Invalid challenge ID' });
+      }
+      
+      // Check if challenge exists and is active
+      const challenge = await storage.getChallenge(challengeId);
+      if (!challenge) {
+        return res.status(404).json({ error: 'Challenge not found' });
+      }
+      
+      const now = new Date();
+      if (!challenge.isActive || challenge.startDate > now || challenge.endDate < now) {
+        return res.status(400).json({ error: 'Challenge is not active' });
+      }
+      
+      // Check if user already submitted for this challenge
+      const existingSubmission = await storage.getUserChallengeSubmission(user.id, challengeId);
+      if (existingSubmission) {
+        return res.status(400).json({ 
+          error: 'You have already submitted for this challenge', 
+          submission: existingSubmission 
+        });
+      }
+      
+      // Validate submission data based on required proof type
+      const { proofLink, proofText, proofImageUrl } = req.body;
+      const requiredProofType = challenge.requiredProof;
+      
+      // Validate that the correct proof type is provided
+      if (requiredProofType === 'link' && !proofLink) {
+        return res.status(400).json({ error: 'This challenge requires a link proof' });
+      }
+      if (requiredProofType === 'text' && !proofText) {
+        return res.status(400).json({ error: 'This challenge requires a text proof' });
+      }
+      if (requiredProofType === 'image' && !proofImageUrl) {
+        return res.status(400).json({ error: 'This challenge requires an image proof' });
+      }
+      
+      // Create submission
+      const submissionData = insertChallengeSubmissionSchema.parse({
+        challengeId,
+        userId: user.id,
+        proofLink: proofLink || null,
+        proofText: proofText || null,
+        proofImageUrl: proofImageUrl || null,
+        rewardAmount: challenge.rewardAmount // Store the reward amount at time of submission
+      });
+      
+      const newSubmission = await storage.createChallengeSubmission(submissionData);
+      res.status(201).json(newSubmission);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      console.error('Error submitting challenge solution:', error);
+      res.status(500).json({ error: 'Failed to submit challenge solution' });
+    }
+  });
+
+  // Get user's submissions
+  app.get('/api/user/submissions', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      const submissions = await storage.getChallengeSubmissions(undefined, user.id);
+      res.json(submissions);
+    } catch (error) {
+      console.error('Error fetching user submissions:', error);
+      res.status(500).json({ error: 'Failed to fetch user submissions' });
+    }
+  });
+
+  // Review a submission (admin only)
+  app.post('/api/submissions/:id/review', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ error: 'Unauthorized to review submissions' });
+      }
+      
+      const submissionId = parseInt(req.params.id);
+      if (isNaN(submissionId)) {
+        return res.status(400).json({ error: 'Invalid submission ID' });
+      }
+      
+      const { status, reviewNotes } = req.body;
+      if (!status || !['approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ error: 'Invalid status value' });
+      }
+      
+      const submission = await storage.getChallengeSubmission(submissionId);
+      if (!submission) {
+        return res.status(404).json({ error: 'Submission not found' });
+      }
+      
+      // Update submission status
+      const success = await storage.updateChallengeSubmissionStatus(
+        submissionId, 
+        status, 
+        user.id, 
+        reviewNotes
+      );
+      
+      if (success && status === 'approved') {
+        // If approved, add tokens to user's balance
+        await storage.updateUserTokenBalance(
+          submission.userId, 
+          (user.tokenBalance || 0) + submission.rewardAmount
+        );
+      }
+      
+      res.json({ success, message: `Submission ${status}` });
+    } catch (error) {
+      console.error('Error reviewing submission:', error);
+      res.status(500).json({ error: 'Failed to review submission' });
+    }
+  });
+
+  // Claim reward for an approved submission
+  app.post('/api/submissions/:id/claim', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      const submissionId = parseInt(req.params.id);
+      if (isNaN(submissionId)) {
+        return res.status(400).json({ error: 'Invalid submission ID' });
+      }
+      
+      const submission = await storage.getChallengeSubmission(submissionId);
+      if (!submission) {
+        return res.status(404).json({ error: 'Submission not found' });
+      }
+      
+      // Verify the submission belongs to the user
+      if (submission.userId !== user.id) {
+        return res.status(403).json({ error: 'Cannot claim rewards for another user\'s submission' });
+      }
+      
+      // Verify the submission is approved and not already claimed
+      if (submission.status !== 'approved') {
+        return res.status(400).json({ error: 'Only approved submissions can claim rewards' });
+      }
+      
+      if (submission.rewardClaimed) {
+        return res.status(400).json({ error: 'Reward has already been claimed' });
+      }
+      
+      // Mark as claimed
+      const success = await storage.claimChallengeReward(submissionId);
+      
+      // Update user's token balance
+      if (success) {
+        await storage.updateUserTokenBalance(
+          user.id, 
+          (user.tokenBalance || 0) + submission.rewardAmount
+        );
+      }
+      
+      res.json({ 
+        success, 
+        message: 'Reward claimed successfully', 
+        amount: submission.rewardAmount 
+      });
+    } catch (error) {
+      console.error('Error claiming reward:', error);
+      res.status(500).json({ error: 'Failed to claim reward' });
+    }
+  });
+
+  // Vote on a submission
+  app.post('/api/submissions/:id/vote', requireAuth, requireVerified, async (req: Request, res: Response) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      const submissionId = parseInt(req.params.id);
+      if (isNaN(submissionId)) {
+        return res.status(400).json({ error: 'Invalid submission ID' });
+      }
+      
+      const { voteType } = req.body;
+      if (!voteType || !['upvote', 'downvote'].includes(voteType)) {
+        return res.status(400).json({ error: 'Invalid vote type' });
+      }
+      
+      // Check if submission exists
+      const submission = await storage.getChallengeSubmission(submissionId);
+      if (!submission) {
+        return res.status(404).json({ error: 'Submission not found' });
+      }
+      
+      // Check if user already voted
+      const existingVote = await storage.getUserVote(user.id, submissionId);
+      if (existingVote) {
+        return res.status(400).json({ error: 'You have already voted on this submission' });
+      }
+      
+      // Create vote
+      const voteData = insertCommunityVoteSchema.parse({
+        submissionId,
+        userId: user.id,
+        voteType
+      });
+      
+      const newVote = await storage.createCommunityVote(voteData);
+      
+      // Get updated vote counts
+      const voteCounts = await storage.getSubmissionVoteCounts(submissionId);
+      
+      res.status(201).json({
+        vote: newVote,
+        voteCounts
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      console.error('Error voting on submission:', error);
+      res.status(500).json({ error: 'Failed to vote on submission' });
+    }
+  });
+
+  // Get tags for a challenge
+  app.get('/api/challenges/:id/tags', async (req: Request, res: Response) => {
+    try {
+      const challengeId = parseInt(req.params.id);
+      if (isNaN(challengeId)) {
+        return res.status(400).json({ error: 'Invalid challenge ID' });
+      }
+      
+      const tags = await storage.getChallengeTags(challengeId);
+      res.json(tags);
+    } catch (error) {
+      console.error('Error fetching challenge tags:', error);
+      res.status(500).json({ error: 'Failed to fetch challenge tags' });
+    }
+  });
+
+  // Get all available tags
+  app.get('/api/challenge-tags', async (req: Request, res: Response) => {
+    try {
+      const tags = await storage.getAllChallengeTags();
+      res.json(tags);
+    } catch (error) {
+      console.error('Error fetching challenge tags:', error);
+      res.status(500).json({ error: 'Failed to fetch challenge tags' });
+    }
+  });
+
+  // Create a new tag (admin only)
+  app.post('/api/challenge-tags', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ error: 'Unauthorized to create tags' });
+      }
+      
+      const tagData = insertChallengeTagSchema.parse(req.body);
+      const newTag = await storage.createChallengeTag(tagData);
+      
+      res.status(201).json(newTag);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      console.error('Error creating challenge tag:', error);
+      res.status(500).json({ error: 'Failed to create challenge tag' });
+    }
+  });
+
+  // Add a tag to a challenge (admin only)
+  app.post('/api/challenges/:challengeId/tags/:tagId', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ error: 'Unauthorized to add tags to challenges' });
+      }
+      
+      const challengeId = parseInt(req.params.challengeId);
+      const tagId = parseInt(req.params.tagId);
+      
+      if (isNaN(challengeId) || isNaN(tagId)) {
+        return res.status(400).json({ error: 'Invalid IDs provided' });
+      }
+      
+      // Check if challenge and tag exist
+      const challenge = await storage.getChallenge(challengeId);
+      const tag = await storage.getChallengeTag(tagId);
+      
+      if (!challenge) {
+        return res.status(404).json({ error: 'Challenge not found' });
+      }
+      
+      if (!tag) {
+        return res.status(404).json({ error: 'Tag not found' });
+      }
+      
+      const success = await storage.addTagToChallenge(challengeId, tagId);
+      res.json({ success });
+    } catch (error) {
+      console.error('Error adding tag to challenge:', error);
+      res.status(500).json({ error: 'Failed to add tag to challenge' });
+    }
+  });
+
+  // ===================================================
+  // CRYPTO MENTOR MASCOT API ROUTES
+  // ===================================================
+
+  // Get all daily tips
+  app.get('/api/daily-tips', async (req: Request, res: Response) => {
+    try {
+      const category = typeof req.query.category === 'string' ? req.query.category : undefined;
+      const difficulty = typeof req.query.difficulty === 'string' ? req.query.difficulty : undefined;
+      
+      const tips = await storage.getDailyTips(category, difficulty);
+      res.json(tips);
+    } catch (error) {
+      console.error('Error fetching daily tips:', error);
+      res.status(500).json({ error: 'Failed to fetch daily tips' });
+    }
+  });
+
+  // Get a specific daily tip
+  app.get('/api/daily-tips/:id', async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'Invalid tip ID' });
+      }
+      
+      const tip = await storage.getDailyTip(id);
+      if (!tip) {
+        return res.status(404).json({ error: 'Tip not found' });
+      }
+      
+      res.json(tip);
+    } catch (error) {
+      console.error(`Error fetching daily tip:`, error);
+      res.status(500).json({ error: 'Failed to fetch daily tip' });
+    }
+  });
+
+  // Create a new daily tip (admin only)
+  app.post('/api/daily-tips', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ error: 'Unauthorized to create tips' });
+      }
+      
+      const tipData = insertDailyTipSchema.parse(req.body);
+      const newTip = await storage.createDailyTip(tipData);
+      
+      res.status(201).json(newTip);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      console.error('Error creating daily tip:', error);
+      res.status(500).json({ error: 'Failed to create daily tip' });
+    }
+  });
+
+  // Update a daily tip (admin only)
+  app.patch('/api/daily-tips/:id', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ error: 'Unauthorized to update tips' });
+      }
+      
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'Invalid tip ID' });
+      }
+      
+      const tip = await storage.getDailyTip(id);
+      if (!tip) {
+        return res.status(404).json({ error: 'Tip not found' });
+      }
+      
+      const updates = req.body;
+      const updatedTip = await storage.updateDailyTip(id, updates);
+      
+      res.json(updatedTip);
+    } catch (error) {
+      console.error('Error updating daily tip:', error);
+      res.status(500).json({ error: 'Failed to update daily tip' });
+    }
+  });
+
+  // Get a random daily tip for the user
+  app.get('/api/daily-tips/random', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      const category = typeof req.query.category === 'string' ? req.query.category : undefined;
+      const difficulty = typeof req.query.difficulty === 'string' ? req.query.difficulty : undefined;
+      
+      // Get user's mascot settings to check if they've disabled the mascot
+      const mascotSettings = await storage.getMascotSettings(user.id);
+      
+      // If the user has mascot disabled, return an appropriate message
+      if (mascotSettings && !mascotSettings.isEnabled) {
+        return res.status(200).json({ disabled: true, message: 'Mascot is disabled for this user' });
+      }
+      
+      const randomTip = await storage.getRandomDailyTip(category, difficulty);
+      if (!randomTip) {
+        return res.status(404).json({ error: 'No tips available' });
+      }
+      
+      // Mark the tip as displayed
+      await storage.markTipAsDisplayed(randomTip.id);
+      
+      // If user has mascot settings, update the last interaction timestamp
+      if (mascotSettings) {
+        await storage.updateLastInteraction(user.id);
+      }
+      
+      res.json(randomTip);
+    } catch (error) {
+      console.error('Error fetching random daily tip:', error);
+      res.status(500).json({ error: 'Failed to fetch random daily tip' });
+    }
+  });
+
+  // Get user's mascot settings
+  app.get('/api/mascot-settings', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      // Get the user's mascot settings, or create default settings if none exist
+      let settings = await storage.getMascotSettings(user.id);
+      
+      if (!settings) {
+        // Create default settings for this user
+        settings = await storage.createMascotSettings({
+          userId: user.id,
+          mascotType: 'crypto_chonk',
+          isEnabled: true,
+          animation: 'default',
+          speechBubbleStyle: 'default',
+          tipFrequency: 'daily'
+        });
+      }
+      
+      res.json(settings);
+    } catch (error) {
+      console.error('Error fetching mascot settings:', error);
+      res.status(500).json({ error: 'Failed to fetch mascot settings' });
+    }
+  });
+
+  // Update user's mascot settings
+  app.patch('/api/mascot-settings', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      // First check if the user has existing settings
+      let settings = await storage.getMascotSettings(user.id);
+      
+      if (!settings) {
+        // Create default settings with the updated values
+        const defaultSettings = {
+          userId: user.id,
+          mascotType: req.body.mascotType || 'crypto_chonk',
+          isEnabled: typeof req.body.isEnabled === 'boolean' ? req.body.isEnabled : true,
+          animation: req.body.animation || 'default',
+          speechBubbleStyle: req.body.speechBubbleStyle || 'default',
+          tipFrequency: req.body.tipFrequency || 'daily'
+        };
+        
+        settings = await storage.createMascotSettings(defaultSettings);
+      } else {
+        // Update existing settings
+        settings = await storage.updateMascotSettings(user.id, req.body);
+      }
+      
+      // Update last interaction timestamp
+      await storage.updateLastInteraction(user.id);
+      
+      res.json(settings);
+    } catch (error) {
+      console.error('Error updating mascot settings:', error);
+      res.status(500).json({ error: 'Failed to update mascot settings' });
     }
   });
   

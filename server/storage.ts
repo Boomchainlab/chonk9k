@@ -18,6 +18,11 @@ import {
   referralRewards, type ReferralReward, type InsertReferralReward,
   premiumTiers, type PremiumTier, type InsertPremiumTier,
   miningRigs, type MiningRig, type InsertMiningRig,
+  communityChallenges, type CommunityChallenge, type InsertCommunityChallenge,
+  challengeSubmissions, type ChallengeSubmission, type InsertChallengeSubmission,
+  communityVotes, type CommunityVote, type InsertCommunityVote,
+  challengeTags, type ChallengeTag, type InsertChallengeTag,
+  challengeToTags, type ChallengeToTag, type InsertChallengeToTag,
   userMiningRigs, type UserMiningRig, type InsertUserMiningRig,
   miningRewards, type MiningReward, type InsertMiningReward,
   tokenLaunches, type TokenLaunch, type InsertTokenLaunch,
@@ -35,10 +40,13 @@ import {
   userLessonProgress, type UserLessonProgress, type InsertUserLessonProgress,
   socialShares, type SocialShare, type InsertSocialShare,
   learningAchievements, type LearningAchievement, type InsertLearningAchievement,
-  userLearningStats, type UserLearningStats, type InsertUserLearningStats
+  userLearningStats, type UserLearningStats, type InsertUserLearningStats,
+  // Mascot and daily tips imports
+  dailyTips, type DailyTip, type InsertDailyTip,
+  mascotSettings, type MascotSettings, type InsertMascotSettings
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
+import { eq, and, gte, lte, desc, asc, sql, notInArray } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -164,6 +172,48 @@ export interface IStorage {
   recordTokenClaim(userId: number, amount: number): Promise<TokenClaim>;
   getLastTokenClaim(userId: number): Promise<TokenClaim | undefined>;
   getUserTokenClaims(userId: number): Promise<TokenClaim[]>;
+  
+  // Community Challenge operations
+  getChallenges(activeOnly?: boolean, type?: string, difficultyLevel?: string): Promise<CommunityChallenge[]>;
+  getChallenge(id: number): Promise<CommunityChallenge | undefined>;
+  createChallenge(challenge: InsertCommunityChallenge): Promise<CommunityChallenge>;
+  updateChallenge(id: number, challenge: Partial<InsertCommunityChallenge>): Promise<CommunityChallenge | undefined>;
+  getActiveChallenge(): Promise<CommunityChallenge | undefined>;
+  
+  // Challenge Submission operations
+  getChallengeSubmissions(challengeId?: number, userId?: number, status?: string): Promise<ChallengeSubmission[]>;
+  getChallengeSubmission(id: number): Promise<ChallengeSubmission | undefined>;
+  createChallengeSubmission(submission: InsertChallengeSubmission): Promise<ChallengeSubmission>;
+  updateChallengeSubmissionStatus(id: number, status: string, reviewedBy: number, reviewNotes?: string): Promise<boolean>;
+  getUserChallengeSubmission(userId: number, challengeId: number): Promise<ChallengeSubmission | undefined>;
+  claimChallengeReward(submissionId: number): Promise<boolean>;
+  
+  // Community Votes operations
+  getSubmissionVotes(submissionId: number): Promise<CommunityVote[]>;
+  getUserVote(userId: number, submissionId: number): Promise<CommunityVote | undefined>;
+  createCommunityVote(vote: InsertCommunityVote): Promise<CommunityVote>;
+  getSubmissionVoteCounts(submissionId: number): Promise<{upvotes: number, downvotes: number}>;
+  
+  // Challenge Tags operations
+  getAllChallengeTags(): Promise<ChallengeTag[]>;
+  getChallengeTag(id: number): Promise<ChallengeTag | undefined>;
+  createChallengeTag(tag: InsertChallengeTag): Promise<ChallengeTag>;
+  getChallengeTags(challengeId: number): Promise<ChallengeTag[]>;
+  addTagToChallenge(challengeId: number, tagId: number): Promise<boolean>;
+  
+  // Mascot daily tips operations
+  getDailyTips(category?: string, difficulty?: string): Promise<DailyTip[]>;
+  getDailyTip(id: number): Promise<DailyTip | undefined>;
+  createDailyTip(tip: InsertDailyTip): Promise<DailyTip>;
+  updateDailyTip(id: number, tip: Partial<InsertDailyTip>): Promise<DailyTip | undefined>;
+  getRandomDailyTip(category?: string, difficulty?: string, excludedIds?: number[]): Promise<DailyTip | undefined>;
+  markTipAsDisplayed(id: number): Promise<boolean>;
+  
+  // Mascot settings operations
+  getMascotSettings(userId: number): Promise<MascotSettings | undefined>;
+  createMascotSettings(settings: InsertMascotSettings): Promise<MascotSettings>;
+  updateMascotSettings(userId: number, settings: Partial<InsertMascotSettings>): Promise<MascotSettings | undefined>;
+  updateLastInteraction(userId: number): Promise<boolean>;
 
   // Mining operations
   getMiningRigs(availableOnly?: boolean): Promise<MiningRig[]>;
@@ -1796,6 +1846,527 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error(`Error fetching token claims for user ${userId}:`, error);
       return [];
+    }
+  }
+  
+  // Community Challenge operations
+  async getChallenges(activeOnly?: boolean, type?: string, difficultyLevel?: string): Promise<CommunityChallenge[]> {
+    try {
+      let query = db.select().from(communityChallenges);
+      
+      if (activeOnly) {
+        query = query.where(eq(communityChallenges.isActive, true));
+      }
+      
+      if (type) {
+        query = query.where(eq(communityChallenges.type, type));
+      }
+      
+      if (difficultyLevel) {
+        query = query.where(eq(communityChallenges.difficultyLevel, difficultyLevel));
+      }
+      
+      return await query.orderBy(desc(communityChallenges.createdAt));
+    } catch (error) {
+      console.error('Error fetching challenges:', error);
+      return [];
+    }
+  }
+  
+  async getChallenge(id: number): Promise<CommunityChallenge | undefined> {
+    try {
+      const [challenge] = await db
+        .select()
+        .from(communityChallenges)
+        .where(eq(communityChallenges.id, id));
+      return challenge;
+    } catch (error) {
+      console.error(`Error fetching challenge with ID ${id}:`, error);
+      return undefined;
+    }
+  }
+  
+  async createChallenge(challenge: InsertCommunityChallenge): Promise<CommunityChallenge> {
+    try {
+      const [newChallenge] = await db
+        .insert(communityChallenges)
+        .values(challenge)
+        .returning();
+      return newChallenge;
+    } catch (error) {
+      console.error('Error creating challenge:', error);
+      throw error;
+    }
+  }
+  
+  async updateChallenge(id: number, challenge: Partial<InsertCommunityChallenge>): Promise<CommunityChallenge | undefined> {
+    try {
+      const [updatedChallenge] = await db
+        .update(communityChallenges)
+        .set(challenge)
+        .where(eq(communityChallenges.id, id))
+        .returning();
+      return updatedChallenge;
+    } catch (error) {
+      console.error(`Error updating challenge with ID ${id}:`, error);
+      return undefined;
+    }
+  }
+  
+  async getActiveChallenge(): Promise<CommunityChallenge | undefined> {
+    try {
+      const now = new Date();
+      const [challenge] = await db
+        .select()
+        .from(communityChallenges)
+        .where(
+          and(
+            eq(communityChallenges.isActive, true),
+            lte(communityChallenges.startDate, now),
+            gte(communityChallenges.endDate, now)
+          )
+        )
+        .orderBy(desc(communityChallenges.createdAt))
+        .limit(1);
+      return challenge;
+    } catch (error) {
+      console.error('Error fetching active challenge:', error);
+      return undefined;
+    }
+  }
+  
+  // Challenge Submission operations
+  async getChallengeSubmissions(challengeId?: number, userId?: number, status?: string): Promise<ChallengeSubmission[]> {
+    try {
+      let query = db.select().from(challengeSubmissions);
+      
+      if (challengeId) {
+        query = query.where(eq(challengeSubmissions.challengeId, challengeId));
+      }
+      
+      if (userId) {
+        query = query.where(eq(challengeSubmissions.userId, userId));
+      }
+      
+      if (status) {
+        query = query.where(eq(challengeSubmissions.status, status));
+      }
+      
+      return await query.orderBy(desc(challengeSubmissions.submittedAt));
+    } catch (error) {
+      console.error('Error fetching challenge submissions:', error);
+      return [];
+    }
+  }
+  
+  async getChallengeSubmission(id: number): Promise<ChallengeSubmission | undefined> {
+    try {
+      const [submission] = await db
+        .select()
+        .from(challengeSubmissions)
+        .where(eq(challengeSubmissions.id, id));
+      return submission;
+    } catch (error) {
+      console.error(`Error fetching challenge submission with ID ${id}:`, error);
+      return undefined;
+    }
+  }
+  
+  async createChallengeSubmission(submission: InsertChallengeSubmission): Promise<ChallengeSubmission> {
+    try {
+      const [newSubmission] = await db
+        .insert(challengeSubmissions)
+        .values(submission)
+        .returning();
+      return newSubmission;
+    } catch (error) {
+      console.error('Error creating challenge submission:', error);
+      throw error;
+    }
+  }
+  
+  async updateChallengeSubmissionStatus(id: number, status: string, reviewedBy: number, reviewNotes?: string): Promise<boolean> {
+    try {
+      const now = new Date();
+      await db
+        .update(challengeSubmissions)
+        .set({ 
+          status, 
+          reviewedBy, 
+          reviewedAt: now,
+          reviewNotes: reviewNotes || null 
+        })
+        .where(eq(challengeSubmissions.id, id));
+      return true;
+    } catch (error) {
+      console.error(`Error updating submission status for ID ${id}:`, error);
+      return false;
+    }
+  }
+  
+  async getUserChallengeSubmission(userId: number, challengeId: number): Promise<ChallengeSubmission | undefined> {
+    try {
+      const [submission] = await db
+        .select()
+        .from(challengeSubmissions)
+        .where(
+          and(
+            eq(challengeSubmissions.userId, userId),
+            eq(challengeSubmissions.challengeId, challengeId)
+          )
+        );
+      return submission;
+    } catch (error) {
+      console.error(`Error fetching user ${userId} submission for challenge ${challengeId}:`, error);
+      return undefined;
+    }
+  }
+  
+  async claimChallengeReward(submissionId: number): Promise<boolean> {
+    try {
+      const now = new Date();
+      await db
+        .update(challengeSubmissions)
+        .set({ 
+          rewardClaimed: true,
+          rewardClaimedAt: now 
+        })
+        .where(eq(challengeSubmissions.id, submissionId));
+      return true;
+    } catch (error) {
+      console.error(`Error claiming reward for submission ${submissionId}:`, error);
+      return false;
+    }
+  }
+  
+  // Community Votes operations
+  async getSubmissionVotes(submissionId: number): Promise<CommunityVote[]> {
+    try {
+      return await db
+        .select()
+        .from(communityVotes)
+        .where(eq(communityVotes.submissionId, submissionId));
+    } catch (error) {
+      console.error(`Error fetching votes for submission ${submissionId}:`, error);
+      return [];
+    }
+  }
+  
+  async getUserVote(userId: number, submissionId: number): Promise<CommunityVote | undefined> {
+    try {
+      const [vote] = await db
+        .select()
+        .from(communityVotes)
+        .where(
+          and(
+            eq(communityVotes.userId, userId),
+            eq(communityVotes.submissionId, submissionId)
+          )
+        );
+      return vote;
+    } catch (error) {
+      console.error(`Error fetching user ${userId} vote for submission ${submissionId}:`, error);
+      return undefined;
+    }
+  }
+  
+  async createCommunityVote(vote: InsertCommunityVote): Promise<CommunityVote> {
+    try {
+      const [newVote] = await db
+        .insert(communityVotes)
+        .values(vote)
+        .returning();
+      return newVote;
+    } catch (error) {
+      console.error('Error creating community vote:', error);
+      throw error;
+    }
+  }
+  
+  async getSubmissionVoteCounts(submissionId: number): Promise<{upvotes: number, downvotes: number}> {
+    try {
+      const votes = await db
+        .select()
+        .from(communityVotes)
+        .where(eq(communityVotes.submissionId, submissionId));
+      
+      const upvotes = votes.filter(vote => vote.voteType === 'upvote').length;
+      const downvotes = votes.filter(vote => vote.voteType === 'downvote').length;
+      
+      return { upvotes, downvotes };
+    } catch (error) {
+      console.error(`Error fetching vote counts for submission ${submissionId}:`, error);
+      return { upvotes: 0, downvotes: 0 };
+    }
+  }
+  
+  // Challenge Tags operations
+  async getAllChallengeTags(): Promise<ChallengeTag[]> {
+    try {
+      return await db.select().from(challengeTags);
+    } catch (error) {
+      console.error('Error fetching challenge tags:', error);
+      return [];
+    }
+  }
+  
+  async getChallengeTag(id: number): Promise<ChallengeTag | undefined> {
+    try {
+      const [tag] = await db
+        .select()
+        .from(challengeTags)
+        .where(eq(challengeTags.id, id));
+      return tag;
+    } catch (error) {
+      console.error(`Error fetching challenge tag with ID ${id}:`, error);
+      return undefined;
+    }
+  }
+  
+  async createChallengeTag(tag: InsertChallengeTag): Promise<ChallengeTag> {
+    try {
+      const [newTag] = await db
+        .insert(challengeTags)
+        .values(tag)
+        .returning();
+      return newTag;
+    } catch (error) {
+      console.error('Error creating challenge tag:', error);
+      throw error;
+    }
+  }
+  
+  async getChallengeTags(challengeId: number): Promise<ChallengeTag[]> {
+    try {
+      const tagRelations = await db
+        .select()
+        .from(challengeToTags)
+        .where(eq(challengeToTags.challengeId, challengeId));
+      
+      if (tagRelations.length === 0) {
+        return [];
+      }
+      
+      const tagIds = tagRelations.map(relation => relation.tagId);
+      const tags = await Promise.all(
+        tagIds.map(async (tagId) => {
+          const [tag] = await db
+            .select()
+            .from(challengeTags)
+            .where(eq(challengeTags.id, tagId));
+          return tag;
+        })
+      );
+      
+      return tags.filter(Boolean) as ChallengeTag[];
+    } catch (error) {
+      console.error(`Error fetching tags for challenge ${challengeId}:`, error);
+      return [];
+    }
+  }
+  
+  async addTagToChallenge(challengeId: number, tagId: number): Promise<boolean> {
+    try {
+      await db
+        .insert(challengeToTags)
+        .values({ challengeId, tagId })
+        .returning();
+      return true;
+    } catch (error) {
+      console.error(`Error adding tag ${tagId} to challenge ${challengeId}:`, error);
+      return false;
+    }
+  }
+  
+  // Mascot daily tips operations
+  async getDailyTips(category?: string, difficulty?: string): Promise<DailyTip[]> {
+    try {
+      let query = db.select().from(dailyTips);
+      
+      if (category) {
+        query = query.where(eq(dailyTips.category, category));
+      }
+      
+      if (difficulty) {
+        query = query.where(eq(dailyTips.difficulty, difficulty));
+      }
+      
+      return await query.orderBy(desc(dailyTips.createdAt));
+    } catch (error) {
+      console.error('Error fetching daily tips:', error);
+      return [];
+    }
+  }
+  
+  async getDailyTip(id: number): Promise<DailyTip | undefined> {
+    try {
+      const [tip] = await db
+        .select()
+        .from(dailyTips)
+        .where(eq(dailyTips.id, id));
+      return tip;
+    } catch (error) {
+      console.error(`Error fetching daily tip with ID ${id}:`, error);
+      return undefined;
+    }
+  }
+  
+  async createDailyTip(tip: InsertDailyTip): Promise<DailyTip> {
+    try {
+      const [newTip] = await db
+        .insert(dailyTips)
+        .values(tip)
+        .returning();
+      return newTip;
+    } catch (error) {
+      console.error('Error creating daily tip:', error);
+      throw error;
+    }
+  }
+  
+  async updateDailyTip(id: number, tip: Partial<InsertDailyTip>): Promise<DailyTip | undefined> {
+    try {
+      const [updatedTip] = await db
+        .update(dailyTips)
+        .set(tip)
+        .where(eq(dailyTips.id, id))
+        .returning();
+      
+      return updatedTip;
+    } catch (error) {
+      console.error(`Error updating daily tip with ID ${id}:`, error);
+      return undefined;
+    }
+  }
+  
+  async getRandomDailyTip(category?: string, difficulty?: string, excludedIds: number[] = []): Promise<DailyTip | undefined> {
+    try {
+      // Build the query with conditions
+      let query = db.select().from(dailyTips);
+      
+      // Add conditions
+      const conditions = [];
+      
+      if (category) {
+        conditions.push(eq(dailyTips.category, category));
+      }
+      
+      if (difficulty) {
+        conditions.push(eq(dailyTips.difficulty, difficulty));
+      }
+      
+      // Exclude already displayed tips if provided
+      if (excludedIds.length > 0) {
+        conditions.push(notInArray(dailyTips.id, excludedIds));
+      }
+      
+      // Apply all conditions if they exist
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions));
+      }
+      
+      // Order by displayCount (ascending) and then get a limited set
+      query = query.orderBy(asc(dailyTips.displayCount)).limit(10);
+      
+      const tips = await query;
+      
+      // If we have results, pick one randomly
+      if (tips.length > 0) {
+        const randomIndex = Math.floor(Math.random() * tips.length);
+        return tips[randomIndex];
+      }
+      
+      // If no tips with the filter, try to get any tip
+      if ((category || difficulty || excludedIds.length > 0) && conditions.length > 0) {
+        // Try again without filters if nothing was found
+        const [anyTip] = await db.select().from(dailyTips).orderBy(asc(dailyTips.displayCount)).limit(1);
+        return anyTip;
+      }
+      
+      return undefined;
+    } catch (error) {
+      console.error('Error getting random daily tip:', error);
+      return undefined;
+    }
+  }
+  
+  async markTipAsDisplayed(id: number): Promise<boolean> {
+    try {
+      const now = new Date();
+      
+      await db
+        .update(dailyTips)
+        .set({
+          hasBeenDisplayed: true,
+          lastDisplayedAt: now,
+          displayCount: sql`${dailyTips.displayCount} + 1`,
+        })
+        .where(eq(dailyTips.id, id));
+      
+      return true;
+    } catch (error) {
+      console.error(`Error marking tip ${id} as displayed:`, error);
+      return false;
+    }
+  }
+  
+  // Mascot settings operations
+  async getMascotSettings(userId: number): Promise<MascotSettings | undefined> {
+    try {
+      const [settings] = await db
+        .select()
+        .from(mascotSettings)
+        .where(eq(mascotSettings.userId, userId));
+      
+      return settings;
+    } catch (error) {
+      console.error(`Error fetching mascot settings for user ${userId}:`, error);
+      return undefined;
+    }
+  }
+  
+  async createMascotSettings(settings: InsertMascotSettings): Promise<MascotSettings> {
+    try {
+      const [newSettings] = await db
+        .insert(mascotSettings)
+        .values(settings)
+        .returning();
+      
+      return newSettings;
+    } catch (error) {
+      console.error('Error creating mascot settings:', error);
+      throw error;
+    }
+  }
+  
+  async updateMascotSettings(userId: number, settings: Partial<InsertMascotSettings>): Promise<MascotSettings | undefined> {
+    try {
+      const [updated] = await db
+        .update(mascotSettings)
+        .set(settings)
+        .where(eq(mascotSettings.userId, userId))
+        .returning();
+      
+      return updated;
+    } catch (error) {
+      console.error(`Error updating mascot settings for user ${userId}:`, error);
+      return undefined;
+    }
+  }
+  
+  async updateLastInteraction(userId: number): Promise<boolean> {
+    try {
+      const now = new Date();
+      
+      await db
+        .update(mascotSettings)
+        .set({ lastInteractionAt: now })
+        .where(eq(mascotSettings.userId, userId));
+      
+      return true;
+    } catch (error) {
+      console.error(`Error updating last interaction for user ${userId}:`, error);
+      return false;
     }
   }
 }

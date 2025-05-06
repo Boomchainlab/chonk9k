@@ -928,6 +928,161 @@ export const tokenClaimRelations = relations(tokenClaims, ({ one }) => ({
 
 export const insertTokenClaimSchema = createInsertSchema(tokenClaims).omit({ id: true, claimedAt: true });
 export type InsertTokenClaim = z.infer<typeof insertTokenClaimSchema>;
+
+// Community Challenge Board with Reward System
+export const communityChallenges = pgTable("community_challenges", {
+  id: serial("id").primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description").notNull(),
+  shortDescription: varchar("short_description", { length: 255 }).notNull(),
+  type: varchar("type", { length: 50 }).notNull(), // 'social', 'content', 'development', 'trading', etc.
+  difficultyLevel: varchar("difficulty_level", { length: 50 }).notNull(), // 'easy', 'medium', 'hard', 'expert'
+  rewardAmount: doublePrecision("reward_amount").notNull(),
+  requiredProof: varchar("required_proof", { length: 50 }).notNull(), // 'link', 'image', 'text', 'file', 'none'
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  maxParticipants: integer("max_participants"),
+  isActive: boolean("is_active").default(true),
+  createdBy: integer("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const challengeSubmissions = pgTable("challenge_submissions", {
+  id: serial("id").primaryKey(),
+  challengeId: integer("challenge_id").notNull().references(() => communityChallenges.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  proofLink: text("proof_link"),
+  proofText: text("proof_text"),
+  proofImageUrl: text("proof_image_url"),
+  status: varchar("status", { length: 50 }).notNull().default("pending"), // 'pending', 'approved', 'rejected'
+  reviewedBy: integer("reviewed_by").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewNotes: text("review_notes"),
+  rewardAmount: doublePrecision("reward_amount"),
+  rewardClaimed: boolean("reward_claimed").default(false),
+  rewardClaimedAt: timestamp("reward_claimed_at"),
+  submittedAt: timestamp("submitted_at").defaultNow(),
+});
+
+export const communityVotes = pgTable("community_votes", {
+  id: serial("id").primaryKey(),
+  submissionId: integer("submission_id").notNull().references(() => challengeSubmissions.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  voteType: varchar("vote_type", { length: 10 }).notNull(), // 'upvote' or 'downvote'
+  votedAt: timestamp("voted_at").defaultNow(),
+});
+
+export const challengeTags = pgTable("challenge_tags", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 50 }).notNull().unique(),
+  color: varchar("color", { length: 7 }).notNull(), // Hex color code
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const challengeToTags = pgTable("challenge_to_tags", {
+  id: serial("id").primaryKey(),
+  challengeId: integer("challenge_id").notNull().references(() => communityChallenges.id),
+  tagId: integer("tag_id").notNull().references(() => challengeTags.id),
+  addedAt: timestamp("added_at").defaultNow(),
+});
+
+// Relations
+export const communityChallengeRelations = relations(communityChallenges, ({ one, many }) => ({
+  creator: one(users, {
+    fields: [communityChallenges.createdBy],
+    references: [users.id],
+  }),
+  submissions: many(challengeSubmissions),
+  challengeTags: many(challengeToTags),
+}));
+
+export const challengeSubmissionRelations = relations(challengeSubmissions, ({ one, many }) => ({
+  challenge: one(communityChallenges, {
+    fields: [challengeSubmissions.challengeId],
+    references: [communityChallenges.id],
+  }),
+  user: one(users, {
+    fields: [challengeSubmissions.userId],
+    references: [users.id],
+  }),
+  reviewer: one(users, {
+    fields: [challengeSubmissions.reviewedBy],
+    references: [users.id],
+  }),
+  votes: many(communityVotes),
+}));
+
+export const communityVoteRelations = relations(communityVotes, ({ one }) => ({
+  submission: one(challengeSubmissions, {
+    fields: [communityVotes.submissionId],
+    references: [challengeSubmissions.id],
+  }),
+  user: one(users, {
+    fields: [communityVotes.userId],
+    references: [users.id],
+  }),
+}));
+
+export const challengeTagRelations = relations(challengeTags, ({ many }) => ({
+  challenges: many(challengeToTags),
+}));
+
+export const challengeToTagRelations = relations(challengeToTags, ({ one }) => ({
+  challenge: one(communityChallenges, {
+    fields: [challengeToTags.challengeId],
+    references: [communityChallenges.id],
+  }),
+  tag: one(challengeTags, {
+    fields: [challengeToTags.tagId],
+    references: [challengeTags.id],
+  }),
+}));
+
+// Schemas for insertion
+export const insertCommunityChallengeSchema = createInsertSchema(communityChallenges).omit({ 
+  id: true, 
+  createdAt: true,
+  updatedAt: true 
+});
+export type InsertCommunityChallenge = z.infer<typeof insertCommunityChallengeSchema>;
+
+export const insertChallengeSubmissionSchema = createInsertSchema(challengeSubmissions).omit({ 
+  id: true, 
+  status: true,
+  reviewedBy: true,
+  reviewedAt: true,
+  reviewNotes: true,
+  rewardClaimed: true,
+  rewardClaimedAt: true,
+  submittedAt: true 
+});
+export type InsertChallengeSubmission = z.infer<typeof insertChallengeSubmissionSchema>;
+
+export const insertCommunityVoteSchema = createInsertSchema(communityVotes).omit({ 
+  id: true, 
+  votedAt: true 
+});
+export type InsertCommunityVote = z.infer<typeof insertCommunityVoteSchema>;
+
+export const insertChallengeTagSchema = createInsertSchema(challengeTags).omit({ 
+  id: true, 
+  createdAt: true 
+});
+export type InsertChallengeTag = z.infer<typeof insertChallengeTagSchema>;
+
+export const insertChallengeToTagSchema = createInsertSchema(challengeToTags).omit({ 
+  id: true, 
+  addedAt: true 
+});
+export type InsertChallengeToTag = z.infer<typeof insertChallengeToTagSchema>;
+
+// Add Community Challenge types
+export type CommunityChallenge = typeof communityChallenges.$inferSelect;
+export type ChallengeSubmission = typeof challengeSubmissions.$inferSelect;
+export type CommunityVote = typeof communityVotes.$inferSelect;
+export type ChallengeTag = typeof challengeTags.$inferSelect;
+export type ChallengeToTag = typeof challengeToTags.$inferSelect;
 export type TokenClaim = typeof tokenClaims.$inferSelect;
 
 // Unstoppable Domain Schemas
@@ -994,3 +1149,50 @@ export type LearningAchievement = typeof learningAchievements.$inferSelect;
 
 export type InsertUserLearningStats = z.infer<typeof insertUserLearningStatsSchema>;
 export type UserLearningStats = typeof userLearningStats.$inferSelect;
+
+// Mascot daily tips
+export const dailyTips = pgTable("daily_tips", {
+  id: serial("id").primaryKey(),
+  tip: text("tip").notNull(),
+  category: varchar("category", { length: 50 }).notNull(),
+  difficulty: varchar("difficulty", { length: 20 }).default("beginner"),
+  tags: text("tags").array().default([]),
+  hasBeenDisplayed: boolean("has_been_displayed").default(false),
+  lastDisplayedAt: timestamp("last_displayed_at", { mode: 'date' }),
+  displayCount: integer("display_count").default(0),
+  createdAt: timestamp("created_at", { mode: 'date' }).defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: 'date' }).defaultNow(),
+});
+
+// Mascot settings
+export const mascotSettings = pgTable("mascot_settings", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  mascotType: varchar("mascot_type", { length: 50 }).default("crypto_chonk"),
+  isEnabled: boolean("is_enabled").default(true),
+  animation: varchar("animation", { length: 50 }).default("default"),
+  speechBubbleStyle: varchar("speech_bubble_style", { length: 50 }).default("default"),
+  tipFrequency: varchar("tip_frequency", { length: 20 }).default("daily"),
+  lastInteractionAt: timestamp("last_interaction_at", { mode: 'date' }),
+  createdAt: timestamp("created_at", { mode: 'date' }).defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: 'date' }).defaultNow(),
+});
+
+// Relations
+export const mascotSettingsRelations = relations(mascotSettings, ({ one }) => ({
+  user: one(users, {
+    fields: [mascotSettings.userId],
+    references: [users.id],
+  }),
+}));
+
+// Insert schemas
+export const insertDailyTipSchema = createInsertSchema(dailyTips).omit({ id: true, createdAt: true, updatedAt: true, lastDisplayedAt: true });
+export const insertMascotSettingsSchema = createInsertSchema(mascotSettings).omit({ id: true, createdAt: true, updatedAt: true, lastInteractionAt: true });
+
+// Types
+export type InsertDailyTip = z.infer<typeof insertDailyTipSchema>;
+export type DailyTip = typeof dailyTips.$inferSelect;
+
+export type InsertMascotSettings = z.infer<typeof insertMascotSettingsSchema>;
+export type MascotSettings = typeof mascotSettings.$inferSelect;
