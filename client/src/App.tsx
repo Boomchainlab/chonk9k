@@ -4,6 +4,10 @@ import Fundraising from "@/pages/Fundraising";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
+import { AuthProvider } from "@/hooks/use-auth";
+import { ToastProvider } from "@/hooks/use-toast";
+import { ProtectedRoute } from "@/lib/protected-route";
+import AuthPage from "@/pages/auth-page";
 import * as Sentry from '@sentry/react';
 import { withErrorBoundary, initSentry } from "./lib/sentry";
 import Footer from "@/components/Footer";
@@ -45,6 +49,7 @@ import SolanaMonitor from "@/pages/SolanaMonitor";
 import TokenTransactions from "@/pages/TokenTransactions";
 import TokenPriceTracker from "@/pages/TokenPriceTracker";
 import LiquidityPools from "@/pages/LiquidityPools";
+import BlockchainVisualizer from "@/pages/BlockchainVisualizer";
 import TokenHolders from "@/pages/TokenHolders";
 import BaseTransactions from "@/pages/BaseTransactions";
 import TokenMoodVisualizerPage from "@/pages/TokenMoodVisualizer";
@@ -234,6 +239,10 @@ function Header() {
                   </Link>
                   
                   <div className="font-semibold px-3 py-1 mt-2 text-xs uppercase text-pink-300 mb-1">Blockchain</div>
+                  <Link href="/blockchain-visualizer" className="block px-3 py-1.5 hover:bg-white/10 rounded text-sm flex items-center bg-emerald-900/20 border border-emerald-500/30 my-1">
+                    <span className="flex-1">Blockchain Visualizer</span>
+                    <span className="px-1.5 py-0.5 text-[9px] bg-emerald-500 rounded text-white">EDU</span>
+                  </Link>
                   <Link href="/token-contracts" className="block px-3 py-1.5 hover:bg-white/10 rounded text-sm">
                     <span className="inline-flex items-center gap-1">
                       Contracts <span className="px-1 py-0.5 text-[9px] bg-pink-700/50 rounded">Multi-Chain</span>
@@ -349,6 +358,10 @@ function Header() {
                     <span className="flex-1">Unstoppable Domains</span>
                     <span className="px-1.5 py-0.5 text-[9px] bg-indigo-500 rounded text-white">NFT</span>
                   </Link>
+                  <Link href="/blockchain-visualizer" className="block px-3 py-1.5 hover:bg-white/10 rounded text-sm bg-emerald-900/20 border border-emerald-500/30 flex items-center">
+                    <span className="flex-1">Blockchain Visualizer</span>
+                    <span className="px-1.5 py-0.5 text-[9px] bg-emerald-500 rounded text-white">EDU</span>
+                  </Link>
                   <Link href="/solana-monitor" className="block px-3 py-1.5 hover:bg-white/10 rounded text-sm">
                     Monitor
                   </Link>
@@ -371,13 +384,15 @@ function Header() {
 function Router() {
   const [location] = useLocation();
   const isDashboard = location === '/';
+  const isAuthPage = location === '/auth';
   
   return (
     <>
-      <Header />
+      {!isAuthPage && <Header />}
       <main className="min-h-screen">
         <Switch>
-          <Route path="/" component={Dashboard} />
+          <ProtectedRoute path="/" component={Dashboard} />
+          <Route path="/auth" component={AuthPage} />
           <Route path="/home" component={Home} />
           <Route path="/crypto" component={CryptoPayments} />
           <Route path="/token" component={TokenPage} />
@@ -394,7 +409,7 @@ function Router() {
           <Route path="/trivia" component={TriviaPage} />
           <Route path="/trivia/:id" component={QuizPage} />
           <Route path="/spin" component={SpinWheel} />
-          <Route path="/profile/:userId" component={Profile} />
+          <ProtectedRoute path="/profile/:userId" component={Profile} />
           <Route path="/wallet-features" component={WalletFeatures} />
           <Route path="/admin/marketplace" component={MarketplaceAdmin} />
           <Route path="/admin/badges" component={BadgeAdmin} />
@@ -410,6 +425,7 @@ function Router() {
           <Route path="/base-transactions" component={BaseTransactions} />
           <Route path="/blockchain-streams" component={BlockchainStreams} />
           <Route path="/solana-status" component={SolanaStatusPage} />
+          <Route path="/blockchain-visualizer" component={BlockchainVisualizer} />
           <Route path="/token-contracts" component={TokenContracts} />
           <Route path="/solana-name-service" component={SolanaNameService} />
           <Route path="/token-governance" component={TokenGovernance} />
@@ -481,30 +497,34 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <WalletProvider>
-        <TriviaPopupManager popupInterval={300000} minActiveTime={30} />
+      <AuthProvider>
+        <ToastProvider>
+          <WalletProvider>
+          <TriviaPopupManager popupInterval={300000} minActiveTime={30} />
 
-        {/* Wrap Router with error boundary */}
-        <Sentry.ErrorBoundary
-          fallback={ErrorFallback}
-          onError={(error, componentStack, eventId) => {
-            console.error("Sentry caught an error:", error, componentStack);
-            console.log("Event ID:", eventId);
-          }}
-        >
-          <Router />
-        </Sentry.ErrorBoundary>
-        <div className="fixed bottom-4 right-4 z-50 md:hidden">
-          <div className="flex items-center space-x-2">
-            <ImprovedGamifiedWalletConnect variant="outline" size="sm" />
-            <AnimatedChonkCharacter />
+          {/* Wrap Router with error boundary */}
+          <Sentry.ErrorBoundary
+            fallback={ErrorFallback}
+            onError={(error, componentStack, eventId) => {
+              console.error("Sentry caught an error:", error, componentStack);
+              console.log("Event ID:", eventId);
+            }}
+          >
+            <Router />
+          </Sentry.ErrorBoundary>
+          <div className="fixed bottom-4 right-4 z-50 md:hidden">
+            <div className="flex items-center space-x-2">
+              <ImprovedGamifiedWalletConnect variant="outline" size="sm" />
+              <AnimatedChonkCharacter />
+            </div>
           </div>
-        </div>
-        <div className="fixed top-4 right-4 z-50 hidden md:flex">
-          <ImprovedGamifiedWalletConnect variant="outline" />
-        </div>
-        <Toaster />
-      </WalletProvider>
+          <div className="fixed top-4 right-4 z-50 hidden md:flex">
+            <ImprovedGamifiedWalletConnect variant="outline" />
+          </div>
+          <Toaster />
+        </WalletProvider>
+        </ToastProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

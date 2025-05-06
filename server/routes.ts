@@ -1,4 +1,4 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import crypto from "crypto";
 import path from "path";
@@ -23,10 +23,64 @@ import {
   insertTokenLaunchSchema,
   insertUserInvestmentSchema,
   insertUnstoppableDomainNFTSchema,
-  insertUnstoppableDomainBenefitSchema
+  insertUnstoppableDomainBenefitSchema,
+  insertUserSchema,
+  // Community Challenge imports
+  insertCommunityChallengeSchema,
+  insertChallengeSubmissionSchema,
+  // Mascot Daily Tips imports
+  insertDailyTipSchema,
+  insertMascotSettingsSchema,
+  insertCommunityVoteSchema,
+  insertChallengeTagSchema,
+  insertChallengeToTagSchema,
+  // Learning and social sharing imports
+  insertLearningModuleSchema,
+  insertLearningLessonSchema,
+  insertUserModuleProgressSchema,
+  insertUserLessonProgressSchema,
+  insertSocialShareSchema,
+  insertLearningAchievementSchema,
+  insertUserLearningStatsSchema
 } from "@shared/schema";
 import { coinMarketCapService } from "./coinmarketcap";
 import { z } from "zod";
+import { 
+  registerUser, 
+  loginUser, 
+  getCurrentUser, 
+  requireAuth, 
+  requireVerified,
+  generatePasswordResetToken,
+  resetPassword,
+  verifyMfaCode,
+  verifyMfaRecoveryCode,
+  setupMfa,
+  enableMfa,
+  disableMfa,
+  trustDevice,
+  untrustDevice,
+  getUserDevices,
+  removeDevice,
+  getUserSessions,
+  terminateSession,
+  terminateOtherSessions
+} from "./auth";
+import { securityService } from "./security-service";
+import { mfaService } from "./mfa-service";
+import { sendVerificationEmail } from "./email-service";
+import { eq } from "drizzle-orm";
+import { users } from "@shared/schema";
+import { setupSession, extendSession } from "./session";
+
+// Extend the Request interface if needed
+declare global {
+  namespace Express {
+    interface Request {
+      clientIp?: string;
+    }
+  }
+}
 
 // Initialize database with some premium tiers if they don't exist yet
 async function initializeDatabase() {
@@ -127,8 +181,516 @@ async function initializeDatabase() {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Set up session middleware
+  setupSession(app);
+  
+  // Add IP tracking middleware for rate limiting
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    req.clientIp = req.headers['x-forwarded-for'] as string || 
+                    req.socket.remoteAddress || 
+                    'unknown';
+    next();
+  });
+  
+  // Tracking user activity middleware
+  app.use(async (req: Request, res: Response, next: NextFunction) => {
+    // Skip for static assets and certain paths
+    if (req.path.startsWith('/static') || req.path === '/api/health' || req.path === '/favicon.ico') {
+      return next();
+    }
+    
+    // Update last activity timestamp if user is logged in
+    if (req.session && req.session.userId) {
+      try {
+        await storage.updateUserLastActivity(req.session.userId);
+      } catch (error) {
+        console.error('Error updating user activity:', error);
+        // Don't block the request if activity tracking fails
+      }
+    }
+    next();
+  });
+  
   // Initialize database with default data
   await initializeDatabase();
+  
+  // Authentication routes
+  app.post('/api/register', async (req: Request, res: Response) => {
+    try {
+      const userData = insertUserSchema.parse(req.body);
+      const user = await registerUser(userData);
+      
+      // Set user ID in session
+      req.session.userId = user.id;
+      
+      // Return user without sensitive data
+      const { passwordHash, ...userWithoutPassword } = user;
+      res.status(201).json(userWithoutPassword);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      console.error('Error registering user:', error);
+      res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to register user' });
+    }
+  });
+  
+  app.post('/api/login', async (req: Request, res: Response) => {
+    try {
+      const { username, password, rememberMe = false } = req.body;
+      
+      if (!username || !password) {
+        return res.status(400).json({ error: 'Username and password are required' });
+      }
+      
+      const clientIp = req.clientIp || 'unknown';
+      const user = await loginUser(username, password, rememberMe, clientIp);
+      
+      // Set user ID in session
+      req.session.userId = user.id;
+      req.session.isVerified = user.isVerified;
+      
+      // Set extended session if remember me is checked
+      if (rememberMe) {
+        extendSession(req, true);
+      }
+      
+      // Return user without sensitive data
+      const { passwordHash, ...userWithoutPassword } = user;
+      res.status(200).json(userWithoutPassword);
+    } catch (error) {
+      console.error('Error logging in:', error);
+      res.status(401).json({ error: error instanceof Error ? error.message : 'Invalid username or password' });
+    }
+  });
+  
+  app.post('/api/logout', (req: Request, res: Response) => {
+    // Destroy session
+    if (req.session && typeof req.session.destroy === 'function') {
+      req.session.destroy((err) => {
+        if (err) {
+          console.error('Error destroying session:', err);
+          return res.status(500).json({ error: 'Failed to log out' });
+        }
+        res.clearCookie('connect.sid'); // Clear session cookie
+        res.status(200).json({ message: 'Logged out successfully' });
+      });
+    } else {
+      // Fallback if destroy method is not available
+      req.session = {} as any;
+      res.status(200).json({ message: 'Logged out successfully' });
+    }
+  });
+  
+  app.get('/api/user', async (req: Request, res: Response) => {
+    try {
+      const user = await getCurrentUser(req);
+      
+      if (!user) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      // Return user without sensitive data
+      const { passwordHash, ...userWithoutPassword } = user;
+      res.status(200).json(userWithoutPassword);
+    } catch (error) {
+      console.error('Error fetching current user:', error);
+      res.status(500).json({ error: 'Failed to fetch current user' });
+    }
+  });
+  
+  // Email verification route
+  app.get('/api/verify-email/:token', async (req: Request, res: Response) => {
+    try {
+      const { token } = req.params;
+      if (!token) {
+        return res.status(400).json({ error: 'Verification token is required' });
+      }
+      
+      // Find user with this verification token
+      const user = await storage.getUserByVerificationToken(token);
+      if (!user) {
+        return res.status(400).json({ error: 'Invalid verification token' });
+      }
+      
+      // Mark user as verified
+      await storage.verifyUser(user.id);
+      
+      // Update session if user is logged in
+      if (req.session && req.session.userId === user.id) {
+        req.session.isVerified = true;
+      }
+      
+      res.status(200).json({ message: 'Email verified successfully' });
+    } catch (error) {
+      console.error('Error verifying email:', error);
+      res.status(500).json({ error: 'Failed to verify email' });
+    }
+  });
+  
+  // Forgot password route
+  app.post('/api/forgot-password', async (req: Request, res: Response) => {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ error: 'Email is required' });
+      }
+      
+      // Generate reset token
+      const token = await generatePasswordResetToken(email);
+      
+      // Prevent user enumeration attacks by always returning success
+      if (!token) {
+        return res.status(200).json({ message: 'If an account with that email exists, we have sent a password reset link' });
+      }
+      
+      // In development, we'll also return the token to make testing easier
+      res.status(200).json({ 
+        message: 'If an account with that email exists, we have sent a password reset link',
+        token // Keep token in development, remove in production
+      });
+    } catch (error) {
+      console.error('Error generating password reset token:', error);
+      // Still return 200 to prevent user enumeration
+      res.status(200).json({ message: 'If an account with that email exists, we have sent a password reset link' });
+    }
+  });
+  
+  // Reset password route
+  app.post('/api/reset-password', async (req: Request, res: Response) => {
+    try {
+      const { token, password } = req.body;
+      if (!token || !password) {
+        return res.status(400).json({ error: 'Token and password are required' });
+      }
+      
+      // Validate password
+      if (password.length < 8) {
+        return res.status(400).json({ error: 'Password must be at least 8 characters' });
+      }
+      
+      // Reset password
+      const success = await resetPassword(token, password);
+      if (!success) {
+        return res.status(400).json({ error: 'Invalid or expired token' });
+      }
+      
+      res.status(200).json({ message: 'Password reset successfully' });
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      res.status(500).json({ error: 'Failed to reset password' });
+    }
+  });
+  
+  // Request a new verification email
+  app.post('/api/resend-verification', async (req: Request, res: Response) => {
+    try {
+      // User must be logged in
+      const user = await getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      // Only for unverified users
+      if (user.isVerified) {
+        return res.status(400).json({ error: 'Email already verified' });
+      }
+      
+      if (!user.email) {
+        return res.status(400).json({ error: 'No email address associated with account' });
+      }
+      
+      // Generate new verification token
+      const verificationToken = crypto.randomBytes(32).toString('hex');
+      
+      // Update user with new token
+      await storage.updateVerificationToken(user.id, verificationToken);
+      
+      // Get updated user
+      const updatedUser = await storage.getUser(user.id);
+      if (!updatedUser) {
+        return res.status(500).json({ error: 'Failed to update user' });
+      }
+      
+      // Send verification email
+      await sendVerificationEmail(updatedUser);
+      
+      res.status(200).json({ message: 'Verification email sent successfully' });
+    } catch (error) {
+      console.error('Error sending verification email:', error);
+      res.status(500).json({ error: 'Failed to send verification email' });
+    }
+  });
+  
+  // =====================================
+  // MFA Routes
+  // =====================================
+  
+  // Setup MFA
+  app.post('/api/mfa/setup', requireAuth, async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      const result = await setupMfa(req.session.userId, req);
+      res.status(200).json(result);
+    } catch (error) {
+      console.error('Error setting up MFA:', error);
+      res.status(500).json({ error: 'Failed to set up MFA' });
+    }
+  });
+  
+  // Verify and enable MFA
+  app.post('/api/mfa/enable', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const { code } = req.body;
+      if (!code) {
+        return res.status(400).json({ error: 'Verification code is required' });
+      }
+      
+      if (!req.session.userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      const success = await enableMfa(req.session.userId, code, req);
+      if (!success) {
+        return res.status(400).json({ error: 'Invalid verification code' });
+      }
+      
+      res.status(200).json({ success: true, message: 'MFA enabled successfully' });
+    } catch (error) {
+      console.error('Error enabling MFA:', error);
+      res.status(500).json({ error: 'Failed to enable MFA' });
+    }
+  });
+  
+  // Disable MFA
+  app.post('/api/mfa/disable', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const { password } = req.body;
+      if (!password) {
+        return res.status(400).json({ error: 'Password is required' });
+      }
+      
+      if (!req.session.userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      const success = await disableMfa(req.session.userId, req, password);
+      if (!success) {
+        return res.status(400).json({ error: 'Invalid password' });
+      }
+      
+      res.status(200).json({ success: true, message: 'MFA disabled successfully' });
+    } catch (error) {
+      console.error('Error disabling MFA:', error);
+      res.status(500).json({ error: 'Failed to disable MFA' });
+    }
+  });
+  
+  // Verify MFA code during login
+  app.post('/api/mfa/verify', async (req: Request, res: Response) => {
+    try {
+      const { code, type, userId } = req.body;
+      if (!code || !type || !userId) {
+        return res.status(400).json({ error: 'Code, type, and userId are required' });
+      }
+      
+      let success = false;
+      if (type === 'totp') {
+        success = await verifyMfaCode(userId, code, req);
+      } else if (type === 'recovery') {
+        success = await verifyMfaRecoveryCode(userId, code, req);
+      } else {
+        return res.status(400).json({ error: 'Invalid verification type' });
+      }
+      
+      if (!success) {
+        return res.status(400).json({ error: 'Invalid verification code' });
+      }
+      
+      // Get user and create session
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      // Set session data
+      req.session.userId = user.id;
+      req.session.isVerified = user.isVerified;
+      
+      // Return user without sensitive data
+      const { passwordHash, ...userWithoutPassword } = user;
+      res.status(200).json({
+        success: true,
+        message: 'MFA verification successful',
+        user: userWithoutPassword
+      });
+    } catch (error) {
+      console.error('Error verifying MFA:', error);
+      res.status(500).json({ error: 'Failed to verify MFA' });
+    }
+  });
+  
+  // =====================================
+  // Device Management Routes
+  // =====================================
+  
+  // Get user devices
+  app.get('/api/devices', requireAuth, async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      const devices = await getUserDevices(req.session.userId);
+      res.status(200).json(devices);
+    } catch (error) {
+      console.error('Error fetching devices:', error);
+      res.status(500).json({ error: 'Failed to fetch devices' });
+    }
+  });
+  
+  // Trust a device (skip MFA for this device)
+  app.post('/api/devices/:deviceId/trust', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const { deviceId } = req.params;
+      if (!deviceId) {
+        return res.status(400).json({ error: 'Device ID is required' });
+      }
+      
+      if (!req.session.userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      const success = await trustDevice(req.session.userId, deviceId, req);
+      if (!success) {
+        return res.status(400).json({ error: 'Failed to trust device' });
+      }
+      
+      res.status(200).json({ success: true, message: 'Device trusted successfully' });
+    } catch (error) {
+      console.error('Error trusting device:', error);
+      res.status(500).json({ error: 'Failed to trust device' });
+    }
+  });
+  
+  // Untrust a device (require MFA again for this device)
+  app.post('/api/devices/:deviceId/untrust', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const { deviceId } = req.params;
+      if (!deviceId) {
+        return res.status(400).json({ error: 'Device ID is required' });
+      }
+      
+      if (!req.session.userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      const success = await untrustDevice(req.session.userId, deviceId, req);
+      if (!success) {
+        return res.status(400).json({ error: 'Failed to untrust device' });
+      }
+      
+      res.status(200).json({ success: true, message: 'Device untrusted successfully' });
+    } catch (error) {
+      console.error('Error untrusting device:', error);
+      res.status(500).json({ error: 'Failed to untrust device' });
+    }
+  });
+  
+  // Remove a device
+  app.delete('/api/devices/:deviceId', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const { deviceId } = req.params;
+      if (!deviceId) {
+        return res.status(400).json({ error: 'Device ID is required' });
+      }
+      
+      if (!req.session.userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      const success = await removeDevice(req.session.userId, deviceId, req);
+      if (!success) {
+        return res.status(400).json({ error: 'Failed to remove device' });
+      }
+      
+      res.status(200).json({ success: true, message: 'Device removed successfully' });
+    } catch (error) {
+      console.error('Error removing device:', error);
+      res.status(500).json({ error: 'Failed to remove device' });
+    }
+  });
+  
+  // =====================================
+  // Session Management Routes
+  // =====================================
+  
+  // Get active sessions
+  app.get('/api/sessions', requireAuth, async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      const sessions = await getUserSessions(req.session.userId);
+      res.status(200).json(sessions);
+    } catch (error) {
+      console.error('Error fetching sessions:', error);
+      res.status(500).json({ error: 'Failed to fetch sessions' });
+    }
+  });
+  
+  // Terminate a specific session
+  app.delete('/api/sessions/:sessionToken', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const { sessionToken } = req.params;
+      if (!sessionToken) {
+        return res.status(400).json({ error: 'Session token is required' });
+      }
+      
+      if (!req.session.userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      const success = await terminateSession(req.session.userId, sessionToken, req);
+      if (!success) {
+        return res.status(400).json({ error: 'Failed to terminate session' });
+      }
+      
+      res.status(200).json({ success: true, message: 'Session terminated successfully' });
+    } catch (error) {
+      console.error('Error terminating session:', error);
+      res.status(500).json({ error: 'Failed to terminate session' });
+    }
+  });
+  
+  // Terminate all other sessions
+  app.post('/api/sessions/terminate-others', requireAuth, async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      // Get current session token from cookie or header
+      const currentSessionToken = req.headers['x-session-token'] as string || req.cookies?.session;
+      if (!currentSessionToken) {
+        return res.status(400).json({ error: 'Current session token not found' });
+      }
+      
+      const success = await terminateOtherSessions(req.session.userId, currentSessionToken, req);
+      if (!success) {
+        return res.status(400).json({ error: 'Failed to terminate other sessions' });
+      }
+      
+      res.status(200).json({ success: true, message: 'All other sessions terminated successfully' });
+    } catch (error) {
+      console.error('Error terminating other sessions:', error);
+      res.status(500).json({ error: 'Failed to terminate other sessions' });
+    }
+  });
   // Badge routes
   
   // Get all badges
@@ -1198,6 +1760,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Referral Program Routes
+
+  // Token Faucet Routes
+  app.post('/api/faucet/claim', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+      
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      // Check if the user has already claimed tokens in the last 24 hours
+      const lastClaim = await storage.getLastTokenClaim(userId);
+      
+      if (lastClaim) {
+        const lastClaimTime = new Date(lastClaim.claimedAt).getTime();
+        const currentTime = Date.now();
+        const timeDiff = currentTime - lastClaimTime;
+        const hoursDiff = timeDiff / (1000 * 60 * 60);
+        
+        if (hoursDiff < 24) {
+          const timeRemaining = 24 - hoursDiff;
+          return res.status(429).json({ 
+            error: 'You can claim tokens only once every 24 hours.',
+            timeRemaining: Math.ceil(timeRemaining)
+          });
+        }
+      }
+      
+      // The amount of tokens to be claimed
+      const claimAmount = 1000;
+      
+      // Update the user's token balance
+      const currentBalance = user.tokenBalance || 0;
+      const newBalance = currentBalance + claimAmount;
+      
+      // Record the token claim in the database
+      await storage.recordTokenClaim(userId, claimAmount);
+      
+      // Update the user's token balance
+      await storage.updateUserTokenBalance(userId, newBalance);
+      
+      // Return the updated balance and claim information
+      return res.json({
+        success: true,
+        amount: claimAmount,
+        message: 'Successfully claimed CHONK9K tokens!',
+        newBalance: newBalance
+      });
+    } catch (error) {
+      console.error('Error claiming tokens:', error);
+      return res.status(500).json({ error: 'Failed to claim tokens. Please try again later.' });
+    }
+  });
+
+  app.get('/api/faucet/status', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+      
+      // Check if the user has claimed tokens in the last 24 hours
+      const lastClaim = await storage.getLastTokenClaim(userId);
+      
+      if (lastClaim) {
+        const lastClaimTime = new Date(lastClaim.claimedAt).getTime();
+        const currentTime = Date.now();
+        const timeDiff = currentTime - lastClaimTime;
+        const hoursDiff = timeDiff / (1000 * 60 * 60);
+        
+        if (hoursDiff < 24) {
+          const timeRemaining = 24 - hoursDiff;
+          return res.json({ 
+            canClaim: false,
+            timeRemaining: Math.ceil(timeRemaining),
+            nextClaimTime: new Date(lastClaimTime + (24 * 60 * 60 * 1000)).toISOString()
+          });
+        }
+      }
+      
+      return res.json({
+        canClaim: true,
+        claimAmount: 1000
+      });
+    } catch (error) {
+      console.error('Error checking claim status:', error);
+      return res.status(500).json({ error: 'Failed to check claim status. Please try again later.' });
+    }
+  });
 
   // Get user referral stats
   app.get('/api/referrals/stats', async (req: Request, res: Response) => {
@@ -2350,6 +3006,647 @@ add_shortcode('chonk9k_embed', 'chonk9k_embed_shortcode');
     } catch (error) {
       console.error('Error updating user domain preference:', error);
       res.status(500).json({ error: 'Failed to update preference' });
+    }
+  });
+
+  // ===================================================
+  // COMMUNITY CHALLENGE BOARD API ROUTES
+  // ===================================================
+
+  // Get all challenges with optional filters
+  app.get('/api/challenges', async (req: Request, res: Response) => {
+    try {
+      const activeOnly = req.query.active === 'true';
+      const type = typeof req.query.type === 'string' ? req.query.type : undefined;
+      const difficultyLevel = typeof req.query.difficulty === 'string' ? req.query.difficulty : undefined;
+      
+      const challenges = await storage.getChallenges(activeOnly, type, difficultyLevel);
+      res.json(challenges);
+    } catch (error) {
+      console.error('Error fetching challenges:', error);
+      res.status(500).json({ error: 'Failed to fetch challenges' });
+    }
+  });
+
+  // Get the active challenge
+  app.get('/api/challenges/active', async (req: Request, res: Response) => {
+    try {
+      const activeChallenge = await storage.getActiveChallenge();
+      if (!activeChallenge) {
+        return res.status(404).json({ error: 'No active challenge found' });
+      }
+      
+      res.json(activeChallenge);
+    } catch (error) {
+      console.error('Error fetching active challenge:', error);
+      res.status(500).json({ error: 'Failed to fetch active challenge' });
+    }
+  });
+
+  // Get a specific challenge by ID
+  app.get('/api/challenges/:id', async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'Invalid challenge ID' });
+      }
+      
+      const challenge = await storage.getChallenge(id);
+      if (!challenge) {
+        return res.status(404).json({ error: 'Challenge not found' });
+      }
+      
+      res.json(challenge);
+    } catch (error) {
+      console.error(`Error fetching challenge:`, error);
+      res.status(500).json({ error: 'Failed to fetch challenge' });
+    }
+  });
+
+  // Create a new challenge (admin or authorized users only)
+  app.post('/api/challenges', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ error: 'Unauthorized to create challenges' });
+      }
+      
+      const challengeData = insertCommunityChallengeSchema.parse(req.body);
+      const newChallenge = await storage.createChallenge({
+        ...challengeData,
+        createdBy: user.id
+      });
+      
+      res.status(201).json(newChallenge);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      console.error('Error creating challenge:', error);
+      res.status(500).json({ error: 'Failed to create challenge' });
+    }
+  });
+
+  // Update an existing challenge (admin only)
+  app.patch('/api/challenges/:id', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ error: 'Unauthorized to update challenges' });
+      }
+      
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'Invalid challenge ID' });
+      }
+      
+      const existingChallenge = await storage.getChallenge(id);
+      if (!existingChallenge) {
+        return res.status(404).json({ error: 'Challenge not found' });
+      }
+      
+      const updates = req.body;
+      const updatedChallenge = await storage.updateChallenge(id, updates);
+      
+      res.json(updatedChallenge);
+    } catch (error) {
+      console.error('Error updating challenge:', error);
+      res.status(500).json({ error: 'Failed to update challenge' });
+    }
+  });
+
+  // Get submissions for a challenge
+  app.get('/api/challenges/:id/submissions', async (req: Request, res: Response) => {
+    try {
+      const challengeId = parseInt(req.params.id);
+      if (isNaN(challengeId)) {
+        return res.status(400).json({ error: 'Invalid challenge ID' });
+      }
+      
+      const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+      const submissions = await storage.getChallengeSubmissions(challengeId, undefined, status);
+      
+      res.json(submissions);
+    } catch (error) {
+      console.error('Error fetching challenge submissions:', error);
+      res.status(500).json({ error: 'Failed to fetch challenge submissions' });
+    }
+  });
+
+  // Submit a solution to a challenge
+  app.post('/api/challenges/:id/submit', requireAuth, requireVerified, async (req: Request, res: Response) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      const challengeId = parseInt(req.params.id);
+      if (isNaN(challengeId)) {
+        return res.status(400).json({ error: 'Invalid challenge ID' });
+      }
+      
+      // Check if challenge exists and is active
+      const challenge = await storage.getChallenge(challengeId);
+      if (!challenge) {
+        return res.status(404).json({ error: 'Challenge not found' });
+      }
+      
+      const now = new Date();
+      if (!challenge.isActive || challenge.startDate > now || challenge.endDate < now) {
+        return res.status(400).json({ error: 'Challenge is not active' });
+      }
+      
+      // Check if user already submitted for this challenge
+      const existingSubmission = await storage.getUserChallengeSubmission(user.id, challengeId);
+      if (existingSubmission) {
+        return res.status(400).json({ 
+          error: 'You have already submitted for this challenge', 
+          submission: existingSubmission 
+        });
+      }
+      
+      // Validate submission data based on required proof type
+      const { proofLink, proofText, proofImageUrl } = req.body;
+      const requiredProofType = challenge.requiredProof;
+      
+      // Validate that the correct proof type is provided
+      if (requiredProofType === 'link' && !proofLink) {
+        return res.status(400).json({ error: 'This challenge requires a link proof' });
+      }
+      if (requiredProofType === 'text' && !proofText) {
+        return res.status(400).json({ error: 'This challenge requires a text proof' });
+      }
+      if (requiredProofType === 'image' && !proofImageUrl) {
+        return res.status(400).json({ error: 'This challenge requires an image proof' });
+      }
+      
+      // Create submission
+      const submissionData = insertChallengeSubmissionSchema.parse({
+        challengeId,
+        userId: user.id,
+        proofLink: proofLink || null,
+        proofText: proofText || null,
+        proofImageUrl: proofImageUrl || null,
+        rewardAmount: challenge.rewardAmount // Store the reward amount at time of submission
+      });
+      
+      const newSubmission = await storage.createChallengeSubmission(submissionData);
+      res.status(201).json(newSubmission);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      console.error('Error submitting challenge solution:', error);
+      res.status(500).json({ error: 'Failed to submit challenge solution' });
+    }
+  });
+
+  // Get user's submissions
+  app.get('/api/user/submissions', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      const submissions = await storage.getChallengeSubmissions(undefined, user.id);
+      res.json(submissions);
+    } catch (error) {
+      console.error('Error fetching user submissions:', error);
+      res.status(500).json({ error: 'Failed to fetch user submissions' });
+    }
+  });
+
+  // Review a submission (admin only)
+  app.post('/api/submissions/:id/review', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ error: 'Unauthorized to review submissions' });
+      }
+      
+      const submissionId = parseInt(req.params.id);
+      if (isNaN(submissionId)) {
+        return res.status(400).json({ error: 'Invalid submission ID' });
+      }
+      
+      const { status, reviewNotes } = req.body;
+      if (!status || !['approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ error: 'Invalid status value' });
+      }
+      
+      const submission = await storage.getChallengeSubmission(submissionId);
+      if (!submission) {
+        return res.status(404).json({ error: 'Submission not found' });
+      }
+      
+      // Update submission status
+      const success = await storage.updateChallengeSubmissionStatus(
+        submissionId, 
+        status, 
+        user.id, 
+        reviewNotes
+      );
+      
+      if (success && status === 'approved') {
+        // If approved, add tokens to user's balance
+        await storage.updateUserTokenBalance(
+          submission.userId, 
+          (user.tokenBalance || 0) + submission.rewardAmount
+        );
+      }
+      
+      res.json({ success, message: `Submission ${status}` });
+    } catch (error) {
+      console.error('Error reviewing submission:', error);
+      res.status(500).json({ error: 'Failed to review submission' });
+    }
+  });
+
+  // Claim reward for an approved submission
+  app.post('/api/submissions/:id/claim', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      const submissionId = parseInt(req.params.id);
+      if (isNaN(submissionId)) {
+        return res.status(400).json({ error: 'Invalid submission ID' });
+      }
+      
+      const submission = await storage.getChallengeSubmission(submissionId);
+      if (!submission) {
+        return res.status(404).json({ error: 'Submission not found' });
+      }
+      
+      // Verify the submission belongs to the user
+      if (submission.userId !== user.id) {
+        return res.status(403).json({ error: 'Cannot claim rewards for another user\'s submission' });
+      }
+      
+      // Verify the submission is approved and not already claimed
+      if (submission.status !== 'approved') {
+        return res.status(400).json({ error: 'Only approved submissions can claim rewards' });
+      }
+      
+      if (submission.rewardClaimed) {
+        return res.status(400).json({ error: 'Reward has already been claimed' });
+      }
+      
+      // Mark as claimed
+      const success = await storage.claimChallengeReward(submissionId);
+      
+      // Update user's token balance
+      if (success) {
+        await storage.updateUserTokenBalance(
+          user.id, 
+          (user.tokenBalance || 0) + submission.rewardAmount
+        );
+      }
+      
+      res.json({ 
+        success, 
+        message: 'Reward claimed successfully', 
+        amount: submission.rewardAmount 
+      });
+    } catch (error) {
+      console.error('Error claiming reward:', error);
+      res.status(500).json({ error: 'Failed to claim reward' });
+    }
+  });
+
+  // Vote on a submission
+  app.post('/api/submissions/:id/vote', requireAuth, requireVerified, async (req: Request, res: Response) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      const submissionId = parseInt(req.params.id);
+      if (isNaN(submissionId)) {
+        return res.status(400).json({ error: 'Invalid submission ID' });
+      }
+      
+      const { voteType } = req.body;
+      if (!voteType || !['upvote', 'downvote'].includes(voteType)) {
+        return res.status(400).json({ error: 'Invalid vote type' });
+      }
+      
+      // Check if submission exists
+      const submission = await storage.getChallengeSubmission(submissionId);
+      if (!submission) {
+        return res.status(404).json({ error: 'Submission not found' });
+      }
+      
+      // Check if user already voted
+      const existingVote = await storage.getUserVote(user.id, submissionId);
+      if (existingVote) {
+        return res.status(400).json({ error: 'You have already voted on this submission' });
+      }
+      
+      // Create vote
+      const voteData = insertCommunityVoteSchema.parse({
+        submissionId,
+        userId: user.id,
+        voteType
+      });
+      
+      const newVote = await storage.createCommunityVote(voteData);
+      
+      // Get updated vote counts
+      const voteCounts = await storage.getSubmissionVoteCounts(submissionId);
+      
+      res.status(201).json({
+        vote: newVote,
+        voteCounts
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      console.error('Error voting on submission:', error);
+      res.status(500).json({ error: 'Failed to vote on submission' });
+    }
+  });
+
+  // Get tags for a challenge
+  app.get('/api/challenges/:id/tags', async (req: Request, res: Response) => {
+    try {
+      const challengeId = parseInt(req.params.id);
+      if (isNaN(challengeId)) {
+        return res.status(400).json({ error: 'Invalid challenge ID' });
+      }
+      
+      const tags = await storage.getChallengeTags(challengeId);
+      res.json(tags);
+    } catch (error) {
+      console.error('Error fetching challenge tags:', error);
+      res.status(500).json({ error: 'Failed to fetch challenge tags' });
+    }
+  });
+
+  // Get all available tags
+  app.get('/api/challenge-tags', async (req: Request, res: Response) => {
+    try {
+      const tags = await storage.getAllChallengeTags();
+      res.json(tags);
+    } catch (error) {
+      console.error('Error fetching challenge tags:', error);
+      res.status(500).json({ error: 'Failed to fetch challenge tags' });
+    }
+  });
+
+  // Create a new tag (admin only)
+  app.post('/api/challenge-tags', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ error: 'Unauthorized to create tags' });
+      }
+      
+      const tagData = insertChallengeTagSchema.parse(req.body);
+      const newTag = await storage.createChallengeTag(tagData);
+      
+      res.status(201).json(newTag);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      console.error('Error creating challenge tag:', error);
+      res.status(500).json({ error: 'Failed to create challenge tag' });
+    }
+  });
+
+  // Add a tag to a challenge (admin only)
+  app.post('/api/challenges/:challengeId/tags/:tagId', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ error: 'Unauthorized to add tags to challenges' });
+      }
+      
+      const challengeId = parseInt(req.params.challengeId);
+      const tagId = parseInt(req.params.tagId);
+      
+      if (isNaN(challengeId) || isNaN(tagId)) {
+        return res.status(400).json({ error: 'Invalid IDs provided' });
+      }
+      
+      // Check if challenge and tag exist
+      const challenge = await storage.getChallenge(challengeId);
+      const tag = await storage.getChallengeTag(tagId);
+      
+      if (!challenge) {
+        return res.status(404).json({ error: 'Challenge not found' });
+      }
+      
+      if (!tag) {
+        return res.status(404).json({ error: 'Tag not found' });
+      }
+      
+      const success = await storage.addTagToChallenge(challengeId, tagId);
+      res.json({ success });
+    } catch (error) {
+      console.error('Error adding tag to challenge:', error);
+      res.status(500).json({ error: 'Failed to add tag to challenge' });
+    }
+  });
+
+  // ===================================================
+  // CRYPTO MENTOR MASCOT API ROUTES
+  // ===================================================
+
+  // Get all daily tips
+  app.get('/api/daily-tips', async (req: Request, res: Response) => {
+    try {
+      const category = typeof req.query.category === 'string' ? req.query.category : undefined;
+      const difficulty = typeof req.query.difficulty === 'string' ? req.query.difficulty : undefined;
+      
+      const tips = await storage.getDailyTips(category, difficulty);
+      res.json(tips);
+    } catch (error) {
+      console.error('Error fetching daily tips:', error);
+      res.status(500).json({ error: 'Failed to fetch daily tips' });
+    }
+  });
+
+  // Get a specific daily tip
+  app.get('/api/daily-tips/:id', async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'Invalid tip ID' });
+      }
+      
+      const tip = await storage.getDailyTip(id);
+      if (!tip) {
+        return res.status(404).json({ error: 'Tip not found' });
+      }
+      
+      res.json(tip);
+    } catch (error) {
+      console.error(`Error fetching daily tip:`, error);
+      res.status(500).json({ error: 'Failed to fetch daily tip' });
+    }
+  });
+
+  // Create a new daily tip (admin only)
+  app.post('/api/daily-tips', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ error: 'Unauthorized to create tips' });
+      }
+      
+      const tipData = insertDailyTipSchema.parse(req.body);
+      const newTip = await storage.createDailyTip(tipData);
+      
+      res.status(201).json(newTip);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      console.error('Error creating daily tip:', error);
+      res.status(500).json({ error: 'Failed to create daily tip' });
+    }
+  });
+
+  // Update a daily tip (admin only)
+  app.patch('/api/daily-tips/:id', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ error: 'Unauthorized to update tips' });
+      }
+      
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'Invalid tip ID' });
+      }
+      
+      const tip = await storage.getDailyTip(id);
+      if (!tip) {
+        return res.status(404).json({ error: 'Tip not found' });
+      }
+      
+      const updates = req.body;
+      const updatedTip = await storage.updateDailyTip(id, updates);
+      
+      res.json(updatedTip);
+    } catch (error) {
+      console.error('Error updating daily tip:', error);
+      res.status(500).json({ error: 'Failed to update daily tip' });
+    }
+  });
+
+  // Get a random daily tip for the user
+  app.get('/api/daily-tips/random', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      const category = typeof req.query.category === 'string' ? req.query.category : undefined;
+      const difficulty = typeof req.query.difficulty === 'string' ? req.query.difficulty : undefined;
+      
+      // Get user's mascot settings to check if they've disabled the mascot
+      const mascotSettings = await storage.getMascotSettings(user.id);
+      
+      // If the user has mascot disabled, return an appropriate message
+      if (mascotSettings && !mascotSettings.isEnabled) {
+        return res.status(200).json({ disabled: true, message: 'Mascot is disabled for this user' });
+      }
+      
+      const randomTip = await storage.getRandomDailyTip(category, difficulty);
+      if (!randomTip) {
+        return res.status(404).json({ error: 'No tips available' });
+      }
+      
+      // Mark the tip as displayed
+      await storage.markTipAsDisplayed(randomTip.id);
+      
+      // If user has mascot settings, update the last interaction timestamp
+      if (mascotSettings) {
+        await storage.updateLastInteraction(user.id);
+      }
+      
+      res.json(randomTip);
+    } catch (error) {
+      console.error('Error fetching random daily tip:', error);
+      res.status(500).json({ error: 'Failed to fetch random daily tip' });
+    }
+  });
+
+  // Get user's mascot settings
+  app.get('/api/mascot-settings', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      // Get the user's mascot settings, or create default settings if none exist
+      let settings = await storage.getMascotSettings(user.id);
+      
+      if (!settings) {
+        // Create default settings for this user
+        settings = await storage.createMascotSettings({
+          userId: user.id,
+          mascotType: 'crypto_chonk',
+          isEnabled: true,
+          animation: 'default',
+          speechBubbleStyle: 'default',
+          tipFrequency: 'daily'
+        });
+      }
+      
+      res.json(settings);
+    } catch (error) {
+      console.error('Error fetching mascot settings:', error);
+      res.status(500).json({ error: 'Failed to fetch mascot settings' });
+    }
+  });
+
+  // Update user's mascot settings
+  app.patch('/api/mascot-settings', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      // First check if the user has existing settings
+      let settings = await storage.getMascotSettings(user.id);
+      
+      if (!settings) {
+        // Create default settings with the updated values
+        const defaultSettings = {
+          userId: user.id,
+          mascotType: req.body.mascotType || 'crypto_chonk',
+          isEnabled: typeof req.body.isEnabled === 'boolean' ? req.body.isEnabled : true,
+          animation: req.body.animation || 'default',
+          speechBubbleStyle: req.body.speechBubbleStyle || 'default',
+          tipFrequency: req.body.tipFrequency || 'daily'
+        };
+        
+        settings = await storage.createMascotSettings(defaultSettings);
+      } else {
+        // Update existing settings
+        settings = await storage.updateMascotSettings(user.id, req.body);
+      }
+      
+      // Update last interaction timestamp
+      await storage.updateLastInteraction(user.id);
+      
+      res.json(settings);
+    } catch (error) {
+      console.error('Error updating mascot settings:', error);
+      res.status(500).json({ error: 'Failed to update mascot settings' });
     }
   });
   

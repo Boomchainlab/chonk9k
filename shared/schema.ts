@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, doublePrecision, timestamp, varchar, json, date } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, doublePrecision, timestamp, varchar, json, date, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -8,6 +8,10 @@ export const users = pgTable("users", {
   username: varchar("username", { length: 255 }).notNull().unique(),
   email: varchar("email", { length: 255 }).notNull().unique(),
   passwordHash: varchar("password_hash", { length: 255 }).notNull(),
+  verificationToken: varchar("verification_token", { length: 255 }),
+  isVerified: boolean("is_verified").default(false),
+  lastLoginAt: timestamp("last_login_at"),
+  lastActiveAt: timestamp("last_active_at"),
   walletAddress: varchar("wallet_address", { length: 255 }).unique(),
   unstoppableDomain: varchar("unstoppable_domain", { length: 255 }).unique(),
   referralCode: varchar("referral_code", { length: 20 }).unique(),
@@ -18,6 +22,20 @@ export const users = pgTable("users", {
   stakingEndDate: timestamp("staking_end_date"),
   premiumTier: integer("premium_tier").default(0),
   useUnstoppableDomainAsUsername: boolean("use_unstoppable_domain_as_username").default(false),
+  // MFA-related fields
+  mfaEnabled: boolean("mfa_enabled").default(false),
+  mfaSecret: varchar("mfa_secret", { length: 255 }),
+  mfaRecoveryCodes: json("mfa_recovery_codes").$type<string[]>(),
+  lastSecurityUpdate: timestamp("last_security_update"),
+  securityPreferences: json("security_preferences").$type<{
+    loginNotifications: boolean;
+    securityEvents: boolean;
+    passwordExpiryDays: number;
+  }>().default({
+    loginNotifications: true,
+    securityEvents: true,
+    passwordExpiryDays: 90,
+  }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -254,6 +272,174 @@ export const miningRewards = pgTable("mining_rewards", {
   createdAt: timestamp("created_at").defaultNow()
 });
 
+// Password Reset Tokens
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  token: varchar("token", { length: 255 }).notNull().unique(),
+  expires: timestamp("expires").notNull(),
+  used: boolean("used").default(false),
+  createdAt: timestamp("created_at").defaultNow()
+});
+
+// Security and MFA related tables
+
+// User devices for device management
+export const userDevices = pgTable("user_devices", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  deviceId: varchar("device_id", { length: 255 }).notNull(),
+  deviceName: varchar("device_name", { length: 255 }),
+  deviceType: varchar("device_type", { length: 50 }),
+  browser: varchar("browser", { length: 100 }),
+  operatingSystem: varchar("operating_system", { length: 100 }),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  lastLoginAt: timestamp("last_login_at").defaultNow(),
+  isTrusted: boolean("is_trusted").default(false),
+  createdAt: timestamp("created_at").defaultNow()
+});
+
+// Active Sessions
+export const userSessions = pgTable("user_sessions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  deviceId: varchar("device_id", { length: 255 }),
+  sessionToken: varchar("session_token", { length: 255 }).notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  location: varchar("location", { length: 255 }),
+  lastActiveAt: timestamp("last_active_at").defaultNow(),
+  userAgent: text("user_agent"),
+  isRememberMe: boolean("is_remember_me").default(false),
+  createdAt: timestamp("created_at").defaultNow()
+});
+
+// TOTP Backup codes
+export const mfaBackupCodes = pgTable("mfa_backup_codes", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  code: varchar("code", { length: 255 }).notNull(),
+  isUsed: boolean("is_used").default(false),
+  usedAt: timestamp("used_at"),
+  createdAt: timestamp("created_at").defaultNow()
+});
+
+// Security Event Log
+export const securityEvents = pgTable("security_events", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id),
+  eventType: varchar("event_type", { length: 50 }).notNull(),
+  eventDescription: text("event_description").notNull(),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userAgent: text("user_agent"),
+  location: varchar("location", { length: 255 }),
+  deviceId: varchar("device_id", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow(),
+  metadata: json("metadata").$type<Record<string, any>>()
+});
+
+// Learning Modules and Courses
+export const learningModules = pgTable("learning_modules", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description").notNull(),
+  difficultyLevel: varchar("difficulty_level", { length: 50 }).notNull(), // beginner, intermediate, advanced
+  estimatedTimeMinutes: integer("estimated_time_minutes").notNull(),
+  category: varchar("category", { length: 100 }).notNull(), // blockchain, defi, nft, etc.
+  imageUrl: text("image_url"),
+  tags: text("tags").array(),
+  sortOrder: integer("sort_order").default(0),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const learningLessons = pgTable("learning_lessons", {
+  id: serial("id").primaryKey(),
+  moduleId: integer("module_id").references(() => learningModules.id).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  content: text("content").notNull(),
+  mediaUrl: text("media_url"),
+  mediaType: varchar("media_type", { length: 50 }), // video, image, interactive
+  sortOrder: integer("sort_order").default(0),
+  points: integer("points").default(10).notNull(), // points earned for completing
+  isActive: boolean("is_active").default(true),
+  estimatedTimeMinutes: integer("estimated_time_minutes").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const userModuleProgress = pgTable("user_module_progress", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  moduleId: integer("module_id").references(() => learningModules.id).notNull(),
+  startedAt: timestamp("started_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+  percentComplete: integer("percent_complete").default(0).notNull(),
+  lastLessonId: integer("last_lesson_id").references(() => learningLessons.id),
+  pointsEarned: integer("points_earned").default(0).notNull(),
+  timeSpentMinutes: integer("time_spent_minutes").default(0).notNull(),
+});
+
+export const userLessonProgress = pgTable("user_lesson_progress", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  lessonId: integer("lesson_id").references(() => learningLessons.id).notNull(),
+  moduleId: integer("module_id").references(() => learningModules.id).notNull(),
+  startedAt: timestamp("started_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+  isCompleted: boolean("is_completed").default(false),
+  timeSpentMinutes: integer("time_spent_minutes").default(0),
+  pointsEarned: integer("points_earned").default(0),
+});
+
+// Social Sharing
+export const socialShares = pgTable("social_shares", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  platform: varchar("platform", { length: 50 }).notNull(), // twitter, linkedin, facebook, etc.
+  content: text("content").notNull(), 
+  moduleId: integer("module_id").references(() => learningModules.id),
+  lessonId: integer("lesson_id").references(() => learningLessons.id),
+  badgeId: integer("badge_id").references(() => badges.id),
+  shareUrl: text("share_url"),
+  imageUrl: text("image_url"),
+  pointsEarned: integer("points_earned").default(5).notNull(),
+  sharedAt: timestamp("shared_at").defaultNow(),
+  engagementMetrics: jsonb("engagement_metrics").$type<{
+    likes?: number;
+    comments?: number;
+    shares?: number;
+    clicks?: number;
+  }>(),
+});
+
+// Achievements and Leaderboard data
+export const learningAchievements = pgTable("learning_achievements", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  achievementType: varchar("achievement_type", { length: 50 }).notNull(), // module_completion, sharing_milestone, streak
+  moduleId: integer("module_id").references(() => learningModules.id),
+  value: integer("value").default(1).notNull(), // count or value achieved
+  description: text("description").notNull(),
+  pointsEarned: integer("points_earned").default(0).notNull(),
+  achievedAt: timestamp("achieved_at").defaultNow(),
+});
+
+export const userLearningStats = pgTable("user_learning_stats", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  totalPointsEarned: integer("total_points_earned").default(0).notNull(),
+  modulesCompleted: integer("modules_completed").default(0).notNull(),
+  lessonsCompleted: integer("lessons_completed").default(0).notNull(),
+  totalTimeSpentMinutes: integer("total_time_spent_minutes").default(0).notNull(),
+  shareCount: integer("share_count").default(0).notNull(),
+  currentStreak: integer("current_streak").default(0).notNull(),
+  longestStreak: integer("longest_streak").default(0).notNull(),
+  lastActive: timestamp("last_active").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   tokenPurchases: many(tokenPurchases),
@@ -271,6 +457,18 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   }),
   referralsGiven: many(referralRewards, { relationName: 'referrer' }),
   referralsReceived: many(referralRewards, { relationName: 'referred' }),
+  // Security and MFA relations
+  passwordResetTokens: many(passwordResetTokens),
+  devices: many(userDevices),
+  sessions: many(userSessions),
+  mfaBackupCodes: many(mfaBackupCodes),
+  securityEvents: many(securityEvents),
+  // Learning progress relations
+  moduleProgress: many(userModuleProgress),
+  lessonProgress: many(userLessonProgress),
+  socialShares: many(socialShares),
+  learningAchievements: many(learningAchievements),
+  learningStats: many(userLearningStats),
 }));
 
 export const tokenPurchasesRelations = relations(tokenPurchases, ({ one }) => ({
@@ -481,7 +679,128 @@ export const unstoppableDomainBenefitsRelations = relations(unstoppableDomainBen
   }),
 }));
 
-export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
+// Security and MFA relations
+export const userDevicesRelations = relations(userDevices, ({ one }) => ({
+  user: one(users, {
+    fields: [userDevices.userId],
+    references: [users.id],
+  }),
+}));
+
+export const userSessionsRelations = relations(userSessions, ({ one }) => ({
+  user: one(users, {
+    fields: [userSessions.userId],
+    references: [users.id],
+  }),
+}));
+
+export const mfaBackupCodesRelations = relations(mfaBackupCodes, ({ one }) => ({
+  user: one(users, {
+    fields: [mfaBackupCodes.userId],
+    references: [users.id],
+  }),
+}));
+
+export const securityEventsRelations = relations(securityEvents, ({ one }) => ({
+  user: one(users, {
+    fields: [securityEvents.userId],
+    references: [users.id],
+  }),
+}));
+
+export const passwordResetTokensRelations = relations(passwordResetTokens, ({ one }) => ({
+  user: one(users, {
+    fields: [passwordResetTokens.userId],
+    references: [users.id],
+  }),
+}));
+
+// Learning and social sharing relations
+export const learningModulesRelations = relations(learningModules, ({ many }) => ({
+  lessons: many(learningLessons),
+  userProgress: many(userModuleProgress),
+}));
+
+export const learningLessonsRelations = relations(learningLessons, ({ one, many }) => ({
+  module: one(learningModules, {
+    fields: [learningLessons.moduleId],
+    references: [learningModules.id],
+  }),
+  userProgress: many(userLessonProgress),
+}));
+
+export const userModuleProgressRelations = relations(userModuleProgress, ({ one }) => ({
+  user: one(users, {
+    fields: [userModuleProgress.userId],
+    references: [users.id],
+  }),
+  module: one(learningModules, {
+    fields: [userModuleProgress.moduleId],
+    references: [learningModules.id],
+  }),
+  lastLesson: one(learningLessons, {
+    fields: [userModuleProgress.lastLessonId],
+    references: [learningLessons.id],
+  }),
+}));
+
+export const userLessonProgressRelations = relations(userLessonProgress, ({ one }) => ({
+  user: one(users, {
+    fields: [userLessonProgress.userId],
+    references: [users.id],
+  }),
+  lesson: one(learningLessons, {
+    fields: [userLessonProgress.lessonId],
+    references: [learningLessons.id],
+  }),
+  module: one(learningModules, {
+    fields: [userLessonProgress.moduleId],
+    references: [learningModules.id],
+  }),
+}));
+
+export const socialSharesRelations = relations(socialShares, ({ one }) => ({
+  user: one(users, {
+    fields: [socialShares.userId],
+    references: [users.id],
+  }),
+  module: one(learningModules, {
+    fields: [socialShares.moduleId],
+    references: [learningModules.id],
+  }),
+  lesson: one(learningLessons, {
+    fields: [socialShares.lessonId],
+    references: [learningLessons.id],
+  }),
+  badge: one(badges, {
+    fields: [socialShares.badgeId],
+    references: [badges.id],
+  }),
+}));
+
+export const learningAchievementsRelations = relations(learningAchievements, ({ one }) => ({
+  user: one(users, {
+    fields: [learningAchievements.userId],
+    references: [users.id],
+  }),
+  module: one(learningModules, {
+    fields: [learningAchievements.moduleId],
+    references: [learningModules.id],
+  }),
+}));
+
+export const userLearningStatsRelations = relations(userLearningStats, ({ one }) => ({
+  user: one(users, {
+    fields: [userLearningStats.userId],
+    references: [users.id],
+  }),
+}));
+
+export const insertUserSchema = createInsertSchema(users)
+  .omit({ id: true, createdAt: true, passwordHash: true })
+  .extend({
+    password: z.string().min(6).max(100),
+  });
 export const insertTokenStatSchema = createInsertSchema(tokenStats).omit({ id: true, timestamp: true });
 export const insertTeamMemberSchema = createInsertSchema(teamMembers).omit({ id: true });
 export const insertRoadmapItemSchema = createInsertSchema(roadmapItems).omit({ id: true });
@@ -553,6 +872,13 @@ export const insertUserStakeSchema = createInsertSchema(userStakes).omit({ id: t
 export const insertReferralRewardSchema = createInsertSchema(referralRewards).omit({ id: true, createdAt: true });
 export const insertPremiumTierSchema = createInsertSchema(premiumTiers).omit({ id: true, createdAt: true });
 
+// Security and MFA schemas
+export const insertUserDeviceSchema = createInsertSchema(userDevices).omit({ id: true, createdAt: true, lastLoginAt: true });
+export const insertUserSessionSchema = createInsertSchema(userSessions).omit({ id: true, createdAt: true, lastActiveAt: true });
+export const insertMfaBackupCodeSchema = createInsertSchema(mfaBackupCodes).omit({ id: true, createdAt: true, usedAt: true });
+export const insertSecurityEventSchema = createInsertSchema(securityEvents).omit({ id: true, createdAt: true });
+export const insertPasswordResetTokenSchema = createInsertSchema(passwordResetTokens).omit({ id: true, createdAt: true });
+
 // Add types for new tables
 export type InsertStakingPool = z.infer<typeof insertStakingPoolSchema>;
 export type StakingPool = typeof stakingPools.$inferSelect;
@@ -585,6 +911,180 @@ export type MiningReward = typeof miningRewards.$inferSelect;
 export const insertTokenLaunchSchema = createInsertSchema(tokenLaunches).omit({ id: true, createdAt: true });
 export const insertUserInvestmentSchema = createInsertSchema(userInvestments).omit({ id: true, investmentDate: true });
 
+// Token Claims/Faucet System
+export const tokenClaims = pgTable("token_claims", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  amount: doublePrecision("amount").notNull(),
+  claimedAt: timestamp("claimed_at").defaultNow(),
+});
+
+export const tokenClaimRelations = relations(tokenClaims, ({ one }) => ({
+  user: one(users, {
+    fields: [tokenClaims.userId],
+    references: [users.id],
+  }),
+}));
+
+export const insertTokenClaimSchema = createInsertSchema(tokenClaims).omit({ id: true, claimedAt: true });
+export type InsertTokenClaim = z.infer<typeof insertTokenClaimSchema>;
+
+// Community Challenge Board with Reward System
+export const communityChallenges = pgTable("community_challenges", {
+  id: serial("id").primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description").notNull(),
+  shortDescription: varchar("short_description", { length: 255 }).notNull(),
+  type: varchar("type", { length: 50 }).notNull(), // 'social', 'content', 'development', 'trading', etc.
+  difficultyLevel: varchar("difficulty_level", { length: 50 }).notNull(), // 'easy', 'medium', 'hard', 'expert'
+  rewardAmount: doublePrecision("reward_amount").notNull(),
+  requiredProof: varchar("required_proof", { length: 50 }).notNull(), // 'link', 'image', 'text', 'file', 'none'
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  maxParticipants: integer("max_participants"),
+  isActive: boolean("is_active").default(true),
+  createdBy: integer("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const challengeSubmissions = pgTable("challenge_submissions", {
+  id: serial("id").primaryKey(),
+  challengeId: integer("challenge_id").notNull().references(() => communityChallenges.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  proofLink: text("proof_link"),
+  proofText: text("proof_text"),
+  proofImageUrl: text("proof_image_url"),
+  status: varchar("status", { length: 50 }).notNull().default("pending"), // 'pending', 'approved', 'rejected'
+  reviewedBy: integer("reviewed_by").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewNotes: text("review_notes"),
+  rewardAmount: doublePrecision("reward_amount"),
+  rewardClaimed: boolean("reward_claimed").default(false),
+  rewardClaimedAt: timestamp("reward_claimed_at"),
+  submittedAt: timestamp("submitted_at").defaultNow(),
+});
+
+export const communityVotes = pgTable("community_votes", {
+  id: serial("id").primaryKey(),
+  submissionId: integer("submission_id").notNull().references(() => challengeSubmissions.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  voteType: varchar("vote_type", { length: 10 }).notNull(), // 'upvote' or 'downvote'
+  votedAt: timestamp("voted_at").defaultNow(),
+});
+
+export const challengeTags = pgTable("challenge_tags", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 50 }).notNull().unique(),
+  color: varchar("color", { length: 7 }).notNull(), // Hex color code
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const challengeToTags = pgTable("challenge_to_tags", {
+  id: serial("id").primaryKey(),
+  challengeId: integer("challenge_id").notNull().references(() => communityChallenges.id),
+  tagId: integer("tag_id").notNull().references(() => challengeTags.id),
+  addedAt: timestamp("added_at").defaultNow(),
+});
+
+// Relations
+export const communityChallengeRelations = relations(communityChallenges, ({ one, many }) => ({
+  creator: one(users, {
+    fields: [communityChallenges.createdBy],
+    references: [users.id],
+  }),
+  submissions: many(challengeSubmissions),
+  challengeTags: many(challengeToTags),
+}));
+
+export const challengeSubmissionRelations = relations(challengeSubmissions, ({ one, many }) => ({
+  challenge: one(communityChallenges, {
+    fields: [challengeSubmissions.challengeId],
+    references: [communityChallenges.id],
+  }),
+  user: one(users, {
+    fields: [challengeSubmissions.userId],
+    references: [users.id],
+  }),
+  reviewer: one(users, {
+    fields: [challengeSubmissions.reviewedBy],
+    references: [users.id],
+  }),
+  votes: many(communityVotes),
+}));
+
+export const communityVoteRelations = relations(communityVotes, ({ one }) => ({
+  submission: one(challengeSubmissions, {
+    fields: [communityVotes.submissionId],
+    references: [challengeSubmissions.id],
+  }),
+  user: one(users, {
+    fields: [communityVotes.userId],
+    references: [users.id],
+  }),
+}));
+
+export const challengeTagRelations = relations(challengeTags, ({ many }) => ({
+  challenges: many(challengeToTags),
+}));
+
+export const challengeToTagRelations = relations(challengeToTags, ({ one }) => ({
+  challenge: one(communityChallenges, {
+    fields: [challengeToTags.challengeId],
+    references: [communityChallenges.id],
+  }),
+  tag: one(challengeTags, {
+    fields: [challengeToTags.tagId],
+    references: [challengeTags.id],
+  }),
+}));
+
+// Schemas for insertion
+export const insertCommunityChallengeSchema = createInsertSchema(communityChallenges).omit({ 
+  id: true, 
+  createdAt: true,
+  updatedAt: true 
+});
+export type InsertCommunityChallenge = z.infer<typeof insertCommunityChallengeSchema>;
+
+export const insertChallengeSubmissionSchema = createInsertSchema(challengeSubmissions).omit({ 
+  id: true, 
+  status: true,
+  reviewedBy: true,
+  reviewedAt: true,
+  reviewNotes: true,
+  rewardClaimed: true,
+  rewardClaimedAt: true,
+  submittedAt: true 
+});
+export type InsertChallengeSubmission = z.infer<typeof insertChallengeSubmissionSchema>;
+
+export const insertCommunityVoteSchema = createInsertSchema(communityVotes).omit({ 
+  id: true, 
+  votedAt: true 
+});
+export type InsertCommunityVote = z.infer<typeof insertCommunityVoteSchema>;
+
+export const insertChallengeTagSchema = createInsertSchema(challengeTags).omit({ 
+  id: true, 
+  createdAt: true 
+});
+export type InsertChallengeTag = z.infer<typeof insertChallengeTagSchema>;
+
+export const insertChallengeToTagSchema = createInsertSchema(challengeToTags).omit({ 
+  id: true, 
+  addedAt: true 
+});
+export type InsertChallengeToTag = z.infer<typeof insertChallengeToTagSchema>;
+
+// Add Community Challenge types
+export type CommunityChallenge = typeof communityChallenges.$inferSelect;
+export type ChallengeSubmission = typeof challengeSubmissions.$inferSelect;
+export type CommunityVote = typeof communityVotes.$inferSelect;
+export type ChallengeTag = typeof challengeTags.$inferSelect;
+export type ChallengeToTag = typeof challengeToTags.$inferSelect;
+export type TokenClaim = typeof tokenClaims.$inferSelect;
+
 // Unstoppable Domain Schemas
 export const insertUnstoppableDomainNFTSchema = createInsertSchema(unstoppableDomainNFTs).omit({ id: true, createdAt: true });
 export const insertUnstoppableDomainBenefitSchema = createInsertSchema(unstoppableDomainBenefits).omit({ id: true, createdAt: true });
@@ -602,3 +1102,97 @@ export type TokenLaunch = typeof tokenLaunches.$inferSelect;
 
 export type InsertUserInvestment = z.infer<typeof insertUserInvestmentSchema>;
 export type UserInvestment = typeof userInvestments.$inferSelect;
+
+// Security and MFA types
+export type InsertUserDevice = z.infer<typeof insertUserDeviceSchema>;
+export type UserDevice = typeof userDevices.$inferSelect;
+
+export type InsertUserSession = z.infer<typeof insertUserSessionSchema>;
+export type UserSession = typeof userSessions.$inferSelect;
+
+export type InsertMfaBackupCode = z.infer<typeof insertMfaBackupCodeSchema>;
+export type MfaBackupCode = typeof mfaBackupCodes.$inferSelect;
+
+export type InsertSecurityEvent = z.infer<typeof insertSecurityEventSchema>;
+export type SecurityEvent = typeof securityEvents.$inferSelect;
+
+export type InsertPasswordResetToken = z.infer<typeof insertPasswordResetTokenSchema>;
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+
+// Learning and social sharing schemas
+export const insertLearningModuleSchema = createInsertSchema(learningModules).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertLearningLessonSchema = createInsertSchema(learningLessons).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertUserModuleProgressSchema = createInsertSchema(userModuleProgress).omit({ id: true, startedAt: true });
+export const insertUserLessonProgressSchema = createInsertSchema(userLessonProgress).omit({ id: true, startedAt: true });
+export const insertSocialShareSchema = createInsertSchema(socialShares).omit({ id: true, sharedAt: true });
+export const insertLearningAchievementSchema = createInsertSchema(learningAchievements).omit({ id: true, achievedAt: true });
+export const insertUserLearningStatsSchema = createInsertSchema(userLearningStats).omit({ id: true, lastActive: true, updatedAt: true });
+
+// Learning and social sharing types
+export type InsertLearningModule = z.infer<typeof insertLearningModuleSchema>;
+export type LearningModule = typeof learningModules.$inferSelect;
+
+export type InsertLearningLesson = z.infer<typeof insertLearningLessonSchema>;
+export type LearningLesson = typeof learningLessons.$inferSelect;
+
+export type InsertUserModuleProgress = z.infer<typeof insertUserModuleProgressSchema>;
+export type UserModuleProgress = typeof userModuleProgress.$inferSelect;
+
+export type InsertUserLessonProgress = z.infer<typeof insertUserLessonProgressSchema>;
+export type UserLessonProgress = typeof userLessonProgress.$inferSelect;
+
+export type InsertSocialShare = z.infer<typeof insertSocialShareSchema>;
+export type SocialShare = typeof socialShares.$inferSelect;
+
+export type InsertLearningAchievement = z.infer<typeof insertLearningAchievementSchema>;
+export type LearningAchievement = typeof learningAchievements.$inferSelect;
+
+export type InsertUserLearningStats = z.infer<typeof insertUserLearningStatsSchema>;
+export type UserLearningStats = typeof userLearningStats.$inferSelect;
+
+// Mascot daily tips
+export const dailyTips = pgTable("daily_tips", {
+  id: serial("id").primaryKey(),
+  tip: text("tip").notNull(),
+  category: varchar("category", { length: 50 }).notNull(),
+  difficulty: varchar("difficulty", { length: 20 }).default("beginner"),
+  tags: text("tags").array().default([]),
+  hasBeenDisplayed: boolean("has_been_displayed").default(false),
+  lastDisplayedAt: timestamp("last_displayed_at", { mode: 'date' }),
+  displayCount: integer("display_count").default(0),
+  createdAt: timestamp("created_at", { mode: 'date' }).defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: 'date' }).defaultNow(),
+});
+
+// Mascot settings
+export const mascotSettings = pgTable("mascot_settings", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  mascotType: varchar("mascot_type", { length: 50 }).default("crypto_chonk"),
+  isEnabled: boolean("is_enabled").default(true),
+  animation: varchar("animation", { length: 50 }).default("default"),
+  speechBubbleStyle: varchar("speech_bubble_style", { length: 50 }).default("default"),
+  tipFrequency: varchar("tip_frequency", { length: 20 }).default("daily"),
+  lastInteractionAt: timestamp("last_interaction_at", { mode: 'date' }),
+  createdAt: timestamp("created_at", { mode: 'date' }).defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: 'date' }).defaultNow(),
+});
+
+// Relations
+export const mascotSettingsRelations = relations(mascotSettings, ({ one }) => ({
+  user: one(users, {
+    fields: [mascotSettings.userId],
+    references: [users.id],
+  }),
+}));
+
+// Insert schemas
+export const insertDailyTipSchema = createInsertSchema(dailyTips).omit({ id: true, createdAt: true, updatedAt: true, lastDisplayedAt: true });
+export const insertMascotSettingsSchema = createInsertSchema(mascotSettings).omit({ id: true, createdAt: true, updatedAt: true, lastInteractionAt: true });
+
+// Types
+export type InsertDailyTip = z.infer<typeof insertDailyTipSchema>;
+export type DailyTip = typeof dailyTips.$inferSelect;
+
+export type InsertMascotSettings = z.infer<typeof insertMascotSettingsSchema>;
+export type MascotSettings = typeof mascotSettings.$inferSelect;

@@ -18,21 +18,57 @@ import {
   referralRewards, type ReferralReward, type InsertReferralReward,
   premiumTiers, type PremiumTier, type InsertPremiumTier,
   miningRigs, type MiningRig, type InsertMiningRig,
+  communityChallenges, type CommunityChallenge, type InsertCommunityChallenge,
+  challengeSubmissions, type ChallengeSubmission, type InsertChallengeSubmission,
+  communityVotes, type CommunityVote, type InsertCommunityVote,
+  challengeTags, type ChallengeTag, type InsertChallengeTag,
+  challengeToTags, type ChallengeToTag, type InsertChallengeToTag,
   userMiningRigs, type UserMiningRig, type InsertUserMiningRig,
   miningRewards, type MiningReward, type InsertMiningReward,
   tokenLaunches, type TokenLaunch, type InsertTokenLaunch,
   userInvestments, type UserInvestment, type InsertUserInvestment,
   unstoppableDomainNFTs, type UnstoppableDomainNFT, type InsertUnstoppableDomainNFT,
-  unstoppableDomainBenefits, type UnstoppableDomainBenefit, type InsertUnstoppableDomainBenefit
+  unstoppableDomainBenefits, type UnstoppableDomainBenefit, type InsertUnstoppableDomainBenefit,
+  passwordResetTokens,
+  userDevices, type UserDevice, type InsertUserDevice,
+  userSessions, type UserSession, type InsertUserSession,
+  tokenClaims, type TokenClaim, type InsertTokenClaim,
+  // Learning and social sharing imports
+  learningModules, type LearningModule, type InsertLearningModule,
+  learningLessons, type LearningLesson, type InsertLearningLesson,
+  userModuleProgress, type UserModuleProgress, type InsertUserModuleProgress,
+  userLessonProgress, type UserLessonProgress, type InsertUserLessonProgress,
+  socialShares, type SocialShare, type InsertSocialShare,
+  learningAchievements, type LearningAchievement, type InsertLearningAchievement,
+  userLearningStats, type UserLearningStats, type InsertUserLearningStats,
+  // Mascot and daily tips imports
+  dailyTips, type DailyTip, type InsertDailyTip,
+  mascotSettings, type MascotSettings, type InsertMascotSettings
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
+import { eq, and, gte, lte, desc, asc, sql, notInArray } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByVerificationToken(token: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateLastLogin(userId: number): Promise<boolean>;
+  updateUserPassword(userId: number, passwordHash: string): Promise<boolean>;
+  verifyUser(userId: number): Promise<boolean>;
+  updateUserLastActivity(userId: number): Promise<boolean>;
+  updateVerificationToken(userId: number, token: string): Promise<boolean>;
+  
+  // Device and session operations
+  updateDeviceLastLogin(deviceId: number): Promise<boolean>;
+  getUserSessions(userId: number): Promise<any[]>;
+  
+  // Password reset operations
+  createPasswordResetToken(userId: number, token: string, expires: Date): Promise<{ id: number, userId: number, token: string, expires: Date }>;
+  validatePasswordResetToken(token: string): Promise<{ userId: number } | null>;
+  invalidatePasswordResetToken(token: string): Promise<boolean>;
   
   // Token stats operations
   getTokenStats(): Promise<TokenStat[]>;
@@ -131,6 +167,53 @@ export interface IStorage {
   
   // User token balance operations
   updateUserTokenBalance(userId: number, newBalance: number): Promise<boolean>;
+  
+  // Token Faucet operations
+  recordTokenClaim(userId: number, amount: number): Promise<TokenClaim>;
+  getLastTokenClaim(userId: number): Promise<TokenClaim | undefined>;
+  getUserTokenClaims(userId: number): Promise<TokenClaim[]>;
+  
+  // Community Challenge operations
+  getChallenges(activeOnly?: boolean, type?: string, difficultyLevel?: string): Promise<CommunityChallenge[]>;
+  getChallenge(id: number): Promise<CommunityChallenge | undefined>;
+  createChallenge(challenge: InsertCommunityChallenge): Promise<CommunityChallenge>;
+  updateChallenge(id: number, challenge: Partial<InsertCommunityChallenge>): Promise<CommunityChallenge | undefined>;
+  getActiveChallenge(): Promise<CommunityChallenge | undefined>;
+  
+  // Challenge Submission operations
+  getChallengeSubmissions(challengeId?: number, userId?: number, status?: string): Promise<ChallengeSubmission[]>;
+  getChallengeSubmission(id: number): Promise<ChallengeSubmission | undefined>;
+  createChallengeSubmission(submission: InsertChallengeSubmission): Promise<ChallengeSubmission>;
+  updateChallengeSubmissionStatus(id: number, status: string, reviewedBy: number, reviewNotes?: string): Promise<boolean>;
+  getUserChallengeSubmission(userId: number, challengeId: number): Promise<ChallengeSubmission | undefined>;
+  claimChallengeReward(submissionId: number): Promise<boolean>;
+  
+  // Community Votes operations
+  getSubmissionVotes(submissionId: number): Promise<CommunityVote[]>;
+  getUserVote(userId: number, submissionId: number): Promise<CommunityVote | undefined>;
+  createCommunityVote(vote: InsertCommunityVote): Promise<CommunityVote>;
+  getSubmissionVoteCounts(submissionId: number): Promise<{upvotes: number, downvotes: number}>;
+  
+  // Challenge Tags operations
+  getAllChallengeTags(): Promise<ChallengeTag[]>;
+  getChallengeTag(id: number): Promise<ChallengeTag | undefined>;
+  createChallengeTag(tag: InsertChallengeTag): Promise<ChallengeTag>;
+  getChallengeTags(challengeId: number): Promise<ChallengeTag[]>;
+  addTagToChallenge(challengeId: number, tagId: number): Promise<boolean>;
+  
+  // Mascot daily tips operations
+  getDailyTips(category?: string, difficulty?: string): Promise<DailyTip[]>;
+  getDailyTip(id: number): Promise<DailyTip | undefined>;
+  createDailyTip(tip: InsertDailyTip): Promise<DailyTip>;
+  updateDailyTip(id: number, tip: Partial<InsertDailyTip>): Promise<DailyTip | undefined>;
+  getRandomDailyTip(category?: string, difficulty?: string, excludedIds?: number[]): Promise<DailyTip | undefined>;
+  markTipAsDisplayed(id: number): Promise<boolean>;
+  
+  // Mascot settings operations
+  getMascotSettings(userId: number): Promise<MascotSettings | undefined>;
+  createMascotSettings(settings: InsertMascotSettings): Promise<MascotSettings>;
+  updateMascotSettings(userId: number, settings: Partial<InsertMascotSettings>): Promise<MascotSettings | undefined>;
+  updateLastInteraction(userId: number): Promise<boolean>;
 
   // Mining operations
   getMiningRigs(availableOnly?: boolean): Promise<MiningRig[]>;
@@ -169,6 +252,48 @@ export interface IStorage {
   getUnstoppableDomainBenefits(domainId: number): Promise<UnstoppableDomainBenefit[]>;
   createUnstoppableDomainBenefit(benefit: InsertUnstoppableDomainBenefit): Promise<UnstoppableDomainBenefit>;
   updateUserUnstoppableDomainPreference(userId: number, useAsUsername: boolean): Promise<boolean>;
+
+  // Learning Module operations
+  getLearningModules(categoryFilter?: string, activeOnly?: boolean): Promise<LearningModule[]>;
+  getLearningModule(id: number): Promise<LearningModule | undefined>;
+  createLearningModule(module: InsertLearningModule): Promise<LearningModule>;
+  updateLearningModule(id: number, module: Partial<InsertLearningModule>): Promise<LearningModule | undefined>;
+  
+  // Learning Lesson operations
+  getLearningLessons(moduleId: number): Promise<LearningLesson[]>;
+  getLearningLesson(id: number): Promise<LearningLesson | undefined>;
+  createLearningLesson(lesson: InsertLearningLesson): Promise<LearningLesson>;
+  updateLearningLesson(id: number, lesson: Partial<InsertLearningLesson>): Promise<LearningLesson | undefined>;
+  
+  // User Progress operations
+  getUserModuleProgress(userId: number, moduleId?: number): Promise<UserModuleProgress[]>;
+  getUserModuleProgressDetail(id: number): Promise<UserModuleProgress | undefined>;
+  createUserModuleProgress(progress: InsertUserModuleProgress): Promise<UserModuleProgress>;
+  updateUserModuleProgress(id: number, percentComplete: number, lastLessonId?: number, pointsEarned?: number, timeSpentMinutes?: number): Promise<UserModuleProgress | undefined>;
+  completeUserModuleProgress(id: number): Promise<UserModuleProgress | undefined>;
+  
+  getUserLessonProgress(userId: number, moduleId?: number, lessonId?: number): Promise<UserLessonProgress[]>;
+  getUserLessonProgressDetail(id: number): Promise<UserLessonProgress | undefined>;
+  createUserLessonProgress(progress: InsertUserLessonProgress): Promise<UserLessonProgress>;
+  updateUserLessonProgress(id: number, timeSpentMinutes?: number, pointsEarned?: number): Promise<UserLessonProgress | undefined>;
+  completeUserLessonProgress(id: number): Promise<UserLessonProgress | undefined>;
+  
+  // Social Sharing operations
+  getUserSocialShares(userId: number): Promise<SocialShare[]>;
+  getSocialShare(id: number): Promise<SocialShare | undefined>;
+  createSocialShare(share: InsertSocialShare): Promise<SocialShare>;
+  updateSocialShareEngagement(id: number, metrics: { likes?: number, comments?: number, shares?: number, clicks?: number }): Promise<SocialShare | undefined>;
+  
+  // Learning Achievements operations
+  getUserLearningAchievements(userId: number): Promise<LearningAchievement[]>;
+  getLearningAchievement(id: number): Promise<LearningAchievement | undefined>;
+  createLearningAchievement(achievement: InsertLearningAchievement): Promise<LearningAchievement>;
+  
+  // User Learning Stats operations
+  getUserLearningStats(userId: number): Promise<UserLearningStats | undefined>;
+  createUserLearningStats(stats: InsertUserLearningStats): Promise<UserLearningStats>;
+  updateUserLearningStats(userId: number, stats: Partial<InsertUserLearningStats>): Promise<UserLearningStats | undefined>;
+  updateUserLearningStreak(userId: number, increment?: boolean): Promise<UserLearningStats | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -183,13 +308,118 @@ export class DatabaseStorage implements IStorage {
     const [user] = await db.select().from(users).where(eq(users.username, username));
     return user;
   }
+  
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+  
+  async getUserByVerificationToken(token: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.verificationToken, token));
+    return user;
+  }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
+  async createUser(insertUser: any): Promise<User> {
     const [user] = await db
       .insert(users)
       .values(insertUser)
       .returning();
     return user;
+  }
+  
+  async verifyUser(userId: number): Promise<boolean> {
+    await db
+      .update(users)
+      .set({ 
+        isVerified: true,
+        verificationToken: null 
+      })
+      .where(eq(users.id, userId));
+    return true;
+  }
+  
+  async updateLastLogin(userId: number): Promise<boolean> {
+    const now = new Date();
+    await db
+      .update(users)
+      .set({ lastLoginAt: now })
+      .where(eq(users.id, userId));
+    return true;
+  }
+  
+  async updateUserPassword(userId: number, passwordHash: string): Promise<boolean> {
+    await db
+      .update(users)
+      .set({ passwordHash })
+      .where(eq(users.id, userId));
+    return true;
+  }
+  
+  async updateUserLastActivity(userId: number): Promise<boolean> {
+    const now = new Date();
+    await db
+      .update(users)
+      .set({ lastActiveAt: now })
+      .where(eq(users.id, userId));
+    return true;
+  }
+  
+  async updateDeviceLastLogin(deviceId: number): Promise<boolean> {
+    const now = new Date();
+    await db
+      .update(userDevices)
+      .set({ lastLoginAt: now })
+      .where(eq(userDevices.id, deviceId));
+    return true;
+  }
+  
+  async getUserSessions(userId: number): Promise<any[]> {
+    return db
+      .select()
+      .from(userSessions)
+      .where(eq(userSessions.userId, userId))
+      .orderBy(desc(userSessions.lastActiveAt));
+  }
+  
+  async updateVerificationToken(userId: number, token: string): Promise<boolean> {
+    await db
+      .update(users)
+      .set({ verificationToken: token })
+      .where(eq(users.id, userId));
+    return true;
+  }
+  
+  // Password reset operations
+  async createPasswordResetToken(userId: number, token: string, expires: Date): Promise<{ id: number, userId: number, token: string, expires: Date }> {
+    const [resetToken] = await db
+      .insert(passwordResetTokens)
+      .values({ userId, token, expires })
+      .returning();
+    return resetToken as { id: number, userId: number, token: string, expires: Date };
+  }
+  
+  async validatePasswordResetToken(token: string): Promise<{ userId: number } | null> {
+    const now = new Date();
+    const [resetToken] = await db
+      .select()
+      .from(passwordResetTokens)
+      .where(and(
+        eq(passwordResetTokens.token, token),
+        eq(passwordResetTokens.used, false),
+        gte(passwordResetTokens.expires, now)
+      ));
+      
+    if (!resetToken) return null;
+    
+    return { userId: resetToken.userId };
+  }
+  
+  async invalidatePasswordResetToken(token: string): Promise<boolean> {
+    await db
+      .update(passwordResetTokens)
+      .set({ used: true })
+      .where(eq(passwordResetTokens.token, token));
+    return true;
   }
   
   // Token stats operations
@@ -1137,6 +1367,1009 @@ export class DatabaseStorage implements IStorage {
       return false;
     }
   }
+
+  // Implementation of Learning Module methods
+  async getLearningModules(categoryFilter?: string, activeOnly?: boolean): Promise<LearningModule[]> {
+    try {
+      let query = db.select().from(learningModules);
+    
+      if (categoryFilter) {
+        query = query.where(eq(learningModules.category, categoryFilter));
+      }
+    
+      if (activeOnly) {
+        query = query.where(eq(learningModules.isActive, true));
+      }
+    
+      return query.orderBy(learningModules.order);
+    } catch (error) {
+      console.error('Error fetching learning modules:', error);
+      return [];
+    }
+  }
+  
+  async getLearningModule(id: number): Promise<LearningModule | undefined> {
+    try {
+      const [module] = await db.select().from(learningModules).where(eq(learningModules.id, id));
+      return module;
+    } catch (error) {
+      console.error(`Error fetching learning module ${id}:`, error);
+      return undefined;
+    }
+  }
+  
+  async createLearningModule(insertModule: InsertLearningModule): Promise<LearningModule> {
+    const [module] = await db
+      .insert(learningModules)
+      .values(insertModule)
+      .returning();
+    return module;
+  }
+  
+  async updateLearningModule(id: number, partialModule: Partial<InsertLearningModule>): Promise<LearningModule | undefined> {
+    try {
+      const [updatedModule] = await db
+        .update(learningModules)
+        .set(partialModule)
+        .where(eq(learningModules.id, id))
+        .returning();
+      return updatedModule;
+    } catch (error) {
+      console.error(`Error updating learning module ${id}:`, error);
+      return undefined;
+    }
+  }
+  
+  // Implementation of Learning Lesson methods
+  async getLearningLessons(moduleId: number): Promise<LearningLesson[]> {
+    try {
+      return db
+        .select()
+        .from(learningLessons)
+        .where(eq(learningLessons.moduleId, moduleId))
+        .orderBy(learningLessons.order);
+    } catch (error) {
+      console.error(`Error fetching lessons for module ${moduleId}:`, error);
+      return [];
+    }
+  }
+  
+  async getLearningLesson(id: number): Promise<LearningLesson | undefined> {
+    try {
+      const [lesson] = await db.select().from(learningLessons).where(eq(learningLessons.id, id));
+      return lesson;
+    } catch (error) {
+      console.error(`Error fetching learning lesson ${id}:`, error);
+      return undefined;
+    }
+  }
+  
+  async createLearningLesson(insertLesson: InsertLearningLesson): Promise<LearningLesson> {
+    const [lesson] = await db
+      .insert(learningLessons)
+      .values(insertLesson)
+      .returning();
+    return lesson;
+  }
+  
+  async updateLearningLesson(id: number, partialLesson: Partial<InsertLearningLesson>): Promise<LearningLesson | undefined> {
+    try {
+      const [updatedLesson] = await db
+        .update(learningLessons)
+        .set(partialLesson)
+        .where(eq(learningLessons.id, id))
+        .returning();
+      return updatedLesson;
+    } catch (error) {
+      console.error(`Error updating learning lesson ${id}:`, error);
+      return undefined;
+    }
+  }
+
+  // Implementation of User Module Progress methods
+  async getUserModuleProgress(userId: number, moduleId?: number): Promise<UserModuleProgress[]> {
+    try {
+      let query = db.select().from(userModuleProgress).where(eq(userModuleProgress.userId, userId));
+      
+      if (moduleId) {
+        query = query.where(eq(userModuleProgress.moduleId, moduleId));
+      }
+      
+      return query;
+    } catch (error) {
+      console.error(`Error fetching module progress for user ${userId}:`, error);
+      return [];
+    }
+  }
+  
+  async getUserModuleProgressDetail(id: number): Promise<UserModuleProgress | undefined> {
+    try {
+      const [progress] = await db.select().from(userModuleProgress).where(eq(userModuleProgress.id, id));
+      return progress;
+    } catch (error) {
+      console.error(`Error fetching module progress detail ${id}:`, error);
+      return undefined;
+    }
+  }
+  
+  async createUserModuleProgress(insertProgress: InsertUserModuleProgress): Promise<UserModuleProgress> {
+    const [progress] = await db
+      .insert(userModuleProgress)
+      .values({
+        ...insertProgress,
+        startedAt: new Date(),
+        percentComplete: 0
+      })
+      .returning();
+    return progress;
+  }
+  
+  async updateUserModuleProgress(id: number, percentComplete: number, lastLessonId?: number, pointsEarned?: number, timeSpentMinutes?: number): Promise<UserModuleProgress | undefined> {
+    try {
+      const updateData: any = { percentComplete };
+      
+      if (lastLessonId) updateData.lastLessonId = lastLessonId;
+      if (pointsEarned !== undefined) updateData.pointsEarned = pointsEarned;
+      if (timeSpentMinutes !== undefined) updateData.timeSpentMinutes = timeSpentMinutes;
+      
+      const [updatedProgress] = await db
+        .update(userModuleProgress)
+        .set(updateData)
+        .where(eq(userModuleProgress.id, id))
+        .returning();
+      return updatedProgress;
+    } catch (error) {
+      console.error(`Error updating module progress ${id}:`, error);
+      return undefined;
+    }
+  }
+  
+  async completeUserModuleProgress(id: number): Promise<UserModuleProgress | undefined> {
+    try {
+      const now = new Date();
+      const [completedProgress] = await db
+        .update(userModuleProgress)
+        .set({
+          percentComplete: 100,
+          completedAt: now,
+          isCompleted: true
+        })
+        .where(eq(userModuleProgress.id, id))
+        .returning();
+      return completedProgress;
+    } catch (error) {
+      console.error(`Error completing module progress ${id}:`, error);
+      return undefined;
+    }
+  }
+  
+  // Implementation of User Lesson Progress methods
+  async getUserLessonProgress(userId: number, moduleId?: number, lessonId?: number): Promise<UserLessonProgress[]> {
+    try {
+      let query = db.select().from(userLessonProgress).where(eq(userLessonProgress.userId, userId));
+      
+      if (moduleId) {
+        query = query.where(eq(userLessonProgress.moduleId, moduleId));
+      }
+      
+      if (lessonId) {
+        query = query.where(eq(userLessonProgress.lessonId, lessonId));
+      }
+      
+      return query;
+    } catch (error) {
+      console.error(`Error fetching lesson progress for user ${userId}:`, error);
+      return [];
+    }
+  }
+  
+  async getUserLessonProgressDetail(id: number): Promise<UserLessonProgress | undefined> {
+    try {
+      const [progress] = await db.select().from(userLessonProgress).where(eq(userLessonProgress.id, id));
+      return progress;
+    } catch (error) {
+      console.error(`Error fetching lesson progress detail ${id}:`, error);
+      return undefined;
+    }
+  }
+  
+  async createUserLessonProgress(insertProgress: InsertUserLessonProgress): Promise<UserLessonProgress> {
+    const [progress] = await db
+      .insert(userLessonProgress)
+      .values({
+        ...insertProgress,
+        startedAt: new Date()
+      })
+      .returning();
+    return progress;
+  }
+  
+  async updateUserLessonProgress(id: number, timeSpentMinutes?: number, pointsEarned?: number): Promise<UserLessonProgress | undefined> {
+    try {
+      const updateData: any = {};
+      
+      if (timeSpentMinutes !== undefined) updateData.timeSpentMinutes = timeSpentMinutes;
+      if (pointsEarned !== undefined) updateData.pointsEarned = pointsEarned;
+      
+      const [updatedProgress] = await db
+        .update(userLessonProgress)
+        .set(updateData)
+        .where(eq(userLessonProgress.id, id))
+        .returning();
+      return updatedProgress;
+    } catch (error) {
+      console.error(`Error updating lesson progress ${id}:`, error);
+      return undefined;
+    }
+  }
+  
+  async completeUserLessonProgress(id: number): Promise<UserLessonProgress | undefined> {
+    try {
+      const now = new Date();
+      const [completedProgress] = await db
+        .update(userLessonProgress)
+        .set({
+          completedAt: now,
+          isCompleted: true
+        })
+        .where(eq(userLessonProgress.id, id))
+        .returning();
+      return completedProgress;
+    } catch (error) {
+      console.error(`Error completing lesson progress ${id}:`, error);
+      return undefined;
+    }
+  }
+
+  // Social Sharing operations implementation
+  async getUserSocialShares(userId: number): Promise<SocialShare[]> {
+    try {
+      return db
+        .select()
+        .from(socialShares)
+        .where(eq(socialShares.userId, userId))
+        .orderBy(desc(socialShares.sharedAt));
+    } catch (error) {
+      console.error(`Error fetching social shares for user ${userId}:`, error);
+      return [];
+    }
+  }
+  
+  async getSocialShare(id: number): Promise<SocialShare | undefined> {
+    try {
+      const [share] = await db.select().from(socialShares).where(eq(socialShares.id, id));
+      return share;
+    } catch (error) {
+      console.error(`Error fetching social share ${id}:`, error);
+      return undefined;
+    }
+  }
+  
+  async createSocialShare(insertShare: InsertSocialShare): Promise<SocialShare> {
+    const [share] = await db
+      .insert(socialShares)
+      .values({
+        ...insertShare,
+        sharedAt: new Date()
+      })
+      .returning();
+    return share;
+  }
+  
+  async updateSocialShareEngagement(id: number, metrics: { likes?: number, comments?: number, shares?: number, clicks?: number }): Promise<SocialShare | undefined> {
+    try {
+      const [share] = await db.select().from(socialShares).where(eq(socialShares.id, id));
+      if (!share) return undefined;
+      
+      const updateData: any = {};
+      
+      if (metrics.likes !== undefined) updateData.likesCount = (share.likesCount || 0) + metrics.likes;
+      if (metrics.comments !== undefined) updateData.commentsCount = (share.commentsCount || 0) + metrics.comments;
+      if (metrics.shares !== undefined) updateData.sharesCount = (share.sharesCount || 0) + metrics.shares;
+      if (metrics.clicks !== undefined) updateData.clicksCount = (share.clicksCount || 0) + metrics.clicks;
+      
+      const [updatedShare] = await db
+        .update(socialShares)
+        .set(updateData)
+        .where(eq(socialShares.id, id))
+        .returning();
+      return updatedShare;
+    } catch (error) {
+      console.error(`Error updating social share engagement ${id}:`, error);
+      return undefined;
+    }
+  }
+
+  // Learning Achievements operations implementation
+  async getUserLearningAchievements(userId: number): Promise<LearningAchievement[]> {
+    try {
+      return db
+        .select()
+        .from(learningAchievements)
+        .where(eq(learningAchievements.userId, userId))
+        .orderBy(desc(learningAchievements.achievedAt));
+    } catch (error) {
+      console.error(`Error fetching learning achievements for user ${userId}:`, error);
+      return [];
+    }
+  }
+  
+  async getLearningAchievement(id: number): Promise<LearningAchievement | undefined> {
+    try {
+      const [achievement] = await db.select().from(learningAchievements).where(eq(learningAchievements.id, id));
+      return achievement;
+    } catch (error) {
+      console.error(`Error fetching learning achievement ${id}:`, error);
+      return undefined;
+    }
+  }
+  
+  async createLearningAchievement(insertAchievement: InsertLearningAchievement): Promise<LearningAchievement> {
+    const [achievement] = await db
+      .insert(learningAchievements)
+      .values({
+        ...insertAchievement,
+        achievedAt: new Date()
+      })
+      .returning();
+    return achievement;
+  }
+
+  // User Learning Stats operations implementation
+  async getUserLearningStats(userId: number): Promise<UserLearningStats | undefined> {
+    try {
+      const [stats] = await db.select().from(userLearningStats).where(eq(userLearningStats.userId, userId));
+      return stats;
+    } catch (error) {
+      console.error(`Error fetching learning stats for user ${userId}:`, error);
+      return undefined;
+    }
+  }
+  
+  async createUserLearningStats(insertStats: InsertUserLearningStats): Promise<UserLearningStats> {
+    const now = new Date();
+    const [stats] = await db
+      .insert(userLearningStats)
+      .values({
+        ...insertStats,
+        lastActive: now,
+        updatedAt: now
+      })
+      .returning();
+    return stats;
+  }
+  
+  async updateUserLearningStats(userId: number, partialStats: Partial<InsertUserLearningStats>): Promise<UserLearningStats | undefined> {
+    try {
+      const now = new Date();
+      const [updatedStats] = await db
+        .update(userLearningStats)
+        .set({
+          ...partialStats,
+          lastActive: now,
+          updatedAt: now
+        })
+        .where(eq(userLearningStats.userId, userId))
+        .returning();
+      return updatedStats;
+    } catch (error) {
+      console.error(`Error updating learning stats for user ${userId}:`, error);
+      return undefined;
+    }
+  }
+  
+  async updateUserLearningStreak(userId: number, increment: boolean = true): Promise<UserLearningStats | undefined> {
+    try {
+      const [stats] = await db.select().from(userLearningStats).where(eq(userLearningStats.userId, userId));
+      if (!stats) return undefined;
+      
+      // Check if this is a new day from the user's last activity
+      const now = new Date();
+      const lastActive = stats.lastActive;
+      const isNewDay = lastActive && (
+        now.getDate() !== lastActive.getDate() ||
+        now.getMonth() !== lastActive.getMonth() ||
+        now.getFullYear() !== lastActive.getFullYear()
+      );
+      
+      let currentStreak = stats.currentStreak || 0;
+      let longestStreak = stats.longestStreak || 0;
+      
+      if (increment && isNewDay) {
+        // Increment the streak for a new day
+        currentStreak++;
+        if (currentStreak > longestStreak) {
+          longestStreak = currentStreak;
+        }
+      } else if (!increment) {
+        // Reset streak (user explicitly opted to reset)
+        currentStreak = 0;
+      }
+      
+      const [updatedStats] = await db
+        .update(userLearningStats)
+        .set({
+          currentStreak,
+          longestStreak,
+          lastActive: now,
+          updatedAt: now
+        })
+        .where(eq(userLearningStats.userId, userId))
+        .returning();
+      return updatedStats;
+    } catch (error) {
+      console.error(`Error updating learning streak for user ${userId}:`, error);
+      return undefined;
+    }
+  }
+  // Token Faucet operations
+  async recordTokenClaim(userId: number, amount: number): Promise<TokenClaim> {
+    try {
+      const [claim] = await db
+        .insert(tokenClaims)
+        .values({
+          userId,
+          amount,
+        })
+        .returning();
+      return claim;
+    } catch (error) {
+      console.error('Error recording token claim:', error);
+      throw new Error('Failed to record token claim');
+    }
+  }
+
+  async getLastTokenClaim(userId: number): Promise<TokenClaim | undefined> {
+    try {
+      const [lastClaim] = await db
+        .select()
+        .from(tokenClaims)
+        .where(eq(tokenClaims.userId, userId))
+        .orderBy(desc(tokenClaims.claimedAt))
+        .limit(1);
+      
+      return lastClaim;
+    } catch (error) {
+      console.error(`Error fetching last token claim for user ${userId}:`, error);
+      return undefined;
+    }
+  }
+
+  async getUserTokenClaims(userId: number): Promise<TokenClaim[]> {
+    try {
+      const claims = await db
+        .select()
+        .from(tokenClaims)
+        .where(eq(tokenClaims.userId, userId))
+        .orderBy(desc(tokenClaims.claimedAt));
+      return claims;
+    } catch (error) {
+      console.error(`Error fetching token claims for user ${userId}:`, error);
+      return [];
+    }
+  }
+  
+  // Community Challenge operations
+  async getChallenges(activeOnly?: boolean, type?: string, difficultyLevel?: string): Promise<CommunityChallenge[]> {
+    try {
+      let query = db.select().from(communityChallenges);
+      
+      if (activeOnly) {
+        query = query.where(eq(communityChallenges.isActive, true));
+      }
+      
+      if (type) {
+        query = query.where(eq(communityChallenges.type, type));
+      }
+      
+      if (difficultyLevel) {
+        query = query.where(eq(communityChallenges.difficultyLevel, difficultyLevel));
+      }
+      
+      return await query.orderBy(desc(communityChallenges.createdAt));
+    } catch (error) {
+      console.error('Error fetching challenges:', error);
+      return [];
+    }
+  }
+  
+  async getChallenge(id: number): Promise<CommunityChallenge | undefined> {
+    try {
+      const [challenge] = await db
+        .select()
+        .from(communityChallenges)
+        .where(eq(communityChallenges.id, id));
+      return challenge;
+    } catch (error) {
+      console.error(`Error fetching challenge with ID ${id}:`, error);
+      return undefined;
+    }
+  }
+  
+  async createChallenge(challenge: InsertCommunityChallenge): Promise<CommunityChallenge> {
+    try {
+      const [newChallenge] = await db
+        .insert(communityChallenges)
+        .values(challenge)
+        .returning();
+      return newChallenge;
+    } catch (error) {
+      console.error('Error creating challenge:', error);
+      throw error;
+    }
+  }
+  
+  async updateChallenge(id: number, challenge: Partial<InsertCommunityChallenge>): Promise<CommunityChallenge | undefined> {
+    try {
+      const [updatedChallenge] = await db
+        .update(communityChallenges)
+        .set(challenge)
+        .where(eq(communityChallenges.id, id))
+        .returning();
+      return updatedChallenge;
+    } catch (error) {
+      console.error(`Error updating challenge with ID ${id}:`, error);
+      return undefined;
+    }
+  }
+  
+  async getActiveChallenge(): Promise<CommunityChallenge | undefined> {
+    try {
+      const now = new Date();
+      const [challenge] = await db
+        .select()
+        .from(communityChallenges)
+        .where(
+          and(
+            eq(communityChallenges.isActive, true),
+            lte(communityChallenges.startDate, now),
+            gte(communityChallenges.endDate, now)
+          )
+        )
+        .orderBy(desc(communityChallenges.createdAt))
+        .limit(1);
+      return challenge;
+    } catch (error) {
+      console.error('Error fetching active challenge:', error);
+      return undefined;
+    }
+  }
+  
+  // Challenge Submission operations
+  async getChallengeSubmissions(challengeId?: number, userId?: number, status?: string): Promise<ChallengeSubmission[]> {
+    try {
+      let query = db.select().from(challengeSubmissions);
+      
+      if (challengeId) {
+        query = query.where(eq(challengeSubmissions.challengeId, challengeId));
+      }
+      
+      if (userId) {
+        query = query.where(eq(challengeSubmissions.userId, userId));
+      }
+      
+      if (status) {
+        query = query.where(eq(challengeSubmissions.status, status));
+      }
+      
+      return await query.orderBy(desc(challengeSubmissions.submittedAt));
+    } catch (error) {
+      console.error('Error fetching challenge submissions:', error);
+      return [];
+    }
+  }
+  
+  async getChallengeSubmission(id: number): Promise<ChallengeSubmission | undefined> {
+    try {
+      const [submission] = await db
+        .select()
+        .from(challengeSubmissions)
+        .where(eq(challengeSubmissions.id, id));
+      return submission;
+    } catch (error) {
+      console.error(`Error fetching challenge submission with ID ${id}:`, error);
+      return undefined;
+    }
+  }
+  
+  async createChallengeSubmission(submission: InsertChallengeSubmission): Promise<ChallengeSubmission> {
+    try {
+      const [newSubmission] = await db
+        .insert(challengeSubmissions)
+        .values(submission)
+        .returning();
+      return newSubmission;
+    } catch (error) {
+      console.error('Error creating challenge submission:', error);
+      throw error;
+    }
+  }
+  
+  async updateChallengeSubmissionStatus(id: number, status: string, reviewedBy: number, reviewNotes?: string): Promise<boolean> {
+    try {
+      const now = new Date();
+      await db
+        .update(challengeSubmissions)
+        .set({ 
+          status, 
+          reviewedBy, 
+          reviewedAt: now,
+          reviewNotes: reviewNotes || null 
+        })
+        .where(eq(challengeSubmissions.id, id));
+      return true;
+    } catch (error) {
+      console.error(`Error updating submission status for ID ${id}:`, error);
+      return false;
+    }
+  }
+  
+  async getUserChallengeSubmission(userId: number, challengeId: number): Promise<ChallengeSubmission | undefined> {
+    try {
+      const [submission] = await db
+        .select()
+        .from(challengeSubmissions)
+        .where(
+          and(
+            eq(challengeSubmissions.userId, userId),
+            eq(challengeSubmissions.challengeId, challengeId)
+          )
+        );
+      return submission;
+    } catch (error) {
+      console.error(`Error fetching user ${userId} submission for challenge ${challengeId}:`, error);
+      return undefined;
+    }
+  }
+  
+  async claimChallengeReward(submissionId: number): Promise<boolean> {
+    try {
+      const now = new Date();
+      await db
+        .update(challengeSubmissions)
+        .set({ 
+          rewardClaimed: true,
+          rewardClaimedAt: now 
+        })
+        .where(eq(challengeSubmissions.id, submissionId));
+      return true;
+    } catch (error) {
+      console.error(`Error claiming reward for submission ${submissionId}:`, error);
+      return false;
+    }
+  }
+  
+  // Community Votes operations
+  async getSubmissionVotes(submissionId: number): Promise<CommunityVote[]> {
+    try {
+      return await db
+        .select()
+        .from(communityVotes)
+        .where(eq(communityVotes.submissionId, submissionId));
+    } catch (error) {
+      console.error(`Error fetching votes for submission ${submissionId}:`, error);
+      return [];
+    }
+  }
+  
+  async getUserVote(userId: number, submissionId: number): Promise<CommunityVote | undefined> {
+    try {
+      const [vote] = await db
+        .select()
+        .from(communityVotes)
+        .where(
+          and(
+            eq(communityVotes.userId, userId),
+            eq(communityVotes.submissionId, submissionId)
+          )
+        );
+      return vote;
+    } catch (error) {
+      console.error(`Error fetching user ${userId} vote for submission ${submissionId}:`, error);
+      return undefined;
+    }
+  }
+  
+  async createCommunityVote(vote: InsertCommunityVote): Promise<CommunityVote> {
+    try {
+      const [newVote] = await db
+        .insert(communityVotes)
+        .values(vote)
+        .returning();
+      return newVote;
+    } catch (error) {
+      console.error('Error creating community vote:', error);
+      throw error;
+    }
+  }
+  
+  async getSubmissionVoteCounts(submissionId: number): Promise<{upvotes: number, downvotes: number}> {
+    try {
+      const votes = await db
+        .select()
+        .from(communityVotes)
+        .where(eq(communityVotes.submissionId, submissionId));
+      
+      const upvotes = votes.filter(vote => vote.voteType === 'upvote').length;
+      const downvotes = votes.filter(vote => vote.voteType === 'downvote').length;
+      
+      return { upvotes, downvotes };
+    } catch (error) {
+      console.error(`Error fetching vote counts for submission ${submissionId}:`, error);
+      return { upvotes: 0, downvotes: 0 };
+    }
+  }
+  
+  // Challenge Tags operations
+  async getAllChallengeTags(): Promise<ChallengeTag[]> {
+    try {
+      return await db.select().from(challengeTags);
+    } catch (error) {
+      console.error('Error fetching challenge tags:', error);
+      return [];
+    }
+  }
+  
+  async getChallengeTag(id: number): Promise<ChallengeTag | undefined> {
+    try {
+      const [tag] = await db
+        .select()
+        .from(challengeTags)
+        .where(eq(challengeTags.id, id));
+      return tag;
+    } catch (error) {
+      console.error(`Error fetching challenge tag with ID ${id}:`, error);
+      return undefined;
+    }
+  }
+  
+  async createChallengeTag(tag: InsertChallengeTag): Promise<ChallengeTag> {
+    try {
+      const [newTag] = await db
+        .insert(challengeTags)
+        .values(tag)
+        .returning();
+      return newTag;
+    } catch (error) {
+      console.error('Error creating challenge tag:', error);
+      throw error;
+    }
+  }
+  
+  async getChallengeTags(challengeId: number): Promise<ChallengeTag[]> {
+    try {
+      const tagRelations = await db
+        .select()
+        .from(challengeToTags)
+        .where(eq(challengeToTags.challengeId, challengeId));
+      
+      if (tagRelations.length === 0) {
+        return [];
+      }
+      
+      const tagIds = tagRelations.map(relation => relation.tagId);
+      const tags = await Promise.all(
+        tagIds.map(async (tagId) => {
+          const [tag] = await db
+            .select()
+            .from(challengeTags)
+            .where(eq(challengeTags.id, tagId));
+          return tag;
+        })
+      );
+      
+      return tags.filter(Boolean) as ChallengeTag[];
+    } catch (error) {
+      console.error(`Error fetching tags for challenge ${challengeId}:`, error);
+      return [];
+    }
+  }
+  
+  async addTagToChallenge(challengeId: number, tagId: number): Promise<boolean> {
+    try {
+      await db
+        .insert(challengeToTags)
+        .values({ challengeId, tagId })
+        .returning();
+      return true;
+    } catch (error) {
+      console.error(`Error adding tag ${tagId} to challenge ${challengeId}:`, error);
+      return false;
+    }
+  }
+  
+  // Mascot daily tips operations
+  async getDailyTips(category?: string, difficulty?: string): Promise<DailyTip[]> {
+    try {
+      let query = db.select().from(dailyTips);
+      
+      if (category) {
+        query = query.where(eq(dailyTips.category, category));
+      }
+      
+      if (difficulty) {
+        query = query.where(eq(dailyTips.difficulty, difficulty));
+      }
+      
+      return await query.orderBy(desc(dailyTips.createdAt));
+    } catch (error) {
+      console.error('Error fetching daily tips:', error);
+      return [];
+    }
+  }
+  
+  async getDailyTip(id: number): Promise<DailyTip | undefined> {
+    try {
+      const [tip] = await db
+        .select()
+        .from(dailyTips)
+        .where(eq(dailyTips.id, id));
+      return tip;
+    } catch (error) {
+      console.error(`Error fetching daily tip with ID ${id}:`, error);
+      return undefined;
+    }
+  }
+  
+  async createDailyTip(tip: InsertDailyTip): Promise<DailyTip> {
+    try {
+      const [newTip] = await db
+        .insert(dailyTips)
+        .values(tip)
+        .returning();
+      return newTip;
+    } catch (error) {
+      console.error('Error creating daily tip:', error);
+      throw error;
+    }
+  }
+  
+  async updateDailyTip(id: number, tip: Partial<InsertDailyTip>): Promise<DailyTip | undefined> {
+    try {
+      const [updatedTip] = await db
+        .update(dailyTips)
+        .set(tip)
+        .where(eq(dailyTips.id, id))
+        .returning();
+      
+      return updatedTip;
+    } catch (error) {
+      console.error(`Error updating daily tip with ID ${id}:`, error);
+      return undefined;
+    }
+  }
+  
+  async getRandomDailyTip(category?: string, difficulty?: string, excludedIds: number[] = []): Promise<DailyTip | undefined> {
+    try {
+      // Build the query with conditions
+      let query = db.select().from(dailyTips);
+      
+      // Add conditions
+      const conditions = [];
+      
+      if (category) {
+        conditions.push(eq(dailyTips.category, category));
+      }
+      
+      if (difficulty) {
+        conditions.push(eq(dailyTips.difficulty, difficulty));
+      }
+      
+      // Exclude already displayed tips if provided
+      if (excludedIds.length > 0) {
+        conditions.push(notInArray(dailyTips.id, excludedIds));
+      }
+      
+      // Apply all conditions if they exist
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions));
+      }
+      
+      // Order by displayCount (ascending) and then get a limited set
+      query = query.orderBy(asc(dailyTips.displayCount)).limit(10);
+      
+      const tips = await query;
+      
+      // If we have results, pick one randomly
+      if (tips.length > 0) {
+        const randomIndex = Math.floor(Math.random() * tips.length);
+        return tips[randomIndex];
+      }
+      
+      // If no tips with the filter, try to get any tip
+      if ((category || difficulty || excludedIds.length > 0) && conditions.length > 0) {
+        // Try again without filters if nothing was found
+        const [anyTip] = await db.select().from(dailyTips).orderBy(asc(dailyTips.displayCount)).limit(1);
+        return anyTip;
+      }
+      
+      return undefined;
+    } catch (error) {
+      console.error('Error getting random daily tip:', error);
+      return undefined;
+    }
+  }
+  
+  async markTipAsDisplayed(id: number): Promise<boolean> {
+    try {
+      const now = new Date();
+      
+      await db
+        .update(dailyTips)
+        .set({
+          hasBeenDisplayed: true,
+          lastDisplayedAt: now,
+          displayCount: sql`${dailyTips.displayCount} + 1`,
+        })
+        .where(eq(dailyTips.id, id));
+      
+      return true;
+    } catch (error) {
+      console.error(`Error marking tip ${id} as displayed:`, error);
+      return false;
+    }
+  }
+  
+  // Mascot settings operations
+  async getMascotSettings(userId: number): Promise<MascotSettings | undefined> {
+    try {
+      const [settings] = await db
+        .select()
+        .from(mascotSettings)
+        .where(eq(mascotSettings.userId, userId));
+      
+      return settings;
+    } catch (error) {
+      console.error(`Error fetching mascot settings for user ${userId}:`, error);
+      return undefined;
+    }
+  }
+  
+  async createMascotSettings(settings: InsertMascotSettings): Promise<MascotSettings> {
+    try {
+      const [newSettings] = await db
+        .insert(mascotSettings)
+        .values(settings)
+        .returning();
+      
+      return newSettings;
+    } catch (error) {
+      console.error('Error creating mascot settings:', error);
+      throw error;
+    }
+  }
+  
+  async updateMascotSettings(userId: number, settings: Partial<InsertMascotSettings>): Promise<MascotSettings | undefined> {
+    try {
+      const [updated] = await db
+        .update(mascotSettings)
+        .set(settings)
+        .where(eq(mascotSettings.userId, userId))
+        .returning();
+      
+      return updated;
+    } catch (error) {
+      console.error(`Error updating mascot settings for user ${userId}:`, error);
+      return undefined;
+    }
+  }
+  
+  async updateLastInteraction(userId: number): Promise<boolean> {
+    try {
+      const now = new Date();
+      
+      await db
+        .update(mascotSettings)
+        .set({ lastInteractionAt: now })
+        .where(eq(mascotSettings.userId, userId));
+      
+      return true;
+    } catch (error) {
+      console.error(`Error updating last interaction for user ${userId}:`, error);
+      return false;
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();
+export { db }; // Exporting db for direct access when needed
