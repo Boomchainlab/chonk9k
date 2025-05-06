@@ -24,7 +24,17 @@ import {
   userInvestments, type UserInvestment, type InsertUserInvestment,
   unstoppableDomainNFTs, type UnstoppableDomainNFT, type InsertUnstoppableDomainNFT,
   unstoppableDomainBenefits, type UnstoppableDomainBenefit, type InsertUnstoppableDomainBenefit,
-  passwordResetTokens
+  passwordResetTokens,
+  userDevices, type UserDevice, type InsertUserDevice,
+  userSessions, type UserSession, type InsertUserSession,
+  // Learning and social sharing imports
+  learningModules, type LearningModule, type InsertLearningModule,
+  learningLessons, type LearningLesson, type InsertLearningLesson,
+  userModuleProgress, type UserModuleProgress, type InsertUserModuleProgress,
+  userLessonProgress, type UserLessonProgress, type InsertUserLessonProgress,
+  socialShares, type SocialShare, type InsertSocialShare,
+  learningAchievements, type LearningAchievement, type InsertLearningAchievement,
+  userLearningStats, type UserLearningStats, type InsertUserLearningStats
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lte, desc, sql } from "drizzle-orm";

@@ -48,6 +48,7 @@ import SolanaMonitor from "@/pages/SolanaMonitor";
 import TokenTransactions from "@/pages/TokenTransactions";
 import TokenPriceTracker from "@/pages/TokenPriceTracker";
 import LiquidityPools from "@/pages/LiquidityPools";
+import BlockchainVisualizer from "@/pages/BlockchainVisualizer";
 import TokenHolders from "@/pages/TokenHolders";
 import BaseTransactions from "@/pages/BaseTransactions";
 import TokenMoodVisualizerPage from "@/pages/TokenMoodVisualizer";
@@ -237,6 +238,10 @@ function Header() {
                   </Link>
                   
                   <div className="font-semibold px-3 py-1 mt-2 text-xs uppercase text-pink-300 mb-1">Blockchain</div>
+                  <Link href="/blockchain-visualizer" className="block px-3 py-1.5 hover:bg-white/10 rounded text-sm flex items-center bg-emerald-900/20 border border-emerald-500/30 my-1">
+                    <span className="flex-1">Blockchain Visualizer</span>
+                    <span className="px-1.5 py-0.5 text-[9px] bg-emerald-500 rounded text-white">EDU</span>
+                  </Link>
                   <Link href="/token-contracts" className="block px-3 py-1.5 hover:bg-white/10 rounded text-sm">
                     <span className="inline-flex items-center gap-1">
                       Contracts <span className="px-1 py-0.5 text-[9px] bg-pink-700/50 rounded">Multi-Chain</span>
@@ -352,6 +357,10 @@ function Header() {
                     <span className="flex-1">Unstoppable Domains</span>
                     <span className="px-1.5 py-0.5 text-[9px] bg-indigo-500 rounded text-white">NFT</span>
                   </Link>
+                  <Link href="/blockchain-visualizer" className="block px-3 py-1.5 hover:bg-white/10 rounded text-sm bg-emerald-900/20 border border-emerald-500/30 flex items-center">
+                    <span className="flex-1">Blockchain Visualizer</span>
+                    <span className="px-1.5 py-0.5 text-[9px] bg-emerald-500 rounded text-white">EDU</span>
+                  </Link>
                   <Link href="/solana-monitor" className="block px-3 py-1.5 hover:bg-white/10 rounded text-sm">
                     Monitor
                   </Link>
@@ -415,6 +424,7 @@ function Router() {
           <Route path="/base-transactions" component={BaseTransactions} />
           <Route path="/blockchain-streams" component={BlockchainStreams} />
           <Route path="/solana-status" component={SolanaStatusPage} />
+          <Route path="/blockchain-visualizer" component={BlockchainVisualizer} />
           <Route path="/token-contracts" component={TokenContracts} />
           <Route path="/solana-name-service" component={SolanaNameService} />
           <Route path="/token-governance" component={TokenGovernance} />

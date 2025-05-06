@@ -35,8 +35,22 @@ import {
   requireAuth, 
   requireVerified,
   generatePasswordResetToken,
-  resetPassword
+  resetPassword,
+  verifyMfaCode,
+  verifyMfaRecoveryCode,
+  setupMfa,
+  enableMfa,
+  disableMfa,
+  trustDevice,
+  untrustDevice,
+  getUserDevices,
+  removeDevice,
+  getUserSessions,
+  terminateSession,
+  terminateOtherSessions
 } from "./auth";
+import { securityService } from "./security-service";
+import { mfaService } from "./mfa-service";
 import { sendVerificationEmail } from "./email-service";
 import { eq } from "drizzle-orm";
 import { users } from "@shared/schema";
@@ -388,6 +402,276 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error sending verification email:', error);
       res.status(500).json({ error: 'Failed to send verification email' });
+    }
+  });
+  
+  // =====================================
+  // MFA Routes
+  // =====================================
+  
+  // Setup MFA
+  app.post('/api/mfa/setup', requireAuth, async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      const result = await setupMfa(req.session.userId, req);
+      res.status(200).json(result);
+    } catch (error) {
+      console.error('Error setting up MFA:', error);
+      res.status(500).json({ error: 'Failed to set up MFA' });
+    }
+  });
+  
+  // Verify and enable MFA
+  app.post('/api/mfa/enable', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const { code } = req.body;
+      if (!code) {
+        return res.status(400).json({ error: 'Verification code is required' });
+      }
+      
+      if (!req.session.userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      const success = await enableMfa(req.session.userId, code, req);
+      if (!success) {
+        return res.status(400).json({ error: 'Invalid verification code' });
+      }
+      
+      res.status(200).json({ success: true, message: 'MFA enabled successfully' });
+    } catch (error) {
+      console.error('Error enabling MFA:', error);
+      res.status(500).json({ error: 'Failed to enable MFA' });
+    }
+  });
+  
+  // Disable MFA
+  app.post('/api/mfa/disable', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const { password } = req.body;
+      if (!password) {
+        return res.status(400).json({ error: 'Password is required' });
+      }
+      
+      if (!req.session.userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      const success = await disableMfa(req.session.userId, req, password);
+      if (!success) {
+        return res.status(400).json({ error: 'Invalid password' });
+      }
+      
+      res.status(200).json({ success: true, message: 'MFA disabled successfully' });
+    } catch (error) {
+      console.error('Error disabling MFA:', error);
+      res.status(500).json({ error: 'Failed to disable MFA' });
+    }
+  });
+  
+  // Verify MFA code during login
+  app.post('/api/mfa/verify', async (req: Request, res: Response) => {
+    try {
+      const { code, type, userId } = req.body;
+      if (!code || !type || !userId) {
+        return res.status(400).json({ error: 'Code, type, and userId are required' });
+      }
+      
+      let success = false;
+      if (type === 'totp') {
+        success = await verifyMfaCode(userId, code, req);
+      } else if (type === 'recovery') {
+        success = await verifyMfaRecoveryCode(userId, code, req);
+      } else {
+        return res.status(400).json({ error: 'Invalid verification type' });
+      }
+      
+      if (!success) {
+        return res.status(400).json({ error: 'Invalid verification code' });
+      }
+      
+      // Get user and create session
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      // Set session data
+      req.session.userId = user.id;
+      req.session.isVerified = user.isVerified;
+      
+      // Return user without sensitive data
+      const { passwordHash, ...userWithoutPassword } = user;
+      res.status(200).json({
+        success: true,
+        message: 'MFA verification successful',
+        user: userWithoutPassword
+      });
+    } catch (error) {
+      console.error('Error verifying MFA:', error);
+      res.status(500).json({ error: 'Failed to verify MFA' });
+    }
+  });
+  
+  // =====================================
+  // Device Management Routes
+  // =====================================
+  
+  // Get user devices
+  app.get('/api/devices', requireAuth, async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      const devices = await getUserDevices(req.session.userId);
+      res.status(200).json(devices);
+    } catch (error) {
+      console.error('Error fetching devices:', error);
+      res.status(500).json({ error: 'Failed to fetch devices' });
+    }
+  });
+  
+  // Trust a device (skip MFA for this device)
+  app.post('/api/devices/:deviceId/trust', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const { deviceId } = req.params;
+      if (!deviceId) {
+        return res.status(400).json({ error: 'Device ID is required' });
+      }
+      
+      if (!req.session.userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      const success = await trustDevice(req.session.userId, deviceId, req);
+      if (!success) {
+        return res.status(400).json({ error: 'Failed to trust device' });
+      }
+      
+      res.status(200).json({ success: true, message: 'Device trusted successfully' });
+    } catch (error) {
+      console.error('Error trusting device:', error);
+      res.status(500).json({ error: 'Failed to trust device' });
+    }
+  });
+  
+  // Untrust a device (require MFA again for this device)
+  app.post('/api/devices/:deviceId/untrust', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const { deviceId } = req.params;
+      if (!deviceId) {
+        return res.status(400).json({ error: 'Device ID is required' });
+      }
+      
+      if (!req.session.userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      const success = await untrustDevice(req.session.userId, deviceId, req);
+      if (!success) {
+        return res.status(400).json({ error: 'Failed to untrust device' });
+      }
+      
+      res.status(200).json({ success: true, message: 'Device untrusted successfully' });
+    } catch (error) {
+      console.error('Error untrusting device:', error);
+      res.status(500).json({ error: 'Failed to untrust device' });
+    }
+  });
+  
+  // Remove a device
+  app.delete('/api/devices/:deviceId', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const { deviceId } = req.params;
+      if (!deviceId) {
+        return res.status(400).json({ error: 'Device ID is required' });
+      }
+      
+      if (!req.session.userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      const success = await removeDevice(req.session.userId, deviceId, req);
+      if (!success) {
+        return res.status(400).json({ error: 'Failed to remove device' });
+      }
+      
+      res.status(200).json({ success: true, message: 'Device removed successfully' });
+    } catch (error) {
+      console.error('Error removing device:', error);
+      res.status(500).json({ error: 'Failed to remove device' });
+    }
+  });
+  
+  // =====================================
+  // Session Management Routes
+  // =====================================
+  
+  // Get active sessions
+  app.get('/api/sessions', requireAuth, async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      const sessions = await getUserSessions(req.session.userId);
+      res.status(200).json(sessions);
+    } catch (error) {
+      console.error('Error fetching sessions:', error);
+      res.status(500).json({ error: 'Failed to fetch sessions' });
+    }
+  });
+  
+  // Terminate a specific session
+  app.delete('/api/sessions/:sessionToken', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const { sessionToken } = req.params;
+      if (!sessionToken) {
+        return res.status(400).json({ error: 'Session token is required' });
+      }
+      
+      if (!req.session.userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      const success = await terminateSession(req.session.userId, sessionToken, req);
+      if (!success) {
+        return res.status(400).json({ error: 'Failed to terminate session' });
+      }
+      
+      res.status(200).json({ success: true, message: 'Session terminated successfully' });
+    } catch (error) {
+      console.error('Error terminating session:', error);
+      res.status(500).json({ error: 'Failed to terminate session' });
+    }
+  });
+  
+  // Terminate all other sessions
+  app.post('/api/sessions/terminate-others', requireAuth, async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      // Get current session token from cookie or header
+      const currentSessionToken = req.headers['x-session-token'] as string || req.cookies?.session;
+      if (!currentSessionToken) {
+        return res.status(400).json({ error: 'Current session token not found' });
+      }
+      
+      const success = await terminateOtherSessions(req.session.userId, currentSessionToken, req);
+      if (!success) {
+        return res.status(400).json({ error: 'Failed to terminate other sessions' });
+      }
+      
+      res.status(200).json({ success: true, message: 'All other sessions terminated successfully' });
+    } catch (error) {
+      console.error('Error terminating other sessions:', error);
+      res.status(500).json({ error: 'Failed to terminate other sessions' });
     }
   });
   // Badge routes

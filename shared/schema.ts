@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, doublePrecision, timestamp, varchar, json, date } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, doublePrecision, timestamp, varchar, json, date, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -338,6 +338,108 @@ export const securityEvents = pgTable("security_events", {
   metadata: json("metadata").$type<Record<string, any>>()
 });
 
+// Learning Modules and Courses
+export const learningModules = pgTable("learning_modules", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description").notNull(),
+  difficultyLevel: varchar("difficulty_level", { length: 50 }).notNull(), // beginner, intermediate, advanced
+  estimatedTimeMinutes: integer("estimated_time_minutes").notNull(),
+  category: varchar("category", { length: 100 }).notNull(), // blockchain, defi, nft, etc.
+  imageUrl: text("image_url"),
+  tags: text("tags").array(),
+  sortOrder: integer("sort_order").default(0),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const learningLessons = pgTable("learning_lessons", {
+  id: serial("id").primaryKey(),
+  moduleId: integer("module_id").references(() => learningModules.id).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  content: text("content").notNull(),
+  mediaUrl: text("media_url"),
+  mediaType: varchar("media_type", { length: 50 }), // video, image, interactive
+  sortOrder: integer("sort_order").default(0),
+  points: integer("points").default(10).notNull(), // points earned for completing
+  isActive: boolean("is_active").default(true),
+  estimatedTimeMinutes: integer("estimated_time_minutes").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const userModuleProgress = pgTable("user_module_progress", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  moduleId: integer("module_id").references(() => learningModules.id).notNull(),
+  startedAt: timestamp("started_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+  percentComplete: integer("percent_complete").default(0).notNull(),
+  lastLessonId: integer("last_lesson_id").references(() => learningLessons.id),
+  pointsEarned: integer("points_earned").default(0).notNull(),
+  timeSpentMinutes: integer("time_spent_minutes").default(0).notNull(),
+});
+
+export const userLessonProgress = pgTable("user_lesson_progress", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  lessonId: integer("lesson_id").references(() => learningLessons.id).notNull(),
+  moduleId: integer("module_id").references(() => learningModules.id).notNull(),
+  startedAt: timestamp("started_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+  isCompleted: boolean("is_completed").default(false),
+  timeSpentMinutes: integer("time_spent_minutes").default(0),
+  pointsEarned: integer("points_earned").default(0),
+});
+
+// Social Sharing
+export const socialShares = pgTable("social_shares", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  platform: varchar("platform", { length: 50 }).notNull(), // twitter, linkedin, facebook, etc.
+  content: text("content").notNull(), 
+  moduleId: integer("module_id").references(() => learningModules.id),
+  lessonId: integer("lesson_id").references(() => learningLessons.id),
+  badgeId: integer("badge_id").references(() => badges.id),
+  shareUrl: text("share_url"),
+  imageUrl: text("image_url"),
+  pointsEarned: integer("points_earned").default(5).notNull(),
+  sharedAt: timestamp("shared_at").defaultNow(),
+  engagementMetrics: jsonb("engagement_metrics").$type<{
+    likes?: number;
+    comments?: number;
+    shares?: number;
+    clicks?: number;
+  }>(),
+});
+
+// Achievements and Leaderboard data
+export const learningAchievements = pgTable("learning_achievements", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  achievementType: varchar("achievement_type", { length: 50 }).notNull(), // module_completion, sharing_milestone, streak
+  moduleId: integer("module_id").references(() => learningModules.id),
+  value: integer("value").default(1).notNull(), // count or value achieved
+  description: text("description").notNull(),
+  pointsEarned: integer("points_earned").default(0).notNull(),
+  achievedAt: timestamp("achieved_at").defaultNow(),
+});
+
+export const userLearningStats = pgTable("user_learning_stats", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  totalPointsEarned: integer("total_points_earned").default(0).notNull(),
+  modulesCompleted: integer("modules_completed").default(0).notNull(),
+  lessonsCompleted: integer("lessons_completed").default(0).notNull(),
+  totalTimeSpentMinutes: integer("total_time_spent_minutes").default(0).notNull(),
+  shareCount: integer("share_count").default(0).notNull(),
+  currentStreak: integer("current_streak").default(0).notNull(),
+  longestStreak: integer("longest_streak").default(0).notNull(),
+  lastActive: timestamp("last_active").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   tokenPurchases: many(tokenPurchases),
@@ -361,6 +463,12 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   sessions: many(userSessions),
   mfaBackupCodes: many(mfaBackupCodes),
   securityEvents: many(securityEvents),
+  // Learning progress relations
+  moduleProgress: many(userModuleProgress),
+  lessonProgress: many(userLessonProgress),
+  socialShares: many(socialShares),
+  learningAchievements: many(learningAchievements),
+  learningStats: many(userLearningStats),
 }));
 
 export const tokenPurchasesRelations = relations(tokenPurchases, ({ one }) => ({
@@ -607,6 +715,87 @@ export const passwordResetTokensRelations = relations(passwordResetTokens, ({ on
   }),
 }));
 
+// Learning and social sharing relations
+export const learningModulesRelations = relations(learningModules, ({ many }) => ({
+  lessons: many(learningLessons),
+  userProgress: many(userModuleProgress),
+}));
+
+export const learningLessonsRelations = relations(learningLessons, ({ one, many }) => ({
+  module: one(learningModules, {
+    fields: [learningLessons.moduleId],
+    references: [learningModules.id],
+  }),
+  userProgress: many(userLessonProgress),
+}));
+
+export const userModuleProgressRelations = relations(userModuleProgress, ({ one }) => ({
+  user: one(users, {
+    fields: [userModuleProgress.userId],
+    references: [users.id],
+  }),
+  module: one(learningModules, {
+    fields: [userModuleProgress.moduleId],
+    references: [learningModules.id],
+  }),
+  lastLesson: one(learningLessons, {
+    fields: [userModuleProgress.lastLessonId],
+    references: [learningLessons.id],
+  }),
+}));
+
+export const userLessonProgressRelations = relations(userLessonProgress, ({ one }) => ({
+  user: one(users, {
+    fields: [userLessonProgress.userId],
+    references: [users.id],
+  }),
+  lesson: one(learningLessons, {
+    fields: [userLessonProgress.lessonId],
+    references: [learningLessons.id],
+  }),
+  module: one(learningModules, {
+    fields: [userLessonProgress.moduleId],
+    references: [learningModules.id],
+  }),
+}));
+
+export const socialSharesRelations = relations(socialShares, ({ one }) => ({
+  user: one(users, {
+    fields: [socialShares.userId],
+    references: [users.id],
+  }),
+  module: one(learningModules, {
+    fields: [socialShares.moduleId],
+    references: [learningModules.id],
+  }),
+  lesson: one(learningLessons, {
+    fields: [socialShares.lessonId],
+    references: [learningLessons.id],
+  }),
+  badge: one(badges, {
+    fields: [socialShares.badgeId],
+    references: [badges.id],
+  }),
+}));
+
+export const learningAchievementsRelations = relations(learningAchievements, ({ one }) => ({
+  user: one(users, {
+    fields: [learningAchievements.userId],
+    references: [users.id],
+  }),
+  module: one(learningModules, {
+    fields: [learningAchievements.moduleId],
+    references: [learningModules.id],
+  }),
+}));
+
+export const userLearningStatsRelations = relations(userLearningStats, ({ one }) => ({
+  user: one(users, {
+    fields: [userLearningStats.userId],
+    references: [users.id],
+  }),
+}));
+
 export const insertUserSchema = createInsertSchema(users)
   .omit({ id: true, createdAt: true, passwordHash: true })
   .extend({
@@ -755,3 +944,34 @@ export type SecurityEvent = typeof securityEvents.$inferSelect;
 
 export type InsertPasswordResetToken = z.infer<typeof insertPasswordResetTokenSchema>;
 export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+
+// Learning and social sharing schemas
+export const insertLearningModuleSchema = createInsertSchema(learningModules).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertLearningLessonSchema = createInsertSchema(learningLessons).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertUserModuleProgressSchema = createInsertSchema(userModuleProgress).omit({ id: true, startedAt: true });
+export const insertUserLessonProgressSchema = createInsertSchema(userLessonProgress).omit({ id: true, startedAt: true });
+export const insertSocialShareSchema = createInsertSchema(socialShares).omit({ id: true, sharedAt: true });
+export const insertLearningAchievementSchema = createInsertSchema(learningAchievements).omit({ id: true, achievedAt: true });
+export const insertUserLearningStatsSchema = createInsertSchema(userLearningStats).omit({ id: true, lastActive: true, updatedAt: true });
+
+// Learning and social sharing types
+export type InsertLearningModule = z.infer<typeof insertLearningModuleSchema>;
+export type LearningModule = typeof learningModules.$inferSelect;
+
+export type InsertLearningLesson = z.infer<typeof insertLearningLessonSchema>;
+export type LearningLesson = typeof learningLessons.$inferSelect;
+
+export type InsertUserModuleProgress = z.infer<typeof insertUserModuleProgressSchema>;
+export type UserModuleProgress = typeof userModuleProgress.$inferSelect;
+
+export type InsertUserLessonProgress = z.infer<typeof insertUserLessonProgressSchema>;
+export type UserLessonProgress = typeof userLessonProgress.$inferSelect;
+
+export type InsertSocialShare = z.infer<typeof insertSocialShareSchema>;
+export type SocialShare = typeof socialShares.$inferSelect;
+
+export type InsertLearningAchievement = z.infer<typeof insertLearningAchievementSchema>;
+export type LearningAchievement = typeof learningAchievements.$inferSelect;
+
+export type InsertUserLearningStats = z.infer<typeof insertUserLearningStatsSchema>;
+export type UserLearningStats = typeof userLearningStats.$inferSelect;
