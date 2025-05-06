@@ -1,14 +1,15 @@
 modules = ["nodejs-20", "web", "postgresql-16"]
-run = "npm run start"
-hidden = [".config", ".git", "node_modules", "dist"]
+run = "npm run dev"
+hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
+packages = ["jq"]
 
 [deployment]
 deploymentTarget = "autoscale"
-build = "npm run build"
-run = "npm run start"
+build = ["npm", "run", "build"]
+run = ["sh", "-c", "NODE_ENV=production node dist/index.js"]
 
 [[ports]]
 localPort = 5000
@@ -29,6 +30,7 @@ args = "Start application"
 [[workflows.workflow]]
 name = "Start application"
 author = "agent"
+mode = "parallel"
 
 [workflows.workflow.metadata]
 agentRequireRestartOnSave = false
@@ -37,28 +39,13 @@ agentRequireRestartOnSave = false
 task = "packager.installForAll"
 
 [[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npm run dev"
-waitForPort = 5000
+task = "workflow.run"
+args = "Start application"
 
-# Environment variables for different environments
-[env]
-NODE_ENV = "production"
-DATABASE_URL = "your_production_database_url"
-API_KEY = "your_production_api_key"
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Project"
 
-# Deployment steps for database migrations
-[[deployment.steps]]
-name = "Run database migrations"
-run = "npm run db:push"
-
-# Comments explaining the purpose of each section and key settings
-# - modules: Specifies the modules to be used
-# - run: Command to start the application
-# - hidden: List of hidden files and directories
-# - nix: Specifies the Nix channel
-# - deployment: Deployment settings
-# - ports: Port mappings
-# - workflows: Workflow settings
-# - env: Environment variables
-# - deployment.steps: Steps to be executed during deployment
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Project"

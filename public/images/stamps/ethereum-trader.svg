@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
+  <defs>
+    <linearGradient id="gradientBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3C74FF" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#627EEA" stop-opacity="0.3" />
+    </linearGradient>
+  </defs>
+  <circle cx="60" cy="60" r="58" fill="url(#gradientBg)" stroke="#627EEA" stroke-width="2" />
+  
+  <!-- ETH Logo -->
+  <g transform="translate(40, 24) scale(0.6)">
+    <path fill="#627EEA" d="M29.9 0l-0.7 2.3v64.3l0.7 0.7 29.9-17.7z" />
+    <path fill="#3C3C3B" d="M29.9 0L0 49.6l29.9 17.7V36z" />
+    <path fill="#343434" d="M29.9 72.9l-0.4 0.4v22.9l0.4 1.1 30-42z" />
+    <path fill="#8C8C8C" d="M29.9 97.3V72.9L0 55.2z" />
+    <path fill="#141414" d="M29.9 67.2l29.9-17.7-29.9-13.6z" />
+    <path fill="#393939" d="M0 49.6l29.9 17.7V31.3z" />
+  </g>
+  
+  <!-- Trading Arrows -->
+  <path d="M48 80l12-12m0 0l-8-2m8 2l-2 8" stroke="#627EEA" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M72 60l-12 12m0 0l8 2m-8-2l2-8" stroke="#627EEA" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+</svg>
