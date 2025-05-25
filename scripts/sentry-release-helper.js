@@ -5,10 +5,11 @@
  * It implements the CLI steps you provided in a JavaScript format
  */
 
-import { exec } from 'child_process';
+import { exec, execFile } from 'child_process';
 import { promisify } from 'util';
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // Configuration values
 const SENTRY_ORG = 'boomchainlab-boomtoknlab-boomt';
@@ -60,7 +61,9 @@ async function createRelease(version, authToken) {
 
   try {
     console.log(`Creating Sentry release: ${version}`);
-    await execAsync(`SENTRY_AUTH_TOKEN=${authToken} sentry-cli releases new "${version}"`);
+    await execFileAsync('sentry-cli', ['releases', 'new', version], {
+      env: { ...process.env, SENTRY_AUTH_TOKEN: authToken },
+    });
     console.log('Release created successfully');
     return true;
   } catch (error) {
