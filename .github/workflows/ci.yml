@@ -1,4 +1,6 @@
 name: CHONK9K CI
+permissions:
+  contents: read
 
 on:
   push:
