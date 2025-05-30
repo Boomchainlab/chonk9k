@@ -6,6 +6,11 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// Add explicit health check endpoint for deployments
+app.get('/health', (_req, res) => {
+  res.status(200).send('OK');
+});
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -62,9 +67,9 @@ app.use((req, res, next) => {
   const port = 5000;
   server.listen({
     port,
-    host: "0.0.0.0",
+    host: "0.0.0.0", // Required for Autoscale deployments
     reusePort: true,
   }, () => {
-    log(`serving on port ${port}`);
+    log(`serving on port ${port} - ready for connections`);
   });
 })();

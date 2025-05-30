@@ -1,0 +1,56 @@
+{
+  "extends": [
+    "config:base",
+    ":semanticCommits",
+    ":automergeDisabled",
+    ":prHourlyLimit2",
+    ":prConcurrentLimit10"
+  ],
+  "labels": ["dependencies", "renovate"],
+  "packageRules": [
+    {
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
+    },
+    {
+      "matchPackagePatterns": ["^@?types/"],
+      "groupName": "types",
+      "automerge": true
+    },
+    {
+      "matchPackagePatterns": ["eslint", "prettier", "stylelint", "typescript-eslint"],
+      "groupName": "linters and formatters",
+      "automerge": true
+    },
+    {
+      "matchPackagePatterns": ["vite", "esbuild", "tslib"],
+      "groupName": "build tools",
+      "automerge": true
+    },
+    {
+      "matchPackagePatterns": ["^tailwind", "postcss", "autoprefixer"],
+      "groupName": "tailwindcss ecosystem"
+    },
+    {
+      "matchPackagePatterns": ["^react", "^react-dom", "^@hookform/", "react-hook-form", "framer-motion"],
+      "groupName": "react ecosystem"
+    },
+    {
+      "matchPackagePatterns": ["^hardhat", "^ethers"],
+      "groupName": "web3 toolkit"
+    },
+    {
+      "matchPackagePatterns": ["drizzle-.*", "zod", "zod-validation-error"],
+      "groupName": "drizzle/zod"
+    },
+    {
+      "matchPackagePatterns": ["@actions/.*"],
+      "groupName": "github actions"
+    }
+  ],
+  "enabledManagers": ["npm", "github-actions"],
+  "semanticCommits": true,
+  "commitMessagePrefix": "chore(deps):",
+  "prCreation": "immediate",
+  "rebaseWhen": "behind-base-branch"
+}
