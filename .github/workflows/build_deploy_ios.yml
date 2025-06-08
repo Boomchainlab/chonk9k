@@ -30,7 +30,7 @@ jobs:
         run: tar czvf chonk9k-ios.tar.gz chonk9k-ios
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: chonk9k-ios-binary
           path: chonk9k-ios.tar.gz
@@ -41,7 +41,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch'  # Manual deploy only
     steps:
       - name: Download artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: chonk9k-ios-binary
           path: ./deploy
