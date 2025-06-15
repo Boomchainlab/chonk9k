@@ -15,7 +15,7 @@
     "@anthropic-ai/sdk": "^0.54.0",
     "@coral-xyz/anchor": "^0.31.0",
     "@eslint/js": "^9.25.1",
-    "@hookform/resolvers": "^3.9.1",
+    "@hookform/resolvers": "^5.0.0",
     "@jridgewell/trace-mapping": "^0.3.25",
     "@neondatabase/serverless": "^1.0.0",
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
