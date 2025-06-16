@@ -24,7 +24,7 @@ jobs:
       - name: Set Up Node.js 16.20.2
         uses: actions/setup-node@v4
         with:
-          node-version: '16.20.2'
+          node-version: '22.16.0'
           cache: 'npm'
 
       - name: Install Dependencies
