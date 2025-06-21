@@ -1,6 +1,6 @@
 [project]
 name = "chonk9k_api"
-version = "0.0.1-alpha.0"
+version = "2.3.4"
 description = "The official Python library for the chonk9k-api API"
 dynamic = ["readme"]
 license = "Apache-2.0"
