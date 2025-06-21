@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.3.5 (2025-06-21)
+
+Full Changelog: [v2.3.4...v2.3.5](https://github.com/Boomchainlab/chonk9k/compare/v2.3.4...v2.3.5)
+
+### Chores
+
+* **internal:** version bump ([b260ca4](https://github.com/Boomchainlab/chonk9k/commit/b260ca463a360d94cf508db1b743e3d021d71e23))
+
 ## 2.3.4 (2025-06-21)
 
 Full Changelog: [v0.0.1-alpha.0...v2.3.4](https://github.com/Boomchainlab/chonk9k/compare/v0.0.1-alpha.0...v2.3.4)
