@@ -16,7 +16,7 @@ The full API of this library can be found in [api.md](api.md).
 
 ```sh
 # install from PyPI
-pip install --pre chonk9k_api
+pip install chonk9k_api
 ```
 
 ## Usage
@@ -70,7 +70,7 @@ You can enable this by installing `aiohttp`:
 
 ```sh
 # install from PyPI
-pip install --pre chonk9k_api[aiohttp]
+pip install chonk9k_api[aiohttp]
 ```
 
 Then you can enable it by instantiating the client with `http_client=DefaultAioHttpClient()`:
