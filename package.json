@@ -76,7 +76,7 @@
     "framer-motion": "^11.18.2",
     "hardhat": "^2.23.0",
     "input-otp": "^1.2.4",
-    "lucide-react": "^0.453.0",
+    "lucide-react": "^0.522.0",
     "memorystore": "^1.6.7",
     "openai": "^5.0.0",
     "passport": "^0.7.0",
